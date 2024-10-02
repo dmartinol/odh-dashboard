@@ -211,7 +211,7 @@ class ProjectDetails {
     return this.findNimModelServingPlatformCard().findByTestId('nim-serving-deploy-button');
   }
 
-  findNimModelServingPlatformCard(){
+  findNimModelServingPlatformCard() {
     return cy.findByTestId('nvidia-nim-model-serving-platform-card');
   }
 
@@ -224,8 +224,8 @@ class ProjectDetails {
     return this;
   }
 
-  findServingPlatformLabel() {
-    return cy.findByTestId('serving-platform-label');
+  findServingPlatformLabel(label = 'serving-platform-label') {
+    return cy.findByTestId(label);
   }
 
   findComponent(componentName: string) {

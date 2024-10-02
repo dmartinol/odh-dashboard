@@ -25,7 +25,7 @@ export const mockProjectK8sResource = ({
   description = '',
   isDSProject = true,
   phase = 'Active',
-  disableNIMModelServing = true
+  disableNIMModelServing = true,
 }: MockResourceConfigType): ProjectKind => ({
   kind: 'Project',
   apiVersion: 'project.openshift.io/v1',
@@ -43,7 +43,7 @@ export const mockProjectK8sResource = ({
     },
     ...(hasAnnotations && {
       annotations: {
-        ...(!disableNIMModelServing && { 'opendatahub.io/nim-support':'true' }),
+        ...(!disableNIMModelServing && { 'opendatahub.io/nim-support': 'true' }),
         ...(description && { 'openshift.io/description': description }),
         ...(displayName && { 'openshift.io/display-name': displayName }),
         ...(username && { 'openshift.io/requester': username }),

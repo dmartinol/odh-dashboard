@@ -15,8 +15,10 @@ import {
   inferenceServiceModal,
   inferenceServiceModalEdit,
   modelServingGlobal,
+  nimDeployModal,
 } from '~/__tests__/cypress/cypress/pages/modelServing';
 import {
+  ConfigMapModel,
   InferenceServiceModel,
   ProjectModel,
   SecretModel,
@@ -28,6 +30,9 @@ import { ServingRuntimePlatform } from '~/types';
 import { be } from '~/__tests__/cypress/cypress/utils/should';
 import { asClusterAdminUser } from '~/__tests__/cypress/cypress/utils/mockUsers';
 import { testPagination } from '~/__tests__/cypress/cypress/utils/pagination';
+import { projectDetails } from '~/__tests__/cypress/cypress/pages/projects';
+import { mockConfigMap } from '~/__mocks__/mockConfigMap';
+import { initIntercepts as initInterceptsForNIM } from '~/__tests__/cypress/cypress/tests/mocked/projects/projectDetails.cy';
 
 type HandlersProps = {
   disableKServeConfig?: boolean;
@@ -38,6 +43,7 @@ type HandlersProps = {
   delayInferenceServices?: boolean;
   delayServingRuntimes?: boolean;
   disableKServeMetrics?: boolean;
+  enableNIMModelServing?: boolean;
 };
 
 const initIntercepts = ({
@@ -419,6 +425,151 @@ describe('Model Serving Global', () => {
 
     cy.get('@createInferenceService.all').then((interceptions) => {
       expect(interceptions).to.have.length(2); // 1 dry run request and 1 actaul request
+    });
+  });
+
+  it('Create NIM model', () => {
+    initInterceptsForNIM({
+      templates: true,
+      disableKServeConfig: false,
+      disableModelConfig: false,
+      disableNIMModelServing: false,
+    });
+
+    cy.interceptK8s('POST', SecretModel, mockSecretK8sResource({}));
+    cy.interceptK8s(
+      'POST',
+      InferenceServiceModel,
+      mockInferenceServiceK8sResource({
+        name: 'test-name',
+        path: 'test-model/',
+        modelName: 'llama-2-13b-chat',
+        runtimeName: 'test-name',
+        displayName: 'Test Name',
+        isModelMesh: true,
+      }),
+    ).as('createInferenceService');
+
+    cy.interceptK8s(
+      'POST',
+      ServingRuntimeModel,
+      mockServingRuntimeK8sResource({
+        templateDisplayName: 'NVIDIA NIM',
+        templateName: 'nvidia-nim-runtime',
+      }),
+    ).as('createServingRuntime');
+
+    cy.interceptK8s(
+      ConfigMapModel,
+      mockConfigMap({
+        data: {
+          alphafold2:
+            '{\n "name": "alphafold2",\n "displayName": "AlphaFold2",\n "shortDescription": "A widely used model for predicting the 3D structures of proteins from their amino acid sequences.",\n "namespace": "nim/deepmind",\n "tags": [\n "1.0.0"\n ],\n "latestTag": "1.0.0",\n "updatedDate": "2024-08-27T01:51:55.642Z"\n}',
+          'arctic-embed-l':
+            '{\n "name": "arctic-embed-l",\n "displayName": "Snowflake Arctic Embed Large Embedding",\n "shortDescription": "NVIDIA NIM for GPU accelerated Snowflake Arctic Embed Large Embedding inference",\n "namespace": "nim/snowflake",\n "tags": [\n "1.0.1",\n "1.0.0"\n ],\n "latestTag": "1.0.1",\n "updatedDate": "2024-07-27T00:38:40.927Z"\n}',
+          diffdock:
+            '{\n "name": "diffdock",\n "displayName": "DiffDock",\n "shortDescription": "Diffdock predicts the 3D structure of the interaction between a molecule and a protein.",\n "namespace": "nim/mit",\n "tags": [\n "1.2.0"\n ],\n "latestTag": "1.2.0",\n "updatedDate": "2024-07-31T01:07:09.680Z"\n}',
+          'fastpitch-hifigan-tts':
+            '{\n "name": "fastpitch-hifigan-tts",\n "displayName": "TTS FastPitch HifiGAN Riva",\n "shortDescription": "RIVA TTS NIM provide easy access to state-of-the-art text to speech models, capable of synthesizing English speech from text",\n "namespace": "nim/nvidia",\n "tags": [\n "1.0",\n "latest",\n "1.0.0"\n ],\n "latestTag": "1.0.0",\n "updatedDate": "2024-08-06T16:18:02.346Z"\n}',
+          'llama-2-13b-chat':
+            '{\n "name": "llama-2-13b-chat",\n "displayName": "meta-llama-2-13b-chat",\n "shortDescription": "NVIDIA NIM for GPU accelerated Llama 2 13B inference through OpenAI compatible APIs",\n "namespace": "nim/meta",\n "tags": [\n "1.0.3",\n "1",\n "1.0",\n "latest"\n ],\n "latestTag": "1.0.3",\n "updatedDate": "2024-08-21T16:10:56.252Z"\n}',
+          'llama-2-70b-chat':
+            '{\n "name": "llama-2-70b-chat",\n "displayName": "meta-llama-2-70b-chat",\n "shortDescription": "NVIDIA NIM for GPU accelerated Llama 2 70B inference through OpenAI compatible APIs",\n "namespace": "nim/meta",\n "tags": [\n "1.0.3",\n "1.0",\n "1",\n "latest"\n ],\n "latestTag": "1.0.3",\n "updatedDate": "2024-08-21T16:09:42.812Z"\n}',
+          'llama-2-7b-chat':
+            '{\n "name": "llama-2-7b-chat",\n "displayName": "meta-llama-2-7b-chat",\n "shortDescription": "NVIDIA NIM for GPU accelerated Llama 2 7B inference through OpenAI compatible APIs",\n "namespace": "nim/meta",\n "tags": [\n "1.0.3",\n "1.0",\n "1",\n "latest"\n ],\n "latestTag": "1.0.3",\n "updatedDate": "2024-08-21T16:09:01.084Z"\n}',
+          'llama-3-taiwan-70b-instruct':
+            '{\n "name": "llama-3-taiwan-70b-instruct",\n "displayName": "Llama-3-Taiwan-70B-Instruct",\n "shortDescription": "NVIDIA NIM for GPU accelerated Llama-3-Taiwan-70B-Instruct inference through OpenAI compatible APIs",\n "namespace": "nim/yentinglin",\n "tags": [\n "latest",\n "1.1.2",\n "1.1",\n "1"\n ],\n "latestTag": "latest",\n "updatedDate": "2024-08-28T03:24:13.146Z"\n}',
+          'llama-3.1-405b-instruct':
+            '{\n "name": "llama-3.1-405b-instruct",\n "displayName": "Llama-3.1-405b-instruct",\n "shortDescription": "NVIDIA NIM for GPU accelerated Llama 3.1 405B inference through OpenAI compatible APIs",\n "namespace": "nim/meta",\n "tags": [\n "1.2.0",\n "1.2",\n "1.1.2",\n "1.1",\n "1",\n "latest",\n "1.1.0"\n ],\n "latestTag": "1.2.0",\n "updatedDate": "2024-09-11T03:47:21.693Z"\n}',
+          'llama-3.1-70b-instruct':
+            '{\n "name": "llama-3.1-70b-instruct",\n "displayName": "Llama-3.1-70b-instruct",\n "shortDescription": "NVIDIA NIM for GPU accelerated Llama 3.1 70B inference through OpenAI compatible APIs",\n "namespace": "nim/meta",\n "tags": [\n "1.2.1",\n "1.2",\n "1.1.2",\n "1.1.1",\n "1.1",\n "1",\n "latest",\n "1.1.0"\n ],\n "latestTag": "1.2",\n "updatedDate": "2024-09-20T22:01:11.799Z"\n}',
+          'llama-3.1-8b-base':
+            '{\n "name": "llama-3.1-8b-base",\n "displayName": "Llama-3.1-8b-base",\n "shortDescription": "NVIDIA NIM for GPU accelerated Llama 3.1 8B inference through OpenAI compatible APIs",\n "namespace": "nim/meta",\n "tags": [\n "1.1.2",\n "1.1.1",\n "1.1",\n "1",\n "latest",\n "1.1.0"\n ],\n "latestTag": "1.1.2",\n "updatedDate": "2024-08-21T15:54:19.302Z"\n}',
+          'llama3-70b-instruct':
+            '{\n "name": "llama3-70b-instruct",\n "displayName": "Meta/Llama3-70b-instruct",\n "shortDescription": "NVIDIA NIM for GPU accelerated Llama 3 70B inference through OpenAI compatible APIs",\n "namespace": "nim/meta",\n "tags": [\n "1.0.3",\n "1.0",\n "1",\n "1.0.1",\n "latest",\n "1.0.0"\n ],\n "latestTag": "1.0.3",\n "updatedDate": "2024-09-23T18:15:48.418Z"\n}',
+          'llama3-8b-instruct':
+            '{\n "name": "llama3-8b-instruct",\n "displayName": "Meta/Llama3-8b-instruct",\n "shortDescription": "NVIDIA NIM for GPU accelerated Llama 3 8B inference through OpenAI compatible APIs",\n "namespace": "nim/meta",\n "tags": [\n "1.0.3",\n "1.0",\n "1",\n "latest",\n "1.0.0"\n ],\n "latestTag": "1.0.3",\n "updatedDate": "2024-08-03T21:47:11.384Z"\n}',
+          'megatron-1b-nmt':
+            '{\n "name": "megatron-1b-nmt",\n "displayName": "NMT Megatron Riva 1b",\n "shortDescription": "Riva NMT NIM provide easy access to state-of-the-art neural machine translation (NMT) models, capable of translating text from one language to another with exceptional accuracy.",\n "namespace": "nim/nvidia",\n "tags": [\n "1.0",\n "latest",\n "1.0.0"\n ],\n "latestTag": "1.0.0",\n "updatedDate": "2024-08-06T01:30:36.789Z"\n}',
+          'mistral-7b-instruct-v0.3':
+            '{\n "name": "mistral-7b-instruct-v0.3",\n "displayName": "Mistral-7B-Instruct-v0.3",\n "shortDescription": "NVIDIA NIM for GPU accelerated Mistral-7B-Instruct-v0.3 inference through OpenAI compatible APIs",\n "namespace": "nim/mistralai",\n "tags": [\n "1.1",\n "1.1.2",\n "1",\n "latest"\n ],\n "latestTag": "latest",\n "updatedDate": "2024-09-10T16:21:20.547Z"\n}',
+          'mistral-nemo-12b-instruct':
+            '{\n "name": "mistral-nemo-12b-instruct",\n "displayName": "Mistral-Nemo-12B-Instruct",\n "shortDescription": "NVIDIA NIM for GPU accelerated Mistral-NeMo-12B-Instruct inference through OpenAI compatible APIs",\n "namespace": "nim/nv-mistralai",\n "tags": [\n "1.2",\n "1.2.2",\n "1",\n "latest"\n ],\n "latestTag": "1.2",\n "updatedDate": "2024-09-26T19:10:40.237Z"\n}',
+          'mixtral-8x22b-instruct-v01':
+            '{\n "name": "mixtral-8x22b-instruct-v01",\n "displayName": "Mixtral-8x22B-Instruct-v0.1",\n "shortDescription": "NVIDIA NIM for GPU accelerated Mixtral-8x22B-Instruct-v0.1 inference through OpenAI compatible APIs",\n "namespace": "nim/mistralai",\n "tags": [\n "1.2.2",\n "1",\n "1.2",\n "latest",\n "1.0.0"\n ],\n "latestTag": "1.2.2",\n "updatedDate": "2024-09-26T23:51:49.835Z"\n}',
+          'mixtral-8x7b-instruct-v01':
+            '{\n "name": "mixtral-8x7b-instruct-v01",\n "displayName": "Mixtral-8x7B-Instruct-v0.1",\n "shortDescription": "NVIDIA NIM for GPU accelerated Mixtral-8x7B-Instruct-v0.1 inference through OpenAI compatible APIs",\n "namespace": "nim/mistralai",\n "tags": [\n "1.2.1",\n "1",\n "1.2",\n "1.0.0",\n "latest"\n ],\n "latestTag": "1.2.1",\n "updatedDate": "2024-09-20T21:57:44.596Z"\n}',
+          molmim:
+            '{\n "name": "molmim",\n "displayName": "MolMIM",\n "shortDescription": "MolMIM is a transformer-based model developed by NVIDIA for controlled small molecule generation.",\n "namespace": "nim/nvidia",\n "tags": [\n "1.0.0"\n ],\n "latestTag": "1.0.0",\n "updatedDate": "2024-09-23T18:19:56.199Z"\n}',
+          'nemotron-4-340b-instruct':
+            '{\n "name": "nemotron-4-340b-instruct",\n "displayName": "nemotron-4-340b-instruct",\n "shortDescription": "NVIDIA NIM for GPU accelerated Nemotron-4-340B-Instruct inference through OpenAI compatible APIs",\n "namespace": "nim/nvidia",\n "tags": [\n "latest",\n "1.1.2",\n "1.1",\n "1"\n ],\n "latestTag": "1.1.2",\n "updatedDate": "2024-08-29T18:33:09.615Z"\n}',
+          'nv-embedqa-e5-v5':
+            '{\n "name": "nv-embedqa-e5-v5",\n "displayName": "NVIDIA Retrieval QA E5 Embedding v5",\n "shortDescription": "NVIDIA NIM for GPU accelerated NVIDIA Retrieval QA E5 Embedding v5 inference",\n "namespace": "nim/nvidia",\n "tags": [\n "1.0.1",\n "1.0.0"\n ],\n "latestTag": "1.0.1",\n "updatedDate": "2024-07-27T00:37:35.717Z"\n}',
+          'nv-embedqa-mistral-7b-v2':
+            '{\n "name": "nv-embedqa-mistral-7b-v2",\n "displayName": "NVIDIA Retrieval QA Mistral 7B Embedding v2",\n "shortDescription": "NVIDIA NIM for GPU accelerated NVIDIA Retrieval QA Mistral 7B Embedding v2 inference",\n "namespace": "nim/nvidia",\n "tags": [\n "1.0.1",\n "1.0.0"\n ],\n "latestTag": "1.0.1",\n "updatedDate": "2024-07-27T00:38:04.698Z"\n}',
+          'nv-rerankqa-mistral-4b-v3':
+            '{\n "name": "nv-rerankqa-mistral-4b-v3",\n "displayName": "NVIDIA Retrieval QA Mistral 4B Reranking v3",\n "shortDescription": "NVIDIA NIM for GPU accelerated NVIDIA Retrieval QA Mistral 4B Reranking v3 inference",\n "namespace": "nim/nvidia",\n "tags": [\n "1.0.2",\n "1.0.1",\n "1.0.0"\n ],\n "latestTag": "1.0.2",\n "updatedDate": "2024-08-06T21:57:16.255Z"\n}',
+          'parakeet-ctc-1.1b-asr':
+            '{\n "name": "parakeet-ctc-1.1b-asr",\n "displayName": "ASR Parakeet CTC Riva 1.1b",\n "shortDescription": "RIVA ASR NIM delivers accurate English speech-to-text transcription and enables easy-to-use optimized ASR inference for large scale deployments.",\n "namespace": "nim/nvidia",\n "tags": [\n "1.0",\n "latest",\n "1.0.0"\n ],\n "latestTag": "1.0.0",\n "updatedDate": "2024-08-07T05:12:53.897Z"\n}',
+          proteinmpnn:
+            '{\n "name": "proteinmpnn",\n "displayName": "ProteinMPNN",\n "shortDescription": "Predicts amino acid sequences from 3D structure of proteins.",\n "namespace": "nim/ipd",\n "tags": [\n "1",\n "1.0",\n "1.0.0"\n ],\n "latestTag": "1",\n "updatedDate": "2024-08-27T01:52:07.955Z"\n}',
+        },
+        namespace: 'opendatahub',
+        name: 'nvidia-nim-images-data',
+      }),
+    );
+    projectDetails.visitSection('test-project', 'model-server');
+    projectDetails.findNimModelDeployButton().click();
+    cy.contains('Deploy model with NVIDIA NIM').should('be.visible');
+
+    // test that you can not submit on empty
+    nimDeployModal.shouldBeOpen();
+    nimDeployModal.findSubmitButton().should('be.disabled');
+
+    // test filling in minimum required fields
+    nimDeployModal.findModelNameInput().type('Test Name');
+    nimDeployModal.findNIMToDeploy().findSelectOption('meta-llama-2-13b-chat - latest').click();
+    nimDeployModal.findSubmitButton().should('be.enabled');
+
+    nimDeployModal.findSubmitButton().click();
+
+    //dry run request
+    cy.wait('@createInferenceService').then((interception) => {
+      expect(interception.request.url).to.include('?dryRun=All');
+      expect(interception.request.body).to.eql({
+        apiVersion: 'serving.kserve.io/v1beta1',
+        kind: 'InferenceService',
+        metadata: {
+          name: 'test-name',
+          namespace: 'test-project',
+          labels: { 'opendatahub.io/dashboard': 'true' },
+          annotations: {
+            'openshift.io/display-name': 'Test Name',
+          },
+        },
+        spec: {
+          predictor: {
+            model: {
+              modelFormat: { name: 'llama-2-13b-chat' },
+              runtime: 'test-name',
+              storage: { key: 'test-secret', path: 'test-model/' },
+            },
+            resources: {
+              limits: { cpu: '2', memory: '8Gi' },
+              requests: { cpu: '1', memory: '4Gi' },
+            },
+          },
+        },
+      });
+    });
+
+    // Actual request
+    cy.wait('@createInferenceService').then((interception) => {
+      expect(interception.request.url).not.to.include('?dryRun=All');
+    });
+
+    cy.get('@createInferenceService.all').then((interceptions) => {
+      expect(interceptions).to.have.length(2); // 1 dry run request and 1 actual request
     });
   });
 

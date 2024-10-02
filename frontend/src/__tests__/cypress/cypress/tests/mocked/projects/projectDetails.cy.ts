@@ -12,12 +12,9 @@ import { mockServiceAccountK8sResource } from '~/__mocks__/mockServiceAccountK8s
 import { mockProjectK8sResource } from '~/__mocks__/mockProjectK8sResource';
 import { mockRouteK8sResource } from '~/__mocks__/mockRouteK8sResource';
 import { mockSecretK8sResource } from '~/__mocks__/mockSecretK8sResource';
-import {
-  mockServingRuntimeTemplateK8sResource,
-  mockNIMServingRuntimeTemplate,
-} from '~/__mocks__/mockServingRuntimeTemplateK8sResource';
+import { mockServingRuntimeTemplateK8sResource } from '~/__mocks__/mockServingRuntimeTemplateK8sResource';
 import { projectDetails } from '~/__tests__/cypress/cypress/pages/projects';
-import { ServingRuntimePlatform } from '~/types';
+import { ServingRuntimeAPIProtocol, ServingRuntimePlatform } from '~/types';
 import {
   DataSciencePipelineApplicationModel,
   ImageStreamModel,
@@ -51,7 +48,7 @@ type HandlersProps = {
   pipelineServerInstalled?: boolean;
 };
 
-const initIntercepts = ({
+export const initIntercepts = ({
   disableKServeConfig,
   disableKServeMetrics,
   disableModelConfig,
@@ -107,7 +104,13 @@ const initIntercepts = ({
   if (!disableNIMModelServing) {
     cy.interceptK8s(
       { model: TemplateModel, ns: 'opendatahub' },
-      mockNIMServingRuntimeTemplate({}),
+      mockServingRuntimeTemplateK8sResource({
+        name: 'nvidia-nim-serving-template',
+        displayName: 'NVIDIA NIM',
+        platforms: [ServingRuntimePlatform.SINGLE],
+        apiProtocol: ServingRuntimeAPIProtocol.REST,
+        namespace: 'opendatahub',
+      }),
     );
   }
 
@@ -309,11 +312,14 @@ describe('Project Details', () => {
       });
 
       projectDetails.visitSection('test-project', 'model-server');
-      // TO BE COMPLETED ONCE THE NIM CARD APPEARS
-      projectDetails.findNimModelServingPlatformCard().contains('Models are deployed using NVIDIA NIM microservices.')
-      projectDetails.findNimModelServingPlatformCard().contains('NVIDIA NIM model serving platform')
-      projectDetails.findNimModelDeployButton().click();
-      cy.contains('Deploy model with NVIDIA NIM').should('be.visible');
+      projectDetails.shouldBeEmptyState('Models', 'model-server', true);
+      projectDetails.findServingPlatformLabel().should('not.exist');
+      projectDetails
+        .findNimModelServingPlatformCard()
+        .contains('Models are deployed using NVIDIA NIM microservices.');
+      projectDetails
+        .findNimModelServingPlatformCard()
+        .contains('NVIDIA NIM model serving platform');
     });
 
     it('Shows KServe metrics only when available', () => {

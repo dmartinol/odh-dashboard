@@ -11,23 +11,6 @@ type MockResourceConfigType = {
   isModelmesh?: boolean;
 };
 
-export const mockNIMServingRuntimeTemplate = ({
-  name = 'nvidia-nim-serving-template',
-  namespace = 'opendatahub',
-}: MockResourceConfigType): TemplateKind => ({
-  apiVersion: 'template.openshift.io/v1',
-  kind: 'Template',
-  metadata: {
-    name,
-    namespace,
-    labels: {
-      'opendatahub.io/dashboard': 'true',
-    },
-  },
-  objects: [],
-  parameters: [],
-});
-
 export const mockServingRuntimeTemplateK8sResource = ({
   name = 'template-1',
   namespace = 'opendatahub',
