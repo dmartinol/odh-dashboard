@@ -304,14 +304,16 @@ describe('Project Details', () => {
       initIntercepts({
         templates: true,
         disableKServeConfig: false,
-        disableModelConfig: true,
+        disableModelConfig: false,
         disableNIMModelServing: false,
       });
 
+      projectDetails.visitSection('test-project', 'model-server');
       // TO BE COMPLETED ONCE THE NIM CARD APPEARS
-      projectDetails.visit('test-project');
-      projectDetails.shouldBeEmptyState('Models', 'model-server', true);
-      projectDetails.findServingPlatformLabel().should('have.text', 'Single-model serving enabled');
+      projectDetails.findNimModelServingPlatformCard().contains('Models are deployed using NVIDIA NIM microservices.')
+      projectDetails.findNimModelServingPlatformCard().contains('NVIDIA NIM model serving platform')
+      projectDetails.findNimModelDeployButton().click();
+      cy.contains('Deploy model with NVIDIA NIM').should('be.visible');
     });
 
     it('Shows KServe metrics only when available', () => {
