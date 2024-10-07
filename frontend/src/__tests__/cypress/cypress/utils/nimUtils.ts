@@ -275,6 +275,6 @@ export const initInterceptorsValidatingNimEnablement = (
 
   cy.interceptK8sList(
     ProjectModel,
-    mockK8sResourceList([mockProjectK8sResource({ hasAnnotations: true })]),
+    mockK8sResourceList([mockNimEnabledProject(true)]),
   );
 };
