@@ -18,6 +18,7 @@ import {
   TemplateModel,
 } from '~/__tests__/cypress/cypress/utils/models';
 import {
+  mockNimEnabledProject,
   mockNimImages,
   mockNimInferenceService,
   mockNimModelPVC,
@@ -185,13 +186,7 @@ export const initInterceptsToEnableNim = ({ hasAllModels = false }: EnableNimCon
     }),
   );
 
-  const project = mockProjectK8sResource({
-    hasAnnotations: true,
-    enableModelMesh: hasAllModels ? undefined : false,
-  });
-  if (project.metadata.annotations != null) {
-    project.metadata.annotations['opendatahub.io/nim-support'] = 'true';
-  }
+  const project = mockNimEnabledProject(hasAllModels);
   cy.interceptK8sList(ProjectModel, mockK8sResourceList([project]));
 
   const templateMock = mockNimServingRuntimeTemplate();

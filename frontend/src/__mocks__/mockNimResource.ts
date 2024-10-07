@@ -2,6 +2,7 @@ import {
   ConfigMapKind,
   InferenceServiceKind,
   PersistentVolumeClaimKind,
+  ProjectKind,
   SecretKind,
   ServingRuntimeKind,
   TemplateKind,
@@ -13,6 +14,7 @@ import { mockInferenceServiceK8sResource } from './mockInferenceServiceK8sResour
 import { mockServingRuntimeTemplateK8sResource } from './mockServingRuntimeTemplateK8sResource';
 import { mockSecretK8sResource } from './mockSecretK8sResource';
 import { mockPVCK8sResource } from './mockPVCK8sResource';
+import { mockProjectK8sResource } from './mockProjectK8sResource';
 
 export const mockNimImages = (): ConfigMapKind =>
   mockConfigMap({
@@ -124,4 +126,16 @@ export const mockNimModelPVC = (): PersistentVolumeClaimKind => {
     name: 'nim-pvc',
   });
   return pvc;
+};
+
+export const mockNimEnabledProject = (hasAllModels: boolean): ProjectKind => {
+  const project = mockProjectK8sResource({
+    hasAnnotations: true,
+    enableModelMesh: hasAllModels ? undefined : false,
+  });
+  if (project.metadata.annotations != null) {
+    project.metadata.annotations['opendatahub.io/nim-support'] = 'true';
+  }
+
+  return project;
 };
