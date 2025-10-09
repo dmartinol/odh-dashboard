@@ -32,6 +32,15 @@ import K8sNameDescriptionField, {
 } from '@odh-dashboard/internal/concepts/k8s/K8sNameDescriptionField/K8sNameDescriptionField';
 import { McpRegistry } from '../types/registry';
 import { createMcpRegistry, updateMcpRegistry } from '../api/k8s/mcp';
+import useConfigMaps from '../hooks/useConfigMaps';
+import {
+  validateGitRepository,
+  validateConfigMap,
+  discoverTagsFromGit,
+  discoverTagsFromConfigMap,
+  GitValidationResult,
+  ConfigMapValidationResult,
+} from '../utils/registryValidation';
 
 interface McpRegistryCreateModalProps {
   isOpen: boolean;
@@ -67,11 +76,11 @@ interface RegistryFormData {
   excludeNamePatterns: string[];
   includeTags: string[];
   excludeTags: string[];
-  // Temporary input fields for adding new filters
+  // Temporary input fields for adding new name patterns (keep for name patterns only)
   newIncludeNamePattern: string;
   newExcludeNamePattern: string;
-  newIncludeTag: string;
-  newExcludeTag: string;
+  // Discovered tags for auto-completion
+  discoveredTags: string[];
 }
 
 const initialFormData: RegistryFormData = {
@@ -90,8 +99,7 @@ const initialFormData: RegistryFormData = {
   excludeTags: [],
   newIncludeNamePattern: '',
   newExcludeNamePattern: '',
-  newIncludeTag: '',
-  newExcludeTag: '',
+  discoveredTags: [],
 };
 
 const syncIntervalOptions = [
@@ -129,8 +137,7 @@ const mapRegistryToFormData = (registry: McpRegistry): RegistryFormData => {
     excludeTags: spec.filter?.tags?.exclude || [],
     newIncludeNamePattern: '',
     newExcludeNamePattern: '',
-    newIncludeTag: '',
-    newExcludeTag: '',
+    discoveredTags: [],
   };
 };
 
@@ -145,8 +152,20 @@ export const McpRegistryCreateModal: React.FC<McpRegistryCreateModalProps> = ({
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<Error>();
 
+  // Validation state
+  const [gitValidation, setGitValidation] = React.useState<GitValidationResult | null>(null);
+  const [configMapValidation, setConfigMapValidation] =
+    React.useState<ConfigMapValidationResult | null>(null);
+  const [isValidating, setIsValidating] = React.useState(false);
+
   // Determine if we're in edit mode
   const isEditMode = !!editRegistry;
+
+  // Load ConfigMaps for the current namespace
+  const currentNamespace = isEditMode
+    ? editRegistry.metadata?.namespace
+    : preferredProject?.metadata.name;
+  const [configMaps, configMapsLoaded] = useConfigMaps(currentNamespace);
 
   // Use appropriate initial form data
   const [formData, setFormData] = React.useState<RegistryFormData>(() =>
@@ -211,6 +230,103 @@ export const McpRegistryCreateModal: React.FC<McpRegistryCreateModalProps> = ({
   const updateFormData = (updates: Partial<RegistryFormData>) => {
     setFormData((prev) => ({ ...prev, ...updates }));
   };
+
+  // Real-time validation for Git repositories
+  React.useEffect(() => {
+    const validateGitSource = async () => {
+      if (formData.sourceType === 'git' && formData.gitRepository && formData.gitPath) {
+        setIsValidating(true);
+        try {
+          const result = await validateGitRepository(
+            formData.gitRepository,
+            formData.gitBranch || 'main',
+            formData.gitPath,
+          );
+          setGitValidation(result);
+
+          // Discover tags if validation passes
+          if (result.isValid) {
+            const tagResult = await discoverTagsFromGit(
+              formData.gitRepository,
+              formData.gitBranch || 'main',
+              formData.gitPath,
+            );
+            if (!tagResult.error) {
+              updateFormData({ discoveredTags: tagResult.tags });
+            }
+          }
+        } catch (validationError) {
+          setGitValidation({
+            isValid: false,
+            error: 'Failed to validate Git repository',
+          });
+        }
+        setIsValidating(false);
+      } else if (formData.sourceType === 'git') {
+        setGitValidation(null);
+        updateFormData({ discoveredTags: [] });
+      }
+    };
+
+    const timeoutId = setTimeout(validateGitSource, 500); // Debounce validation
+    return () => clearTimeout(timeoutId);
+  }, [formData.sourceType, formData.gitRepository, formData.gitBranch, formData.gitPath]);
+
+  // Real-time validation for ConfigMaps
+  React.useEffect(() => {
+    const validateConfigMapSource = async () => {
+      if (
+        formData.sourceType === 'configmap' &&
+        formData.configMapName &&
+        formData.configMapKey &&
+        configMapsLoaded
+      ) {
+        setIsValidating(true);
+        try {
+          const result = validateConfigMap(
+            formData.configMapName,
+            formData.configMapKey,
+            configMaps,
+          );
+          setConfigMapValidation(result);
+
+          // Discover tags if validation passes
+          if (result.isValid) {
+            const selectedConfigMap = configMaps.find(
+              (cm) => cm.metadata.name === formData.configMapName,
+            );
+            if (selectedConfigMap) {
+              const tagResult = await discoverTagsFromConfigMap(
+                selectedConfigMap,
+                formData.configMapKey,
+              );
+              if (!tagResult.error) {
+                updateFormData({ discoveredTags: tagResult.tags });
+              }
+            }
+          }
+        } catch (validationError) {
+          setConfigMapValidation({
+            isValid: false,
+            error: 'Failed to validate ConfigMap',
+          });
+        }
+        setIsValidating(false);
+      } else if (formData.sourceType === 'configmap') {
+        setConfigMapValidation(null);
+        updateFormData({ discoveredTags: [] });
+      }
+    };
+
+    const timeoutId = setTimeout(validateConfigMapSource, 500); // Debounce validation
+    return () => clearTimeout(timeoutId);
+  }, [
+    formData.sourceType,
+    formData.configMapName,
+    formData.configMapKey,
+    configMaps,
+    configMapsLoaded,
+  ]);
 
   const hasContent = (value: string): boolean => !!value.trim().length;
 
@@ -429,9 +545,23 @@ export const McpRegistryCreateModal: React.FC<McpRegistryCreateModalProps> = ({
               value={formData.gitRepository}
               onChange={(_, value) => updateFormData({ gitRepository: value })}
               placeholder="https://github.com/user/repo.git"
+              validated={
+                gitValidation === null ? 'default' : gitValidation.isValid ? 'success' : 'error'
+              }
             />
             <HelperText>
-              <HelperTextItem>The Git repository URL containing the registry data</HelperTextItem>
+              <HelperTextItem
+                variant={
+                  gitValidation === null
+                    ? 'indeterminate'
+                    : gitValidation.isValid
+                    ? 'success'
+                    : 'error'
+                }
+              >
+                {gitValidation?.error ?? 'The Git repository URL containing the registry data'}
+                {isValidating && ' (validating...)'}
+              </HelperTextItem>
             </HelperText>
           </FormGroup>
 
@@ -443,9 +573,28 @@ export const McpRegistryCreateModal: React.FC<McpRegistryCreateModalProps> = ({
               value={formData.gitBranch}
               onChange={(_, value) => updateFormData({ gitBranch: value })}
               placeholder="main"
+              validated={
+                gitValidation === null
+                  ? 'default'
+                  : gitValidation.details?.branchValid === false
+                  ? 'error'
+                  : 'success'
+              }
             />
             <HelperText>
-              <HelperTextItem>The Git branch to use (defaults to main)</HelperTextItem>
+              <HelperTextItem
+                variant={
+                  gitValidation === null
+                    ? 'indeterminate'
+                    : gitValidation.details?.branchValid === false
+                    ? 'error'
+                    : 'success'
+                }
+              >
+                {gitValidation?.details?.branchValid === false
+                  ? 'Invalid branch name format'
+                  : 'The Git branch to use (defaults to main)'}
+              </HelperTextItem>
             </HelperText>
           </FormGroup>
 
@@ -458,9 +607,24 @@ export const McpRegistryCreateModal: React.FC<McpRegistryCreateModalProps> = ({
               value={formData.gitPath}
               onChange={(_, value) => updateFormData({ gitPath: value })}
               placeholder="registry.json"
+              validated={
+                gitValidation === null ? 'default' : gitValidation.isValid ? 'success' : 'error'
+              }
             />
             <HelperText>
-              <HelperTextItem>Path to the registry file within the repository</HelperTextItem>
+              <HelperTextItem
+                variant={
+                  gitValidation === null
+                    ? 'indeterminate'
+                    : gitValidation.isValid
+                    ? 'success'
+                    : 'error'
+                }
+              >
+                {gitValidation?.details?.pathValid === false
+                  ? 'Invalid file path format'
+                  : 'Path to the registry file within the repository'}
+              </HelperTextItem>
             </HelperText>
           </FormGroup>
         </FormSection>
@@ -469,33 +633,115 @@ export const McpRegistryCreateModal: React.FC<McpRegistryCreateModalProps> = ({
       {formData.sourceType === 'configmap' && (
         <FormSection title="ConfigMap Configuration" titleElement="h3">
           <FormGroup label="ConfigMap Name" isRequired fieldId="configmap-name">
-            <TextInput
+            <FormSelect
               isRequired
-              type="text"
               id="configmap-name"
               name="configmap-name"
               value={formData.configMapName}
-              onChange={(_, value) => updateFormData({ configMapName: value })}
-              placeholder="mcp-registry-data"
-            />
+              onChange={(_, value) => {
+                updateFormData({
+                  configMapName: value,
+                  configMapKey: '', // Reset key when ConfigMap changes
+                });
+              }}
+              validated={
+                configMapValidation === null
+                  ? 'default'
+                  : configMapValidation.isValid
+                  ? 'success'
+                  : 'error'
+              }
+              isDisabled={!configMapsLoaded}
+            >
+              <FormSelectOption value="" label="Select a ConfigMap" isDisabled />
+              {configMaps.map((configMap) => (
+                <FormSelectOption
+                  key={configMap.metadata.name}
+                  value={configMap.metadata.name || ''}
+                  label={configMap.metadata.name || 'Unknown'}
+                />
+              ))}
+            </FormSelect>
             <HelperText>
-              <HelperTextItem>Name of the ConfigMap containing the registry data</HelperTextItem>
+              <HelperTextItem
+                variant={
+                  configMapValidation === null
+                    ? 'indeterminate'
+                    : configMapValidation.isValid
+                    ? 'success'
+                    : 'error'
+                }
+              >
+                {configMapValidation?.error || 'Name of the ConfigMap containing the registry data'}
+                {isValidating && ' (validating...)'}
+                {!configMapsLoaded && ' (loading ConfigMaps...)'}
+              </HelperTextItem>
             </HelperText>
           </FormGroup>
 
           <FormGroup label="ConfigMap Key" isRequired fieldId="configmap-key">
-            <TextInput
-              isRequired
-              type="text"
-              id="configmap-key"
-              name="configmap-key"
-              value={formData.configMapKey}
-              onChange={(_, value) => updateFormData({ configMapKey: value })}
-              placeholder="registry.json"
-            />
+            {(() => {
+              const selectedConfigMap = configMaps.find(
+                (cm) => cm.metadata.name === formData.configMapName,
+              );
+              const availableKeys = selectedConfigMap?.data
+                ? Object.keys(selectedConfigMap.data)
+                : [];
+
+              return availableKeys.length > 0 ? (
+                <FormSelect
+                  isRequired
+                  id="configmap-key"
+                  name="configmap-key"
+                  value={formData.configMapKey}
+                  onChange={(_, value) => updateFormData({ configMapKey: value })}
+                  validated={
+                    configMapValidation === null
+                      ? 'default'
+                      : configMapValidation.isValid
+                      ? 'success'
+                      : 'error'
+                  }
+                  isDisabled={!formData.configMapName}
+                >
+                  <FormSelectOption value="" label="Select a key" isDisabled />
+                  {availableKeys.map((key) => (
+                    <FormSelectOption key={key} value={key} label={key} />
+                  ))}
+                </FormSelect>
+              ) : (
+                <TextInput
+                  isRequired
+                  type="text"
+                  id="configmap-key"
+                  name="configmap-key"
+                  value={formData.configMapKey}
+                  onChange={(_, value) => updateFormData({ configMapKey: value })}
+                  placeholder="registry.json"
+                  validated={
+                    configMapValidation === null
+                      ? 'default'
+                      : configMapValidation.isValid
+                      ? 'success'
+                      : 'error'
+                  }
+                  isDisabled={!formData.configMapName}
+                />
+              );
+            })()}
             <HelperText>
-              <HelperTextItem>
-                Key within the ConfigMap that contains the registry data
+              <HelperTextItem
+                variant={
+                  configMapValidation === null
+                    ? 'indeterminate'
+                    : configMapValidation.isValid
+                    ? 'success'
+                    : 'error'
+                }
+              >
+                {configMapValidation?.error ??
+                  'Key within the ConfigMap that contains the registry data'}
+                {!formData.configMapName && ' (select a ConfigMap first)'}
               </HelperTextItem>
             </HelperText>
           </FormGroup>
@@ -719,45 +965,93 @@ export const McpRegistryCreateModal: React.FC<McpRegistryCreateModalProps> = ({
                 </HelperTextItem>
               </HelperText>
 
+              {/* Discovered Tags */}
+              <FormGroup label="Available Tags" fieldId="discovered-tags">
+                {formData.discoveredTags.length > 0 ? (
+                  <>
+                    <HelperText>
+                      <HelperTextItem variant="indeterminate">
+                        Tags discovered from the registry source. Click the &quot;+&quot; to include
+                        or &quot;✗&quot; to exclude tags from your filter.
+                      </HelperTextItem>
+                    </HelperText>
+                    <div
+                      style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}
+                    >
+                      {formData.discoveredTags.map((tag, index) => {
+                        const isIncluded = formData.includeTags.includes(tag);
+                        const isExcluded = formData.excludeTags.includes(tag);
+
+                        return (
+                          <div key={index} style={{ display: 'flex', gap: '2px' }}>
+                            <Label
+                              color={isIncluded ? 'green' : 'blue'}
+                              variant={isIncluded ? 'filled' : 'outline'}
+                              isCompact
+                              style={{ cursor: 'pointer' }}
+                              onClick={() => {
+                                if (isIncluded) {
+                                  // Remove from include list if already included
+                                  updateFormData({
+                                    includeTags: formData.includeTags.filter((t) => t !== tag),
+                                  });
+                                } else {
+                                  // Add to include list and remove from exclude if present
+                                  updateFormData({
+                                    includeTags: [...formData.includeTags, tag],
+                                    excludeTags: formData.excludeTags.filter((t) => t !== tag),
+                                  });
+                                }
+                              }}
+                            >
+                              {tag} {isIncluded ? '✓' : '+'}
+                            </Label>
+                            <Label
+                              color={isExcluded ? 'red' : 'grey'}
+                              variant={isExcluded ? 'filled' : 'outline'}
+                              isCompact
+                              style={{ cursor: 'pointer' }}
+                              onClick={() => {
+                                if (isExcluded) {
+                                  // Remove from exclude list if already excluded
+                                  updateFormData({
+                                    excludeTags: formData.excludeTags.filter((t) => t !== tag),
+                                  });
+                                } else {
+                                  // Add to exclude list and remove from include if present
+                                  updateFormData({
+                                    excludeTags: [...formData.excludeTags, tag],
+                                    includeTags: formData.includeTags.filter((t) => t !== tag),
+                                  });
+                                }
+                              }}
+                            >
+                              ✗
+                            </Label>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <HelperText>
+                    <HelperTextItem variant="indeterminate">
+                      {isValidating
+                        ? 'Discovering tags from registry source...'
+                        : 'No tags discovered. Configure your registry source to see available tags for filtering.'}
+                    </HelperTextItem>
+                  </HelperText>
+                )}
+              </FormGroup>
+
               {/* Include Tags */}
               <FormGroup label="✓ Include Tags" fieldId="include-tags">
                 <HelperText>
                   <HelperTextItem variant="indeterminate">
-                    Only import servers that have at least one of these tags.
+                    Only import servers that have at least one of these tags. Use the available tags
+                    above to add tags by clicking the &quot;+&quot; button.
                   </HelperTextItem>
                 </HelperText>
-                <TextInput
-                  type="text"
-                  id="new-include-tag"
-                  name="new-include-tag"
-                  value={formData.newIncludeTag || ''}
-                  onChange={(_, value) => updateFormData({ newIncludeTag: value })}
-                  placeholder="e.g., database, ai, web, utility"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && formData.newIncludeTag.trim()) {
-                      e.preventDefault();
-                      updateFormData({
-                        includeTags: [...formData.includeTags, formData.newIncludeTag.trim()],
-                        newIncludeTag: '',
-                      });
-                    }
-                  }}
-                />
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  isDisabled={!formData.newIncludeTag.trim()}
-                  onClick={() => {
-                    if (formData.newIncludeTag.trim()) {
-                      updateFormData({
-                        includeTags: [...formData.includeTags, formData.newIncludeTag.trim()],
-                        newIncludeTag: '',
-                      });
-                    }
-                  }}
-                >
-                  Add Tag
-                </Button>
                 {formData.includeTags.length > 0 && (
                   <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                     {formData.includeTags.map((tag, index) => (
@@ -784,41 +1078,10 @@ export const McpRegistryCreateModal: React.FC<McpRegistryCreateModalProps> = ({
               <FormGroup label="✗ Exclude Tags" fieldId="exclude-tags">
                 <HelperText>
                   <HelperTextItem variant="indeterminate">
-                    Skip servers that have any of these tags.
+                    Skip servers that have any of these tags. Use the available tags above to add
+                    tags by clicking the &quot;✗&quot; button.
                   </HelperTextItem>
                 </HelperText>
-                <TextInput
-                  type="text"
-                  id="new-exclude-tag"
-                  name="new-exclude-tag"
-                  value={formData.newExcludeTag || ''}
-                  onChange={(_, value) => updateFormData({ newExcludeTag: value })}
-                  placeholder="e.g., deprecated, experimental, legacy"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && formData.newExcludeTag.trim()) {
-                      e.preventDefault();
-                      updateFormData({
-                        excludeTags: [...formData.excludeTags, formData.newExcludeTag.trim()],
-                        newExcludeTag: '',
-                      });
-                    }
-                  }}
-                />
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  isDisabled={!formData.newExcludeTag.trim()}
-                  onClick={() => {
-                    if (formData.newExcludeTag.trim()) {
-                      updateFormData({
-                        excludeTags: [...formData.excludeTags, formData.newExcludeTag.trim()],
-                        newExcludeTag: '',
-                      });
-                    }
-                  }}
-                >
-                  Add Tag
-                </Button>
                 {formData.excludeTags.length > 0 && (
                   <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                     {formData.excludeTags.map((tag, index) => (

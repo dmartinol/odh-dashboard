@@ -37,6 +37,7 @@ import {
   CogIcon,
 } from '@patternfly/react-icons';
 import { McpRegistryStatusLabel } from '../components/McpRegistryStatusLabel';
+import { McpRegistryCreateModal } from '../components/McpRegistryCreateModal';
 import { useMcpRegistries } from '../hooks/useMcpRegistries';
 import { ProjectsContext } from '../../../../frontend/src/concepts/projects/ProjectsContext';
 
@@ -52,6 +53,7 @@ const McpRegistryDetailsPage: React.FC = () => {
   const navigate = useNavigate();
   const { projects, preferredProject, updatePreferredProject } = React.useContext(ProjectsContext);
   const [activeTabKey, setActiveTabKey] = React.useState<string>(RegistryDetailsTab.OVERVIEW);
+  const [editModalOpen, setEditModalOpen] = React.useState(false);
 
   // Get the registry data
   const [registries, loaded, error] = useMcpRegistries(preferredProject?.metadata.name || '');
@@ -119,23 +121,30 @@ const McpRegistryDetailsPage: React.FC = () => {
     return 0;
   };
 
-  const handleBackToRegistries = () => {
+  const handleBackToRegistries = async () => {
     // Ensure the preferred project context is set to the current registry's namespace
     // so the main page loads with the correct namespace selected
     const registryNamespace = registry?.metadata?.namespace;
+
     if (registryNamespace && preferredProject?.metadata.name !== registryNamespace) {
       // Find the project that matches the registry's namespace
       const targetProject = projects.find((p) => p.metadata.name === registryNamespace);
       if (targetProject) {
+        // Update the preferred project and wait a brief moment for the context to update
         updatePreferredProject(targetProject);
+
+        // Small delay to ensure the context update propagates before navigation
+        await new Promise((resolve) => {
+          setTimeout(resolve, 50);
+        });
       }
     }
+
     navigate('/mcp/registries');
   };
 
   const handleEditRegistry = () => {
-    // TODO: Implement edit functionality
-    console.log('Edit registry:', registry?.metadata?.name);
+    setEditModalOpen(true);
   };
 
   const handleRegistryActions = () => {
@@ -175,17 +184,107 @@ const McpRegistryDetailsPage: React.FC = () => {
               </DescriptionListDescription>
             </DescriptionListGroup>
 
-            <DescriptionListGroup>
-              <DescriptionListTerm>Source URL</DescriptionListTerm>
-              <DescriptionListDescription>
-                <code className="pf-v6-u-font-family-monospace">
-                  {registry?.spec.source?.git?.repository ||
-                    registry?.spec.source?.http?.url ||
-                    registry?.spec.source?.configmap?.name ||
-                    'Not specified'}
-                </code>
-              </DescriptionListDescription>
-            </DescriptionListGroup>
+            {/* Source information - dynamic based on source type */}
+            {registry?.spec.source?.type === 'git' && (
+              <>
+                <DescriptionListGroup>
+                  <DescriptionListTerm>Repository URL</DescriptionListTerm>
+                  <DescriptionListDescription>
+                    <code className="pf-v6-u-font-family-monospace">
+                      {registry.spec.source.git?.repository || 'Not specified'}
+                    </code>
+                  </DescriptionListDescription>
+                </DescriptionListGroup>
+                {registry.spec.source.git?.branch && (
+                  <DescriptionListGroup>
+                    <DescriptionListTerm>Branch</DescriptionListTerm>
+                    <DescriptionListDescription>
+                      <code className="pf-v6-u-font-family-monospace">
+                        {registry.spec.source.git.branch}
+                      </code>
+                    </DescriptionListDescription>
+                  </DescriptionListGroup>
+                )}
+                {registry.spec.source.git?.path && (
+                  <DescriptionListGroup>
+                    <DescriptionListTerm>File Path</DescriptionListTerm>
+                    <DescriptionListDescription>
+                      <code className="pf-v6-u-font-family-monospace">
+                        {registry.spec.source.git.path}
+                      </code>
+                    </DescriptionListDescription>
+                  </DescriptionListGroup>
+                )}
+              </>
+            )}
+
+            {registry?.spec.source?.type === 'configmap' && (
+              <>
+                <DescriptionListGroup>
+                  <DescriptionListTerm>ConfigMap Name</DescriptionListTerm>
+                  <DescriptionListDescription>
+                    <Flex
+                      alignItems={{ default: 'alignItemsCenter' }}
+                      spaceItems={{ default: 'spaceItemsSm' }}
+                    >
+                      <FlexItem>
+                        <code className="pf-v6-u-font-family-monospace">
+                          {registry.spec.source.configmap?.name || 'Not specified'}
+                        </code>
+                      </FlexItem>
+                      {registry.spec.source.configmap?.name && (
+                        <FlexItem>
+                          <Button
+                            variant="link"
+                            isInline
+                            onClick={() => {
+                              const namespace = registry.metadata?.namespace;
+                              const configMapName = registry.spec.source?.configmap?.name;
+                              if (namespace && configMapName) {
+                                // Open ConfigMap in OpenShift console
+                                const consoleUrl = window.location.origin;
+                                const configMapUrl = `${consoleUrl}/k8s/ns/${namespace}/configmaps/${configMapName}`;
+                                window.open(configMapUrl, '_blank');
+                              }
+                            }}
+                          >
+                            View ConfigMap
+                          </Button>
+                        </FlexItem>
+                      )}
+                    </Flex>
+                  </DescriptionListDescription>
+                </DescriptionListGroup>
+                {registry.spec.source.configmap?.key && (
+                  <DescriptionListGroup>
+                    <DescriptionListTerm>ConfigMap Key</DescriptionListTerm>
+                    <DescriptionListDescription>
+                      <code className="pf-v6-u-font-family-monospace">
+                        {registry.spec.source.configmap.key}
+                      </code>
+                    </DescriptionListDescription>
+                  </DescriptionListGroup>
+                )}
+              </>
+            )}
+
+            {registry?.spec.source?.type === 'http' && (
+              <DescriptionListGroup>
+                <DescriptionListTerm>Source URL</DescriptionListTerm>
+                <DescriptionListDescription>
+                  <code className="pf-v6-u-font-family-monospace">
+                    {registry.spec.source.http?.url || 'Not specified'}
+                  </code>
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+            )}
+
+            {!registry?.spec.source?.type && (
+              <DescriptionListGroup>
+                <DescriptionListTerm>Source</DescriptionListTerm>
+                <DescriptionListDescription>Not specified</DescriptionListDescription>
+              </DescriptionListGroup>
+            )}
 
             {registry?.spec.description && (
               <DescriptionListGroup>
@@ -310,7 +409,13 @@ const McpRegistryDetailsPage: React.FC = () => {
       <PageSection type="breadcrumb">
         <Breadcrumb>
           <BreadcrumbItem>Model Context Protocol</BreadcrumbItem>
-          <BreadcrumbItem to="/mcp/registries" onClick={handleBackToRegistries}>
+          <BreadcrumbItem
+            onClick={async (e) => {
+              e.preventDefault();
+              await handleBackToRegistries();
+            }}
+            style={{ cursor: 'pointer' }}
+          >
             Registries
           </BreadcrumbItem>
           <BreadcrumbItem isActive>{registry.metadata?.name}</BreadcrumbItem>
@@ -424,6 +529,19 @@ const McpRegistryDetailsPage: React.FC = () => {
           </Tab>
         </Tabs>
       </PageSection>
+
+      {/* Edit Modal */}
+      {editModalOpen && (
+        <McpRegistryCreateModal
+          isOpen
+          onClose={() => setEditModalOpen(false)}
+          onSuccess={() => {
+            setEditModalOpen(false);
+            // Registry data will be refreshed automatically via the hook
+          }}
+          editRegistry={registry}
+        />
+      )}
     </>
   );
 };
