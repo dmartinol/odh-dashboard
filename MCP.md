@@ -460,8 +460,7 @@ const extensions: NavExtension[] = [
    - ✅ Tag discovery from actual ToolHive registry format parsing (servers object structure)
    - ✅ Simplified tag selection UX (removed redundant text inputs, kept only clickable interface)
 
-**Deliverables:** ✅ **ALL COMPLETED** _(Completed: January 2025)_
-
+**Deliverables:** ✅ **ALL COMPLETED** *(Completed: January 2025)*
 - ✅ Functional registry management UI with professional UX
 - ✅ Complete CRUD operations for registries with real-time updates
 - ✅ Enhanced registry creation with source validation and tag discovery

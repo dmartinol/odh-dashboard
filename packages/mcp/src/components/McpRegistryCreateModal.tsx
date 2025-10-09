@@ -166,6 +166,7 @@ export const McpRegistryCreateModal: React.FC<McpRegistryCreateModalProps> = ({
     ? editRegistry.metadata?.namespace
     : preferredProject?.metadata.name;
   const [configMaps, configMapsLoaded] = useConfigMaps(currentNamespace);
+
   // Use appropriate initial form data
   const [formData, setFormData] = React.useState<RegistryFormData>(() =>
     isEditMode ? mapRegistryToFormData(editRegistry) : initialFormData,
@@ -306,6 +307,7 @@ export const McpRegistryCreateModal: React.FC<McpRegistryCreateModalProps> = ({
     configMaps,
     configMapsLoaded,
   ]);
+
   const hasContent = (value: string): boolean => !!value.trim().length;
 
   const validateForm = (): string | null => {
