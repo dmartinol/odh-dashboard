@@ -26,8 +26,9 @@ This document outlines the design and implementation plan for integrating Model 
 │   ├── Registry (model registry)
 │   └── Catalog (model catalog)
 ├── ⚡ NEW: Model Context Protocol (4_mcp) ← INSERT HERE
-│   ├── 📋 Registries
-│   └── 🔧 Servers
+│   ├── 📋 Registries (/mcp/registries)
+│   │   └── 🔍 Registry Details (/mcp/registries/{name})
+│   └── 🔧 Servers (/mcp/servers)
 ├── 🔬 Develop & Train (5_develop_and_train)
 ├── 📊 Observe & Monitor (6_observe_and_monitor)
 ├── 📚 Learning Resources (7_other)
@@ -75,7 +76,31 @@ The MCP integration will follow ODH's design system while incorporating modern U
 └─────────────────────────────────────────────────────────┘
 ```
 
-#### 2. Servers Page (`/mcp/servers`)
+#### 2. Registry Details Page (`/mcp/registries/{name}`)
+```
+┌─────────────────────────────────────────────────────────┐
+│ 🏠 MCP > Registries > Production Registry              │
+├─────────────────────────────────────────────────────────┤
+│ Production Registry                          [Edit][⚙️] │
+│ 🏷️ git • ✅ healthy • Last sync: 30m ago              │
+│ github.com/company/mcp-registry                         │
+├─────────────────────────────────────────────────────────┤
+│ [Overview] [Available Servers (24)] [Deployed Servers] │
+├─────────────────────────────────────────────────────────┤
+│ 📊 Registry Information                                 │
+│ ┌─ Source: Git Repository ────────────────────────────┐ │
+│ │ URL: github.com/company/mcp-registry               │ │
+│ │ Branch: main • Commit: abc123f                     │ │
+│ │ Last Sync: 2024-01-09 14:30 UTC                    │ │
+│ └───────────────────────────────────────────────────────┘ │
+│ ┌─ Status & Metrics ──────────────────────────────────┐ │
+│ │ Health: ✅ Healthy • Servers: 24 • Deployments: 8  │ │
+│ │ Created: 2024-01-01 • Namespace: production        │ │
+│ └───────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────┘
+```
+
+#### 3. Servers Page (`/mcp/servers`)
 ```
 ┌─────────────────────────────────────────────────────────┐
 │ 🔧 MCP Servers                              [⚙️ Deploy] │
@@ -143,6 +168,7 @@ packages/mcp/
 │   │   └── shared/               # Shared MCP components
 │   ├── pages/                    # Full page components
 │   │   ├── McpRegistriesPage.tsx
+│   │   ├── McpRegistryDetailsPage.tsx
 │   │   └── McpServersPage.tsx
 │   ├── hooks/                    # MCP-specific React hooks
 │   │   ├── useRegistries.ts
@@ -213,6 +239,16 @@ const extensions: NavExtension[] = [
       title: 'Registries',
       href: '/mcp/registries',
       section: 'mcp',
+      path: '/mcp/registries',
+    },
+  },
+  {
+    type: 'app.navigation/href',
+    flags: { required: [SupportedArea.MCP_REGISTRIES] },
+    properties: {
+      id: 'mcp-registry-details',
+      href: '/mcp/registries/:name',
+      section: 'mcp',
       path: '/mcp/registries/*',
     },
   },
@@ -251,11 +287,11 @@ const extensions: NavExtension[] = [
 - ✅ **K8s Models & Operations**: Complete CRUD operations using native Kubernetes SDK patterns
 
 **🔄 In Progress:**
-- 🔄 Phase 2: Registry management UI components
+- 🔄 Phase 2: Registry management UI components (Task 4: Registry Operations)
 - 🔄 Phase 3: Server discovery and browsing interface
 
 **⏳ Next Steps:**
-- Implement registry creation forms and validation
+- Complete registry sync operations and update/delete functionality
 - Build server filtering and deployment workflows
 - Add registry sync operations and status monitoring
 - Implement server deployment and instance management features
@@ -311,8 +347,10 @@ const extensions: NavExtension[] = [
 - ✅ **Registry Dashboard**: Enhanced registry cards with status indicators, badges, and action buttons
 - ✅ **Real-time Architecture**: Kubernetes Watch API integration for automatic updates
 - ✅ **Event-driven Updates**: MCP resources update instantly via WebSocket connections
-- 🔄 **In Progress**: Registry creation forms and CRUD operations
-- ⏳ **Pending**: Registry sync operations and detailed views
+- ✅ **Architecture Decision**: Registry Details changed from modal to dedicated page for better UX and content capacity
+- ✅ **Registry Details Page**: Complete implementation with routing and breadcrumbs
+- ✅ **Registry Creation**: Multi-step creation wizard with comprehensive validation and filtering
+- ⏳ **Pending**: Registry sync operations and management functionality
 
 #### Tasks:
 1. **Registry Dashboard** ✅ **COMPLETED**
@@ -321,23 +359,37 @@ const extensions: NavExtension[] = [
    - ✅ Search and filtering capabilities
    - ✅ Responsive grid layout implementation
 
-2. **Registry Details**
-   - Detailed registry view component
-   - Server listing within registry
-   - Sync status and operations
-   - Registry configuration management
+2. **Registry Details Page** ✅ **COMPLETED: Modal → Dedicated Page**
+   - ✅ **Dedicated page route**: `/mcp/registries/{registry-name}`
+   - ✅ **Breadcrumb navigation**: MCP > Registries > {registry-name}
+   - ✅ **Tabbed interface**: Overview, Available Servers, Deployed Servers, Configuration
+   - ✅ **Page layout and routing**: Full page implementation with navigation
+   - ✅ **Registry information display**: Comprehensive registry details view
+   - ⏳ **Server discovery**: Filterable tables with search and pagination (Phase 3)
+   - ⏳ **Registry configuration**: YAML/JSON viewing and management (Future)
+   - ⏳ **Sync operations**: Manual sync triggers and status monitoring (Future)
 
-3. **Registry Creation**
-   - Multi-step creation wizard
-   - Form validation and error handling
-   - Support for Git, HTTP, ConfigMap sources
-   - Integration with Kubernetes API
+3. **Registry Creation** ✅ **COMPLETED**
+   - ✅ Multi-step creation wizard (4 tabs: General, Data Sources, Sync Policy, Filter)
+   - ✅ Form validation and error handling
+   - ✅ Support for Git and ConfigMap sources
+   - ✅ Integration with Kubernetes API
+   - ✅ Advanced filtering with name patterns and tags
+   - ✅ Sync policy configuration with automatic sync intervals
 
 4. **Registry Operations**
    - Manual and automatic sync functionality
    - Registry update and deletion
    - Bulk operations support
    - Event handling and notifications
+
+5. **Registry Creation Enhancement** ⏳ **PLANNED**
+   - Source validation for Git repositories and ConfigMaps
+   - Real-time accessibility testing before registry creation
+   - Automatic tag discovery from registry sources
+   - Interactive tag selection interface with available tags
+   - Enhanced user experience following reference implementation patterns from `../registry_ui`
+   - Error handling and validation feedback for invalid sources
 
 **Deliverables:**
 - Functional registry management UI

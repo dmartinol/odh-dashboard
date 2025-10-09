@@ -13,7 +13,7 @@ import { McpRegistryModel, McpServerModel } from '../models/mcp';
 export const groupVersionKind = (
   model: typeof McpRegistryModel | typeof McpServerModel,
 ): { group: string; version: string; kind: string } => ({
-  group: model.apiGroup,
+  group: model.apiGroup || '',
   version: model.apiVersion,
   kind: model.kind,
 });

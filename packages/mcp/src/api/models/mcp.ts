@@ -3,13 +3,13 @@ import { K8sModelCommon } from '@openshift/dynamic-plugin-sdk-utils';
 export const McpRegistryModel: K8sModelCommon = {
   apiGroup: 'toolhive.stacklok.dev',
   apiVersion: 'v1alpha1',
-  kind: 'McpRegistry',
+  kind: 'MCPRegistry',
   plural: 'mcpregistries',
 };
 
 export const McpServerModel: K8sModelCommon = {
   apiGroup: 'toolhive.stacklok.dev',
   apiVersion: 'v1alpha1',
-  kind: 'McpServer',
+  kind: 'MCPServer',
   plural: 'mcpservers',
 };
