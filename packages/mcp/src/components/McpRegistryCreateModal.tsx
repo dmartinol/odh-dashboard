@@ -166,7 +166,6 @@ export const McpRegistryCreateModal: React.FC<McpRegistryCreateModalProps> = ({
     ? editRegistry.metadata?.namespace
     : preferredProject?.metadata.name;
   const [configMaps, configMapsLoaded] = useConfigMaps(currentNamespace);
-
   // Use appropriate initial form data
   const [formData, setFormData] = React.useState<RegistryFormData>(() =>
     isEditMode ? mapRegistryToFormData(editRegistry) : initialFormData,
@@ -319,6 +318,7 @@ export const McpRegistryCreateModal: React.FC<McpRegistryCreateModalProps> = ({
     const k8sName = editRegistry
       ? editRegistry.metadata?.name || ''
       : nameDesc.k8sName.value || translateDisplayNameForK8s(nameDesc.name);
+
     if (!isValidK8sName(k8sName)) {
       return 'Invalid Kubernetes name';
     }
@@ -463,6 +463,7 @@ export const McpRegistryCreateModal: React.FC<McpRegistryCreateModalProps> = ({
       } else {
         await createMcpRegistry(registryData);
       }
+
       onSuccess();
       onClose();
     } catch (e) {

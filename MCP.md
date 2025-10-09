@@ -82,9 +82,6 @@ The MCP integration will follow ODH's design system while incorporating modern U
 ```
 
 #### 2. Registry Details Page (`/mcp/registries/{name}`)
-<<<<<<< HEAD
-
-=======
 ```
 ┌─────────────────────────────────────────────────────────┐
 │ 🏠 MCP > Registries > Production Registry              │
@@ -109,7 +106,6 @@ The MCP integration will follow ODH's design system while incorporating modern U
 ```
 
 #### 3. Servers Page (`/mcp/servers`)
->>>>>>> c8da1ce32 (Phase 2-Task 3)
 ```
 ┌─────────────────────────────────────────────────────────┐
 │ 🏠 MCP > Registries > Production Registry              │
@@ -326,7 +322,6 @@ const extensions: NavExtension[] = [
 - ✅ **Kubernetes Watch API Integration**: Refactored from REST polling to real-time K8s Watch API for MCP CRDs
 - ✅ **Real-time Updates**: MCP registries and servers now update automatically via WebSocket connections
 - ✅ **K8s Models & Operations**: Complete CRUD operations using native Kubernetes SDK patterns
-<<<<<<< HEAD
 - ✅ **Full Phase 3**: Complete server discovery and deployment functionality
 - ✅ **Server Browser**: Professional server browsing with real-time filtering by transport, tier, and search
 - ✅ **Server Details**: Comprehensive modal with tabbed interface (Overview, Tools, Prompts, Resources)
@@ -344,18 +339,6 @@ const extensions: NavExtension[] = [
 - Performance optimization and caching strategies
 - Accessibility improvements and keyboard navigation
 - Comprehensive testing suite and documentation
-=======
-
-**🔄 In Progress:**
-- 🔄 Phase 2: Registry management UI components (Task 4: Registry Operations)
-- 🔄 Phase 3: Server discovery and browsing interface
-
-**⏳ Next Steps:**
-- Complete registry sync operations and update/delete functionality
-- Build server filtering and deployment workflows
-- Add registry sync operations and status monitoring
-- Implement server deployment and instance management features
->>>>>>> c8da1ce32 (Phase 2-Task 3)
 
 ---
 
@@ -420,11 +403,7 @@ const extensions: NavExtension[] = [
 - ✅ **Architecture Decision**: Registry Details changed from modal to dedicated page for better UX and content capacity
 - ✅ **Registry Details Page**: Complete implementation with routing and breadcrumbs
 - ✅ **Registry Creation**: Multi-step creation wizard with comprehensive validation and filtering
-<<<<<<< HEAD
 - ✅ **Registry Operations**: Complete CRUD operations with sync, update, and delete functionality
-=======
-- ⏳ **Pending**: Registry sync operations and management functionality
->>>>>>> c8da1ce32 (Phase 2-Task 3)
 
 #### Tasks:
 
@@ -436,17 +415,7 @@ const extensions: NavExtension[] = [
    - ✅ Responsive grid layout implementation
 
 2. **Registry Details Page** ✅ **COMPLETED: Modal → Dedicated Page**
-<<<<<<< HEAD
 
-   - ✅ **Dedicated page route**: `/mcp/registries/{registry-name}`
-   - ✅ **Breadcrumb navigation**: MCP > Registries > {registry-name}
-   - ✅ **Tabbed interface**: Overview, Available Servers, Deployed Servers, Configuration
-   - ✅ **Page layout and routing**: Full page implementation with navigation
-   - ✅ **Registry information display**: Comprehensive registry details view
-   - ⏳ **Server discovery**: Filterable tables with search and pagination (Phase 3)
-   - ⏳ **Registry configuration**: YAML/JSON viewing and management (Future)
-   - ⏳ **Sync operations**: Manual sync triggers and status monitoring (Future)
-=======
    - ✅ **Dedicated page route**: `/mcp/registries/{registry-name}`
    - ✅ **Breadcrumb navigation**: MCP > Registries > {registry-name}
    - ✅ **Tabbed interface**: Overview, Available Servers, Deployed Servers, Configuration
@@ -457,17 +426,7 @@ const extensions: NavExtension[] = [
    - ⏳ **Sync operations**: Manual sync triggers and status monitoring (Future)
 
 3. **Registry Creation** ✅ **COMPLETED**
-   - ✅ Multi-step creation wizard (4 tabs: General, Data Sources, Sync Policy, Filter)
-   - ✅ Form validation and error handling
-   - ✅ Support for Git and ConfigMap sources
-   - ✅ Integration with Kubernetes API
-   - ✅ Advanced filtering with name patterns and tags
-   - ✅ Sync policy configuration with automatic sync intervals
->>>>>>> c8da1ce32 (Phase 2-Task 3)
 
-3. **Registry Creation** ✅ **COMPLETED**
-
-<<<<<<< HEAD
    - ✅ Multi-step creation wizard (4 tabs: General, Data Sources, Sync Policy, Filter)
    - ✅ Form validation and error handling
    - ✅ Support for Git and ConfigMap sources
@@ -530,21 +489,6 @@ const extensions: NavExtension[] = [
 - Foundation ready for Phase 3 server discovery development
 
 ### Phase 3: Server Discovery (Week 5-6) ✅ **COMPLETED**
-=======
-5. **Registry Creation Enhancement** ⏳ **PLANNED**
-   - Source validation for Git repositories and ConfigMaps
-   - Real-time accessibility testing before registry creation
-   - Automatic tag discovery from registry sources
-   - Interactive tag selection interface with available tags
-   - Enhanced user experience following reference implementation patterns from `../registry_ui`
-   - Error handling and validation feedback for invalid sources
-
-**Deliverables:**
-- Functional registry management UI
-- CRUD operations for registries
-- Integration with ToolHive operator
-- Responsive design implementation
->>>>>>> c8da1ce32 (Phase 2-Task 3)
 
 **Goal: Server browsing and deployment**
 
