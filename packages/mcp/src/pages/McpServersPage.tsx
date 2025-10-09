@@ -13,7 +13,7 @@ import {
 } from '@patternfly/react-core';
 import { FolderOpenIcon } from '@patternfly/react-icons';
 import ProjectSelector from '@odh-dashboard/internal/concepts/projects/ProjectSelector';
-import { ProjectsContext } from '../../../../frontend/src/concepts/projects/ProjectsContext';
+import { ProjectsContext } from '@odh-dashboard/internal/concepts/projects/ProjectsContext';
 import { useMcpServers } from '../hooks/useMcpServers';
 import { useMcpRegistries } from '../hooks/useMcpRegistries';
 import { McpServersTable } from '../components/McpServersTable';
