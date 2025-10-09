@@ -12,17 +12,25 @@ import {
 } from '@patternfly/react-core';
 import { ProjectsContext } from '@odh-dashboard/internal/concepts/projects/ProjectsContext';
 import ProjectSelector from '@odh-dashboard/internal/concepts/projects/ProjectSelector';
+import useNotification from '@odh-dashboard/internal/utilities/useNotification';
 import { McpRegistryGrid } from '../components/McpRegistryGrid';
 import { useMcpRegistries } from '../hooks/useMcpRegistries';
 import { McpRegistry } from '../types/registry';
 import { McpRegistryCreateModal } from '../components/McpRegistryCreateModal';
+import { McpRegistryDeleteModal } from '../components/McpRegistryDeleteModal';
+import { syncMcpRegistry, deleteMcpRegistry } from '../api/k8s/mcp';
 
 const McpRegistriesPage: React.FC = () => {
+  const notification = useNotification();
   const { projects, preferredProject, updatePreferredProject } = React.useContext(ProjectsContext);
   const [selectedNamespace, setSelectedNamespace] = React.useState<string>(
     preferredProject?.metadata.name || projects[0]?.metadata.name || '',
   );
   const [createModalOpen, setCreateModalOpen] = React.useState(false);
+  const [editingRegistry, setEditingRegistry] = React.useState<McpRegistry | undefined>();
+  const [deleteModalOpen, setDeleteModalOpen] = React.useState(false);
+  const [deletingRegistry, setDeletingRegistry] = React.useState<McpRegistry | null>(null);
+  const [isDeleting, setIsDeleting] = React.useState(false);
   const [registries, loaded, error] = useMcpRegistries(selectedNamespace || '');
 
   // Sync selected namespace with preferred project changes
@@ -49,18 +57,72 @@ const McpRegistriesPage: React.FC = () => {
   };
 
   const handleEditRegistry = (registry: McpRegistry) => {
-    // TODO: Implement edit functionality
-    console.log('Edit registry:', registry.metadata?.name);
+    setEditingRegistry(registry);
   };
 
   const handleDeleteRegistry = (registry: McpRegistry) => {
-    // TODO: Implement delete functionality
-    console.log('Delete registry:', registry.metadata?.name);
+    setDeletingRegistry(registry);
+    setDeleteModalOpen(true);
   };
 
-  const handleSyncRegistry = (registry: McpRegistry) => {
-    // TODO: Implement sync functionality
-    console.log('Sync registry:', registry.metadata?.name);
+  const handleConfirmDelete = async () => {
+    if (!deletingRegistry) return;
+
+    const registryName = deletingRegistry.metadata?.name;
+    const namespace = deletingRegistry.metadata?.namespace;
+
+    if (!registryName || !namespace) {
+      notification.error('Delete failed', 'Registry name or namespace is missing');
+      return;
+    }
+
+    setIsDeleting(true);
+
+    try {
+      await deleteMcpRegistry(registryName, namespace);
+
+      notification.success('Registry deleted', `${registryName} has been successfully deleted`);
+
+      // Close the modal
+      setDeleteModalOpen(false);
+      setDeletingRegistry(null);
+    } catch (deleteError) {
+      notification.error(
+        'Registry deletion failed',
+        deleteError instanceof Error ? deleteError.message : 'Unknown error occurred',
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteModalOpen(false);
+    setDeletingRegistry(null);
+  };
+
+  const handleSyncRegistry = async (registry: McpRegistry) => {
+    const registryName = registry.metadata?.name;
+    const namespace = registry.metadata?.namespace;
+
+    if (!registryName || !namespace) {
+      notification.error('Sync failed', 'Registry name or namespace is missing');
+      return;
+    }
+
+    try {
+      await syncMcpRegistry(registryName, namespace);
+
+      notification.success(
+        'Registry sync started',
+        `${registryName} is now synchronizing with its source`,
+      );
+    } catch (syncError) {
+      notification.error(
+        'Registry sync failed',
+        syncError instanceof Error ? syncError.message : 'Unknown error occurred',
+      );
+    }
   };
 
   const handleViewRegistry = (registry: McpRegistry) => {
@@ -136,8 +198,39 @@ const McpRegistriesPage: React.FC = () => {
       {createModalOpen && (
         <McpRegistryCreateModal
           isOpen
-          onClose={() => setCreateModalOpen(false)}
-          onSuccess={handleCreateSuccess}
+          onClose={() => {
+            setCreateModalOpen(false);
+            setEditingRegistry(undefined);
+          }}
+          onSuccess={() => {
+            handleCreateSuccess();
+            setEditingRegistry(undefined);
+          }}
+          editRegistry={undefined}
+        />
+      )}
+
+      {editingRegistry && (
+        <McpRegistryCreateModal
+          isOpen
+          onClose={() => {
+            setCreateModalOpen(false);
+            setEditingRegistry(undefined);
+          }}
+          onSuccess={() => {
+            handleCreateSuccess();
+            setEditingRegistry(undefined);
+          }}
+          editRegistry={editingRegistry}
+        />
+      )}
+
+      {deleteModalOpen && (
+        <McpRegistryDeleteModal
+          registry={deletingRegistry}
+          onClose={handleCancelDelete}
+          onConfirm={handleConfirmDelete}
+          isDeleting={isDeleting}
         />
       )}
     </>

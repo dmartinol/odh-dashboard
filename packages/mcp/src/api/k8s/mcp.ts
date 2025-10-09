@@ -43,6 +43,32 @@ export const deleteMcpRegistry = (name: string, namespace: string): Promise<K8sR
     queryOptions: { name, ns: namespace },
   });
 
+export const syncMcpRegistry = async (
+  name: string,
+  namespace: string,
+): Promise<K8sResourceCommon> => {
+  // Get the current registry
+  const registryResource = await getMcpRegistry(name, namespace);
+
+  // Add/update sync annotation to trigger operator re-sync
+  const updatedRegistry = {
+    ...registryResource,
+    metadata: {
+      ...registryResource.metadata,
+      annotations: {
+        ...registryResource.metadata?.annotations,
+        'toolhive.stacklok.dev/sync-trigger': new Date().toISOString(),
+      },
+    },
+  };
+
+  // Update the registry with the sync annotation
+  return k8sUpdateResource({
+    model: McpRegistryModel,
+    resource: updatedRegistry,
+  });
+};
+
 // MCP Server K8s operations
 export const createMcpServer = (server: McpServer): Promise<K8sResourceCommon> =>
   k8sCreateResource({
