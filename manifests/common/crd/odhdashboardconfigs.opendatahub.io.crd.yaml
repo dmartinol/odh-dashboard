@@ -107,6 +107,8 @@ spec:
                       type: boolean
                     modelAsService:
                       type: boolean
+                    disableMcp:
+                      type: boolean
                   x-kubernetes-validations:
                     - rule: '!has(self.disableAcceleratorProfiles) || self.disableAcceleratorProfiles == oldSelf.disableAcceleratorProfiles'
                       message: 'DEPRECATED: spec.dashboardConfig.disableAcceleratorProfiles must be removed or left unchanged.'

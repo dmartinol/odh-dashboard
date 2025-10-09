@@ -51,6 +51,7 @@ export type DashboardConfig = K8sResourceCommon & {
       disableFeatureStore: boolean;
       genAiStudio: boolean;
       modelAsService: boolean;
+      disableMcp: boolean;
     };
     // Intentionally disjointed from the CRD, we should move away from this code-wise now; CRD later
     // groupsConfig?: {
@@ -1317,3 +1318,59 @@ export enum OdhPlatformType {
   SELF_MANAGED_RHOAI = 'OpenShift AI Self-Managed',
   MANAGED_RHOAI = 'OpenShift AI Cloud Service',
 } // Reference: https://github.com/red-hat-data-services/rhods-operator/blob/main/pkg/cluster/const.go
+
+// MCP (Model Context Protocol) Types
+export type McpRegistry = K8sResourceCommon & {
+  metadata: {
+    name: string;
+    namespace: string;
+  };
+  spec: {
+    catalogs?: Array<{
+      name: string;
+      url?: string;
+    }>;
+    description?: string;
+    source?: {
+      type: 'git' | 'http' | 'configmap';
+      git?: {
+        url: string;
+        branch?: string;
+        path?: string;
+      };
+      http?: {
+        url: string;
+        headers?: Record<string, string>;
+      };
+      configmap?: {
+        name: string;
+        namespace?: string;
+        key: string;
+      };
+    };
+  };
+  status?: {
+    phase: 'Pending' | 'Syncing' | 'Ready' | 'Failed';
+    message?: string;
+    lastSyncTime?: string;
+    serverCount?: number;
+    conditions?: Array<{
+      type: string;
+      status: 'True' | 'False' | 'Unknown';
+      reason?: string;
+      message?: string;
+      lastTransitionTime?: string;
+    }>;
+    [key: string]: unknown;
+  };
+};
+
+export type McpRegistryList = {
+  apiVersion: string;
+  kind: string;
+  metadata: {
+    resourceVersion: string;
+    continue?: string;
+  };
+  items: McpRegistry[];
+};

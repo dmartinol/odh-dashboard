@@ -91,6 +91,10 @@ export enum SupportedArea {
 
   /* MLflow */
   MLFLOW = 'mlflow-application',
+
+  /* Model Context Protocol (MCP) */
+  MCP_REGISTRIES = 'mcp-registries',
+  MCP_SERVERS = 'mcp-servers',
 }
 
 export type SupportedAreaType = SupportedArea | string;
