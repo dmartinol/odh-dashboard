@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Card,
   CardBody,
@@ -71,11 +72,23 @@ export const McpRegistryCard: React.FC<McpRegistryCardProps> = ({
   onSync,
   onView,
 }) => {
+  const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
   const { metadata, spec, status } = registry;
   const serverCount = status?.serverCount || 0;
   const lastSyncTime = status?.lastSyncTime;
   const sourceType = spec.source?.type;
+
+  const handleViewRegistry = () => {
+    const registryName = metadata?.name;
+    if (registryName) {
+      navigate(`/mcp/registries/${registryName}`);
+    }
+    // Also call the external onView callback if provided (for backward compatibility)
+    if (onView) {
+      onView(registry);
+    }
+  };
 
   return (
     <Card>
@@ -101,17 +114,15 @@ export const McpRegistryCard: React.FC<McpRegistryCardProps> = ({
                     />
                   </FlexItem>
                 )}
-                {onView && (
-                  <FlexItem>
-                    <Button
-                      variant="plain"
-                      size="sm"
-                      icon={<EyeIcon />}
-                      onClick={() => onView(registry)}
-                      title="View registry details"
-                    />
-                  </FlexItem>
-                )}
+                <FlexItem>
+                  <Button
+                    variant="plain"
+                    size="sm"
+                    icon={<EyeIcon />}
+                    onClick={handleViewRegistry}
+                    title="View registry details"
+                  />
+                </FlexItem>
                 {(onEdit || onDelete) && (
                   <FlexItem>
                     <Dropdown
@@ -154,7 +165,7 @@ export const McpRegistryCard: React.FC<McpRegistryCardProps> = ({
                   </FlexItem>
                 )}
                 <FlexItem>
-                  <McpRegistryStatusLabel status={status} />
+                  <McpRegistryStatusLabel status={registry.status} />
                 </FlexItem>
               </Flex>
             </FlexItem>
@@ -189,7 +200,7 @@ export const McpRegistryCard: React.FC<McpRegistryCardProps> = ({
         {/* Additional metadata */}
         {spec.source && (
           <div className="pf-u-color-200 pf-u-font-size-sm pf-u-mt-md">
-            {spec.source.git?.url && <Truncate content={spec.source.git.url} />}
+            {spec.source.git?.repository && <Truncate content={spec.source.git.repository} />}
             {spec.source.http?.url && <Truncate content={spec.source.http.url} />}
             {spec.source.configmap && <span>{spec.source.configmap.name}</span>}
             {metadata?.creationTimestamp && (

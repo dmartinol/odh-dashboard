@@ -10,17 +10,19 @@ import {
   Alert,
   AlertVariant,
 } from '@patternfly/react-core';
+import { ProjectsContext } from '@odh-dashboard/internal/concepts/projects/ProjectsContext';
+import ProjectSelector from '@odh-dashboard/internal/concepts/projects/ProjectSelector';
 import { McpRegistryGrid } from '../components/McpRegistryGrid';
 import { useMcpRegistries } from '../hooks/useMcpRegistries';
 import { McpRegistry } from '../types/registry';
-import { ProjectsContext } from '../../../../frontend/src/concepts/projects/ProjectsContext';
-import ProjectSelector from '../../../../frontend/src/concepts/projects/ProjectSelector';
+import { McpRegistryCreateModal } from '../components/McpRegistryCreateModal';
 
 const McpRegistriesPage: React.FC = () => {
   const { projects, preferredProject, updatePreferredProject } = React.useContext(ProjectsContext);
   const [selectedNamespace, setSelectedNamespace] = React.useState<string>(
     preferredProject?.metadata.name || projects[0]?.metadata.name || '',
   );
+  const [createModalOpen, setCreateModalOpen] = React.useState(false);
   const [registries, loaded, error] = useMcpRegistries(selectedNamespace || '');
 
   // Sync selected namespace with preferred project changes
@@ -39,8 +41,11 @@ const McpRegistriesPage: React.FC = () => {
   };
 
   const handleCreateRegistry = () => {
-    // TODO: Implement create registry functionality
-    console.log('Create registry clicked');
+    setCreateModalOpen(true);
+  };
+
+  const handleCreateSuccess = () => {
+    // Refresh happens automatically via useK8sWatchResource
   };
 
   const handleEditRegistry = (registry: McpRegistry) => {
@@ -128,6 +133,13 @@ const McpRegistriesPage: React.FC = () => {
           </>
         )}
       </PageSection>
+      {createModalOpen && (
+        <McpRegistryCreateModal
+          isOpen
+          onClose={() => setCreateModalOpen(false)}
+          onSuccess={handleCreateSuccess}
+        />
+      )}
     </>
   );
 };
