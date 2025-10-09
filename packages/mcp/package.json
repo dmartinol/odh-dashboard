@@ -1,0 +1,30 @@
+{
+  "private": true,
+  "name": "@odh-dashboard/mcp",
+  "description": "Model Context Protocol (MCP) integration for ODH Dashboard",
+  "version": "0.0.0",
+  "scripts": {
+    "lint": "eslint .",
+    "test:fix": "eslint --ext .js,.ts,.jsx,.tsx . --fix",
+    "test-unit": "jest --silent",
+    "test-unit-coverage": "jest --silent --coverage",
+    "type-check": "tsc --noEmit"
+  },
+  "exports": {
+    "./extensions": "./extensions.ts",
+    "./extension-points": "./extension-points/index.ts",
+    "./types": "./src/types/index.ts",
+    "./components": "./src/components/index.ts",
+    "./api": "./src/api/index.ts",
+    "./hooks": "./src/hooks/index.ts"
+  },
+  "dependencies": {
+    "@odh-dashboard/internal": "*",
+    "@odh-dashboard/plugin-core": "*"
+  },
+  "devDependencies": {
+    "@odh-dashboard/eslint-config": "*",
+    "@odh-dashboard/jest-config": "*",
+    "@odh-dashboard/tsconfig": "*"
+  }
+}

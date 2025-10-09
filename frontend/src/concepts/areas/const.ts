@@ -60,6 +60,8 @@ export const advancedAIMLFlags = {
   disableFineTuning: true,
   disableLMEval: true,
   trainingJobs: false,
+  disableModelTraining: true,
+  disableMcp: false,
 } satisfies Partial<DashboardCommonConfig>;
 
 // Combined feature flags object
@@ -197,6 +199,12 @@ export const SupportedAreasStateMap: SupportedAreasState = {
   },
   [SupportedArea.MLFLOW]: {
     featureFlags: ['mlflow'],
+  },
+  [SupportedArea.MCP_REGISTRIES]: {
+    featureFlags: ['disableMcp'],
+  },
+  [SupportedArea.MCP_SERVERS]: {
+    featureFlags: ['disableMcp'],
   },
 };
 
