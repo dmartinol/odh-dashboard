@@ -387,33 +387,48 @@ const extensions: NavExtension[] = [
    - ✅ Event handling and notifications
    - ✅ Real-time status updates via Kubernetes Watch API
 
-5. **Registry Creation Enhancement** ⏳ **PLANNED**
-   - Source validation for Git repositories and ConfigMaps
-   - Real-time accessibility testing before registry creation
-   - Automatic tag discovery from registry sources
-   - Interactive tag selection interface with available tags
-   - Enhanced user experience following reference implementation patterns from `../registry_ui`
-   - Error handling and validation feedback for invalid sources
-   - Registry details>Overview:
-     - 'Source URL' does not make sense. Replace with ConfigMap name.
-     - Can we add a link to open the ConfigMap view using the standard console?
-     - 'Edit` button does not open the popup
-   - Regiistry breadcrumb: when we click on 'Registries' it resets the selected project/namespace
+5. **Registry Creation Enhancement** ✅ **COMPLETED**
+   - ✅ Source validation for Git repositories and ConfigMaps with real-time accessibility testing
+   - ✅ Automatic tag discovery from registry sources (extracts from actual ToolHive registry files)
+   - ✅ Interactive tag selection interface with clickable tag buttons for include/exclude filtering
+   - ✅ Enhanced user experience following reference implementation patterns from `../registry_ui`
+   - ✅ Comprehensive error handling and validation feedback for invalid sources
+   - ✅ Registry details improvements:
+     - ✅ Fixed display logic for different source types (Git, ConfigMap, HTTP)
+     - ✅ Added ConfigMap console link integration to view ConfigMaps in OpenShift console
+     - ✅ Fixed Edit button functionality to open registry creation modal in edit mode
+   - ✅ Registry breadcrumb navigation with proper project context preservation
+   - ✅ ConfigMap dropdown selection with available ConfigMaps from current namespace
+   - ✅ ConfigMap key dropdown with dynamic key discovery from selected ConfigMap
+   - ✅ Branch name validation with proper format checking
+   - ✅ Real-time Git repository validation with URL, branch, and path accessibility testing
+   - ✅ Tag discovery from actual ToolHive registry format parsing (servers object structure)
+   - ✅ Simplified tag selection UX (removed redundant text inputs, kept only clickable interface)
 
 **Deliverables:** ✅ **ALL COMPLETED** *(Completed: January 2025)*
-- ✅ Functional registry management UI
-- ✅ CRUD operations for registries
-- ✅ Integration with ToolHive operator
-- ✅ Responsive design implementation
+- ✅ Functional registry management UI with professional UX
+- ✅ Complete CRUD operations for registries with real-time updates
+- ✅ Enhanced registry creation with source validation and tag discovery
+- ✅ Interactive tag filtering with ToolHive registry format parsing
+- ✅ ConfigMap integration with dropdown selection and console links
+- ✅ Git repository validation with real-time accessibility testing
+- ✅ Edit functionality with pre-populated modal forms
+- ✅ Integration with ToolHive operator via Kubernetes Watch API
+- ✅ Responsive design implementation following ODH patterns
 
 **🎉 Phase 2 Summary:**
-- Complete registry management system with professional UX
-- All CRUD operations (Create, Read, Update, Delete) fully functional
-- Real-time updates via Kubernetes Watch API integration
-- Comprehensive error handling and user notifications
-- Multi-step creation wizard with advanced filtering capabilities
-- Dedicated registry details page with tabbed interface
+- Complete registry management system with professional UX and enterprise-grade features
+- All CRUD operations (Create, Read, Update, Delete) fully functional with real-time updates
+- Enhanced registry creation with comprehensive source validation and tag discovery
+- Interactive tag filtering system with ToolHive registry format parsing
+- ConfigMap integration with dropdown selection and OpenShift console links
+- Git repository validation with real-time accessibility testing and branch validation
+- Real-time updates via Kubernetes Watch API integration (no polling required)
+- Comprehensive error handling, user notifications, and validation feedback
+- Multi-step creation wizard with advanced filtering capabilities and simplified UX
+- Dedicated registry details page with tabbed interface and edit functionality
 - Professional confirmation dialogs for destructive operations
+- Source-aware display logic for Git, ConfigMap, and HTTP registry types
 - Foundation ready for Phase 3 server discovery development
 
 ### Phase 3: Server Discovery (Week 5-6) 🔄 **IN PROGRESS**
