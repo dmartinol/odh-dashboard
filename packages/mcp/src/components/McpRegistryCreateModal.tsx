@@ -31,12 +31,13 @@ import K8sNameDescriptionField, {
   useK8sNameDescriptionFieldData,
 } from '@odh-dashboard/internal/concepts/k8s/K8sNameDescriptionField/K8sNameDescriptionField';
 import { McpRegistry } from '../types/registry';
-import { createMcpRegistry } from '../api/k8s/mcp';
+import { createMcpRegistry, updateMcpRegistry } from '../api/k8s/mcp';
 
 interface McpRegistryCreateModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  editRegistry?: McpRegistry; // Optional: if provided, we're in edit mode
 }
 
 enum RegistryCreateTab {
@@ -103,32 +104,109 @@ const syncIntervalOptions = [
   { value: '24h', label: '24 hours' },
 ];
 
+// Function to map registry to form data for editing
+const mapRegistryToFormData = (registry: McpRegistry): RegistryFormData => {
+  const { spec } = registry;
+
+  return {
+    sourceType:
+      spec.source?.type === 'git' || spec.source?.type === 'configmap' ? spec.source.type : 'git',
+    gitRepository: spec.source?.git?.repository || '',
+    gitBranch: spec.source?.git?.branch || 'main',
+    gitPath: spec.source?.git?.path || '',
+    configMapName: spec.source?.configmap?.name || '',
+    configMapKey: spec.source?.configmap?.key || '',
+    syncInterval: spec.syncPolicy?.interval || '5m',
+    enableAutoSync: spec.syncPolicy?.enabled ?? true,
+    enableFiltering: !!(
+      spec.filter?.include?.length ||
+      spec.filter?.exclude?.length ||
+      spec.filter?.tags
+    ),
+    includeNamePatterns: spec.filter?.include || [],
+    excludeNamePatterns: spec.filter?.exclude || [],
+    includeTags: spec.filter?.tags?.include || [],
+    excludeTags: spec.filter?.tags?.exclude || [],
+    newIncludeNamePattern: '',
+    newExcludeNamePattern: '',
+    newIncludeTag: '',
+    newExcludeTag: '',
+  };
+};
+
 export const McpRegistryCreateModal: React.FC<McpRegistryCreateModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
+  editRegistry,
 }) => {
   const { preferredProject } = React.useContext(ProjectsContext);
   const [activeTabKey, setActiveTabKey] = React.useState<string>(RegistryCreateTab.GENERAL);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<Error>();
-  const [formData, setFormData] = React.useState<RegistryFormData>(initialFormData);
+
+  // Determine if we're in edit mode
+  const isEditMode = !!editRegistry;
+
+  // Use appropriate initial form data
+  const [formData, setFormData] = React.useState<RegistryFormData>(() =>
+    isEditMode ? mapRegistryToFormData(editRegistry) : initialFormData,
+  );
+
+  // Initialize name/description for edit mode
+  const initialNameDesc = React.useMemo(() => {
+    if (editRegistry) {
+      return {
+        name:
+          editRegistry.metadata?.annotations?.['openshift.io/display-name'] ||
+          editRegistry.metadata?.name ||
+          '',
+        description:
+          editRegistry.metadata?.annotations?.['openshift.io/description'] ||
+          editRegistry.spec.description ||
+          '',
+        k8sName: editRegistry.metadata?.name || '',
+      };
+    }
+    return undefined;
+  }, [editRegistry?.metadata?.name]);
 
   const { data: nameDesc, onDataChange: setNameDesc } = useK8sNameDescriptionFieldData({
-    initialData: undefined,
+    initialData: initialNameDesc,
   });
 
   // Reset form when modal opens/closes
   React.useEffect(() => {
     if (isOpen) {
-      setFormData(initialFormData);
-      setNameDesc('name', '');
-      setNameDesc('description', '');
-      setNameDesc('k8sName', '');
+      const formDataToUse = editRegistry ? mapRegistryToFormData(editRegistry) : initialFormData;
+      setFormData(formDataToUse);
+
+      if (editRegistry) {
+        // Pre-populate form fields for editing
+        const displayName =
+          editRegistry.metadata?.annotations?.['openshift.io/display-name'] ||
+          editRegistry.metadata?.name ||
+          '';
+        const description =
+          editRegistry.metadata?.annotations?.['openshift.io/description'] ||
+          editRegistry.spec.description ||
+          '';
+        const k8sName = editRegistry.metadata?.name || '';
+
+        setNameDesc('name', displayName);
+        setNameDesc('description', description);
+        setNameDesc('k8sName', k8sName);
+      } else {
+        // Clear form for creating new registry
+        setNameDesc('name', '');
+        setNameDesc('description', '');
+        setNameDesc('k8sName', '');
+      }
+
       setActiveTabKey(RegistryCreateTab.GENERAL);
       setError(undefined);
     }
-  }, [isOpen, setNameDesc]);
+  }, [isOpen, isEditMode, editRegistry?.metadata?.name, setNameDesc]); // Use stable reference
 
   const updateFormData = (updates: Partial<RegistryFormData>) => {
     setFormData((prev) => ({ ...prev, ...updates }));
@@ -142,7 +220,11 @@ export const McpRegistryCreateModal: React.FC<McpRegistryCreateModalProps> = ({
       return 'Display name is required';
     }
 
-    const k8sName = nameDesc.k8sName.value || translateDisplayNameForK8s(nameDesc.name);
+    // In edit mode, use existing k8s name; in create mode, validate the generated name
+    const k8sName = editRegistry
+      ? editRegistry.metadata?.name || ''
+      : nameDesc.k8sName.value || translateDisplayNameForK8s(nameDesc.name);
+
     if (!isValidK8sName(k8sName)) {
       return 'Invalid Kubernetes name';
     }
@@ -182,8 +264,13 @@ export const McpRegistryCreateModal: React.FC<McpRegistryCreateModalProps> = ({
     setError(undefined);
 
     try {
-      const k8sName = nameDesc.k8sName.value || translateDisplayNameForK8s(nameDesc.name);
-      const namespace = preferredProject?.metadata.name;
+      const k8sName = isEditMode
+        ? editRegistry.metadata?.name || ''
+        : nameDesc.k8sName.value || translateDisplayNameForK8s(nameDesc.name);
+
+      const namespace = isEditMode
+        ? editRegistry.metadata?.namespace || ''
+        : preferredProject?.metadata.name || '';
 
       if (!namespace) {
         throw new Error('No project selected');
@@ -197,9 +284,20 @@ export const McpRegistryCreateModal: React.FC<McpRegistryCreateModalProps> = ({
           name: k8sName,
           namespace,
           annotations: {
+            ...(isEditMode && editRegistry.metadata?.annotations
+              ? editRegistry.metadata.annotations
+              : {}),
+            // Ensure our display name and description override any existing annotations
             'openshift.io/display-name': nameDesc.name.trim(),
             'openshift.io/description': nameDesc.description || '',
           },
+          ...(isEditMode && editRegistry.metadata
+            ? {
+                resourceVersion: editRegistry.metadata.resourceVersion,
+                uid: editRegistry.metadata.uid,
+                creationTimestamp: editRegistry.metadata.creationTimestamp,
+              }
+            : {}),
         },
         spec: {
           description: nameDesc.description,
@@ -264,7 +362,13 @@ export const McpRegistryCreateModal: React.FC<McpRegistryCreateModalProps> = ({
         }
       }
 
-      await createMcpRegistry(registryData);
+      // Use create or update based on edit mode
+      if (isEditMode) {
+        await updateMcpRegistry(registryData);
+      } else {
+        await createMcpRegistry(registryData);
+      }
+
       onSuccess();
       onClose();
     } catch (e) {
@@ -787,8 +891,8 @@ export const McpRegistryCreateModal: React.FC<McpRegistryCreateModalProps> = ({
   }
 
   return (
-    <Modal onClose={onCancelClose} variant="medium">
-      <ModalHeader title="Create MCP Registry" />
+    <Modal isOpen onClose={onCancelClose} variant="medium" data-testid="mcp-registry-create-modal">
+      <ModalHeader title={isEditMode ? 'Edit MCP Registry' : 'Create MCP Registry'} />
       <ModalBody>
         <Tabs
           activeKey={activeTabKey}
@@ -830,11 +934,11 @@ export const McpRegistryCreateModal: React.FC<McpRegistryCreateModalProps> = ({
         <DashboardModalFooter
           onCancel={onCancelClose}
           onSubmit={onSubmit}
-          submitLabel="Create"
+          submitLabel={isEditMode ? 'Update' : 'Create'}
           isSubmitLoading={isSubmitting}
           isSubmitDisabled={!canSubmit()}
           error={error}
-          alertTitle="Error creating MCP registry"
+          alertTitle={isEditMode ? 'Error updating MCP registry' : 'Error creating MCP registry'}
         />
       </ModalFooter>
     </Modal>

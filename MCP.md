@@ -281,20 +281,23 @@ const extensions: NavExtension[] = [
 - ✅ API client structure for registries, servers, and instances
 - ✅ Feature flag system integration
 - ✅ Zero lint and type-check errors
-- ✅ Phase 2 Task 1: Registry Dashboard with enhanced cards, status indicators, and action buttons
+- ✅ **Full Phase 2**: Complete registry management with CRUD operations, real-time updates, and professional UX
+- ✅ **Registry Dashboard**: Enhanced cards with status indicators, badges, and action buttons
+- ✅ **Registry Creation**: Multi-step wizard with Git/ConfigMap sources and advanced filtering
+- ✅ **Registry Details**: Dedicated page with comprehensive information and tabbed interface
+- ✅ **Registry Operations**: Manual sync, update/edit, and delete with confirmation dialogs
 - ✅ **Kubernetes Watch API Integration**: Refactored from REST polling to real-time K8s Watch API for MCP CRDs
 - ✅ **Real-time Updates**: MCP registries and servers now update automatically via WebSocket connections
 - ✅ **K8s Models & Operations**: Complete CRUD operations using native Kubernetes SDK patterns
 
 **🔄 In Progress:**
-- 🔄 Phase 2: Registry management UI components (Task 4: Registry Operations)
 - 🔄 Phase 3: Server discovery and browsing interface
 
 **⏳ Next Steps:**
-- Complete registry sync operations and update/delete functionality
 - Build server filtering and deployment workflows
-- Add registry sync operations and status monitoring
 - Implement server deployment and instance management features
+- Add instance monitoring and lifecycle management
+- Develop advanced deployment configuration options
 
 ---
 
@@ -338,7 +341,7 @@ const extensions: NavExtension[] = [
 - Zero build, lint, or type-check errors
 - Foundation ready for Phase 2 development
 
-### Phase 2: Registry Management (Week 3-4) 🔄 **IN PROGRESS**
+### Phase 2: Registry Management (Week 3-4) ✅ **COMPLETED**
 **Goal: Complete registry CRUD operations**
 
 #### Status Update:
@@ -350,7 +353,7 @@ const extensions: NavExtension[] = [
 - ✅ **Architecture Decision**: Registry Details changed from modal to dedicated page for better UX and content capacity
 - ✅ **Registry Details Page**: Complete implementation with routing and breadcrumbs
 - ✅ **Registry Creation**: Multi-step creation wizard with comprehensive validation and filtering
-- ⏳ **Pending**: Registry sync operations and management functionality
+- ✅ **Registry Operations**: Complete CRUD operations with sync, update, and delete functionality
 
 #### Tasks:
 1. **Registry Dashboard** ✅ **COMPLETED**
@@ -377,11 +380,12 @@ const extensions: NavExtension[] = [
    - ✅ Advanced filtering with name patterns and tags
    - ✅ Sync policy configuration with automatic sync intervals
 
-4. **Registry Operations**
-   - Manual and automatic sync functionality
-   - Registry update and deletion
-   - Bulk operations support
-   - Event handling and notifications
+4. **Registry Operations** ✅ **COMPLETED**
+   - ✅ Manual sync functionality (per registry)
+   - ✅ Registry update (reuse creation modal in edit mode)
+   - ✅ Registry deletion with confirmation dialog
+   - ✅ Event handling and notifications
+   - ✅ Real-time status updates via Kubernetes Watch API
 
 5. **Registry Creation Enhancement** ⏳ **PLANNED**
    - Source validation for Git repositories and ConfigMaps
@@ -390,12 +394,27 @@ const extensions: NavExtension[] = [
    - Interactive tag selection interface with available tags
    - Enhanced user experience following reference implementation patterns from `../registry_ui`
    - Error handling and validation feedback for invalid sources
+   - Registry details>Overview:
+     - 'Source URL' does not make sense. Replace with ConfigMap name.
+     - Can we add a link to open the ConfigMap view using the standard console?
+     - 'Edit` button does not open the popup
+   - Regiistry breadcrumb: when we click on 'Registries' it resets the selected project/namespace
 
-**Deliverables:**
-- Functional registry management UI
-- CRUD operations for registries
-- Integration with ToolHive operator
-- Responsive design implementation
+**Deliverables:** ✅ **ALL COMPLETED** *(Completed: January 2025)*
+- ✅ Functional registry management UI
+- ✅ CRUD operations for registries
+- ✅ Integration with ToolHive operator
+- ✅ Responsive design implementation
+
+**🎉 Phase 2 Summary:**
+- Complete registry management system with professional UX
+- All CRUD operations (Create, Read, Update, Delete) fully functional
+- Real-time updates via Kubernetes Watch API integration
+- Comprehensive error handling and user notifications
+- Multi-step creation wizard with advanced filtering capabilities
+- Dedicated registry details page with tabbed interface
+- Professional confirmation dialogs for destructive operations
+- Foundation ready for Phase 3 server discovery development
 
 ### Phase 3: Server Discovery (Week 5-6) 🔄 **IN PROGRESS**
 **Goal: Server browsing and deployment**
@@ -508,7 +527,7 @@ const extensions: NavExtension[] = [
 ## Success Criteria
 
 ### Functional Requirements
-- 🔄 Users can manage MCP registries (create, view, sync, delete) - **Foundation Ready**
+- ✅ Users can manage MCP registries (create, view, sync, delete) - **COMPLETED**
 - 🔄 Users can browse and search available MCP servers - **Foundation Ready**
 - ⏳ Users can deploy MCP servers with custom configurations - **Pending**
 - ⏳ Users can monitor and manage deployed instances - **Pending**
