@@ -307,7 +307,6 @@ export const McpRegistryCreateModal: React.FC<McpRegistryCreateModalProps> = ({
     configMaps,
     configMapsLoaded,
   ]);
-
   const hasContent = (value: string): boolean => !!value.trim().length;
 
   const validateForm = (): string | null => {
@@ -320,7 +319,6 @@ export const McpRegistryCreateModal: React.FC<McpRegistryCreateModalProps> = ({
     const k8sName = editRegistry
       ? editRegistry.metadata?.name || ''
       : nameDesc.k8sName.value || translateDisplayNameForK8s(nameDesc.name);
-
     if (!isValidK8sName(k8sName)) {
       return 'Invalid Kubernetes name';
     }
@@ -465,7 +463,6 @@ export const McpRegistryCreateModal: React.FC<McpRegistryCreateModalProps> = ({
       } else {
         await createMcpRegistry(registryData);
       }
-
       onSuccess();
       onClose();
     } catch (e) {

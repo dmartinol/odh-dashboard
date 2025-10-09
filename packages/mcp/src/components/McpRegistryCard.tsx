@@ -209,7 +209,7 @@ export const McpRegistryCard: React.FC<McpRegistryCardProps> = ({
 
         {/* Source URL */}
         {spec.source && (
-          <div className="pf-u-color-200 pf-u-font-size-sm pf-u-font-family-monospace">
+          <div className="pf-u-color-200 pf-u-font-size-sm pf-u-mt-md pf-u-font-family-monospace">
             {spec.source.git?.repository && <Truncate content={spec.source.git.repository} />}
             {spec.source.http?.url && <Truncate content={spec.source.http.url} />}
             {spec.source.configmap && <span>{spec.source.configmap.name}</span>}

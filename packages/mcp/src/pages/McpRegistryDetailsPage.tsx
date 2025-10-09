@@ -169,7 +169,6 @@ const McpRegistryDetailsPage: React.FC = () => {
       discoverServers();
     }
   }, [registry, configMaps]);
-
   const getSourceTypeIcon = (sourceType?: string) => {
     switch (sourceType) {
       case 'git':
@@ -309,7 +308,6 @@ const McpRegistryDetailsPage: React.FC = () => {
     // Ensure the preferred project context is set to the current registry's namespace
     // so the main page loads with the correct namespace selected
     const registryNamespace = registry?.metadata?.namespace;
-
     if (registryNamespace && preferredProject?.metadata.name !== registryNamespace) {
       // Find the project that matches the registry's namespace
       const targetProject = projects.find((p) => p.metadata.name === registryNamespace);
@@ -323,7 +321,6 @@ const McpRegistryDetailsPage: React.FC = () => {
         });
       }
     }
-
     navigate('/mcp/registries');
   };
 
@@ -485,7 +482,6 @@ const McpRegistryDetailsPage: React.FC = () => {
       </Stack>
     </PageSection>
   );
-
   // Show loading state
   if (!loaded) {
     return (
