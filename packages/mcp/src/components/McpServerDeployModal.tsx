@@ -40,6 +40,7 @@ import { useSecrets, getSecretKeys } from '../hooks/useSecrets';
 import { useServiceAccounts } from '../hooks/useServiceAccounts';
 
 interface McpServerDeployModalProps {
+  isOpen?: boolean;
   onClose: () => void;
   onSuccess: () => void;
   server: McpServerMetadata;
@@ -113,6 +114,7 @@ const initialConfig: DeploymentConfig = {
 };
 
 export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
+  isOpen = true,
   onClose,
   onSuccess,
   server,
@@ -303,6 +305,15 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
     setConfig((prev) => ({ ...prev, ...updates }));
   };
 
+  const addEnvironmentVariable = () => {
+    updateConfig({
+      environmentVariables: [
+        ...config.environmentVariables,
+        { name: '', value: '', sourceType: 'value' as const },
+      ],
+    });
+  };
+
   const updateEnvironmentVariable = (index: number, field: 'name' | 'value', value: string) => {
     const updated = config.environmentVariables.map((env, i) =>
       i === index ? { ...env, [field]: value } : env,
@@ -310,6 +321,10 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
     updateConfig({ environmentVariables: updated });
   };
 
+  const removeEnvironmentVariable = (index: number) => {
+    const updated = config.environmentVariables.filter((_, i) => i !== index);
+    updateConfig({ environmentVariables: updated });
+  };
   const validateForm = (): string | null => {
     if (!config.name.trim()) {
       return 'Deployment name is required';
@@ -558,8 +573,12 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
     ? `Edit ${server.displayName || server.name}`
     : `Deploy ${server.displayName || server.name}`;
 
+  if (!isOpen) {
+    return null;
+  }
+
   return (
-    <Modal isOpen onClose={onCancelClose} variant="medium" data-testid="mcp-server-deploy-modal">
+    <Modal isOpen={isOpen} onClose={onCancelClose} variant="medium" data-testid="mcp-server-deploy-modal">
       <ModalHeader>
         <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
           <FlexItem>{getServerIcon()}</FlexItem>
@@ -596,6 +615,7 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
                     value={config.name}
                     onChange={(_, value) => updateConfig({ name: value })}
                     isDisabled={!!existingServer}
+                    placeholder="my-server-deployment"
                   />
                   <HelperText>
                     <HelperTextItem>

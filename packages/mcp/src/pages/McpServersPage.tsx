@@ -184,7 +184,6 @@ const McpServersPage: React.FC = () => {
   const handleRegisteredServerClick = (serverName: string, linkedRegistry: McpRegistry) => {
     setSelectedRegistryForServer({ registry: linkedRegistry, serverName });
   };
-
   const handleServerRegister = (server: McpServer) => {
     setSelectedServer(server);
     setRegisterModalOpen(true);
@@ -360,6 +359,7 @@ const McpServersPage: React.FC = () => {
         <McpDeployedServerDetailsModal
           server={selectedServer}
           serverMetadata={selectedServerMetadata || undefined}
+          linkedRegistry={getLinkedRegistry(selectedServer)}
           onClose={() => {
             setDetailsModalOpen(false);
             setSelectedServer(null);

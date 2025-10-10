@@ -15,14 +15,7 @@ import {
   MenuToggle,
   MenuToggleElement,
 } from '@patternfly/react-core';
-import {
-  EllipsisVIcon,
-  SyncAltIcon,
-  CogIcon,
-  EyeIcon,
-  CodeBranchIcon,
-  CubeIcon,
-} from '@patternfly/react-icons';
+import { EllipsisVIcon, SyncAltIcon, CogIcon, EyeIcon } from '@patternfly/react-icons';
 import { McpRegistryStatusLabel } from './McpRegistryStatusLabel';
 import { McpRegistry } from '../types/registry';
 
@@ -170,35 +163,21 @@ export const McpRegistryCard: React.FC<McpRegistryCardProps> = ({
       </CardHeader>
 
       <CardBody>
-        {/* Main metadata line with icons */}
-        <Flex
-          alignItems={{ default: 'alignItemsCenter' }}
-          spaceItems={{ default: 'spaceItemsSm' }}
-          className="pf-u-mb-md pf-u-font-size-sm pf-u-color-200"
-        >
-          <FlexItem>
-            <Flex
-              alignItems={{ default: 'alignItemsCenter' }}
-              spaceItems={{ default: 'spaceItemsXs' }}
-            >
-              {sourceType === 'git' ? <CodeBranchIcon /> : <CubeIcon />}
-              <span>{sourceType || 'unknown'}</span>
-            </Flex>
-          </FlexItem>
-          <FlexItem>•</FlexItem>
-          <FlexItem>
-            <span className="pf-u-font-weight-bold">{serverCount}</span>{' '}
-            {serverCount === 1 ? 'server' : 'servers'}
-          </FlexItem>
-          <FlexItem>•</FlexItem>
-          <FlexItem>{formatSyncInterval(syncInterval)}</FlexItem>
+        {/* Main status line - matches reference: "git • 24 servers • auto 1h • 10/9/2025 ago" */}
+        <div className="pf-u-mb-md pf-u-font-size-sm pf-u-color-200">
+          <span className="pf-u-font-weight-bold">{sourceType || 'unknown'}</span>
+          <span className="pf-u-mx-sm">•</span>
+          <span className="pf-u-font-weight-bold">{serverCount}</span>
+          <span className="pf-u-ml-xs">{serverCount === 1 ? 'server' : 'servers'}</span>
+          <span className="pf-u-mx-sm">•</span>
+          <span>{formatSyncInterval(syncInterval)}</span>
           {lastSyncTime && (
             <>
-              <FlexItem>•</FlexItem>
-              <FlexItem>{formatTimeAgo(lastSyncTime)}</FlexItem>
+              <span className="pf-u-mx-sm">•</span>
+              <span>{formatTimeAgo(lastSyncTime)}</span>
             </>
           )}
-        </Flex>
+        </div>
 
         {/* Description */}
         {spec.description && (
@@ -209,7 +188,7 @@ export const McpRegistryCard: React.FC<McpRegistryCardProps> = ({
 
         {/* Source URL */}
         {spec.source && (
-          <div className="pf-u-color-200 pf-u-font-size-sm pf-u-mt-md pf-u-font-family-monospace">
+          <div className="pf-u-color-200 pf-u-font-size-sm pf-u-font-family-monospace">
             {spec.source.git?.repository && <Truncate content={spec.source.git.repository} />}
             {spec.source.http?.url && <Truncate content={spec.source.http.url} />}
             {spec.source.configmap && <span>{spec.source.configmap.name}</span>}

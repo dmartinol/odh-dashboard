@@ -127,6 +127,9 @@ export const McpServerDetailsModal: React.FC<McpServerDetailsModalProps> = ({
   };
 
   const renderOverviewTab = () => {
+    const transport = getTransportFromTags();
+    const tier = getTierFromTags();
+
     return (
       <div>
         <DescriptionList isHorizontal isCompact>
@@ -137,6 +140,47 @@ export const McpServerDetailsModal: React.FC<McpServerDetailsModalProps> = ({
                 <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
                   {server.image}
                 </code>
+              </DescriptionListDescription>
+            </DescriptionListGroup>
+          )}
+
+          {server.description && (
+            <DescriptionListGroup>
+              <DescriptionListTerm>Description</DescriptionListTerm>
+              <DescriptionListDescription>{server.description}</DescriptionListDescription>
+            </DescriptionListGroup>
+          )}
+
+          <DescriptionListGroup>
+            <DescriptionListTerm>Version</DescriptionListTerm>
+            <DescriptionListDescription>
+              <Label color="grey" isCompact>
+                {formatVersion()}
+              </Label>
+            </DescriptionListDescription>
+          </DescriptionListGroup>
+
+          {transport && (
+            <DescriptionListGroup>
+              <DescriptionListTerm>Transport</DescriptionListTerm>
+              <DescriptionListDescription>
+                <Label color="blue" isCompact>
+                  {transport}
+                </Label>
+              </DescriptionListDescription>
+            </DescriptionListGroup>
+          )}
+
+          {tier && (
+            <DescriptionListGroup>
+              <DescriptionListTerm>Tier</DescriptionListTerm>
+              <DescriptionListDescription>
+                <Label
+                  color={tier === 'official' ? 'green' : tier === 'community' ? 'blue' : 'orange'}
+                  isCompact
+                >
+                  {tier}
+                </Label>
               </DescriptionListDescription>
             </DescriptionListGroup>
           )}
@@ -545,6 +589,52 @@ export const McpServerDetailsModal: React.FC<McpServerDetailsModalProps> = ({
             </Button>
           </div>
         </div>
+
+        {(server.repository || server.homepage) && (
+          <Card isCompact className="pf-u-mt-md">
+            <CardTitle>
+              <Flex
+                alignItems={{ default: 'alignItemsCenter' }}
+                spaceItems={{ default: 'spaceItemsSm' }}
+              >
+                <FlexItem>
+                  <ExternalLinkAltIcon />
+                </FlexItem>
+                <FlexItem>
+                  <strong>Source Repository</strong>
+                </FlexItem>
+              </Flex>
+            </CardTitle>
+            <CardBody>
+              <Flex spaceItems={{ default: 'spaceItemsSm' }}>
+                {server.repository && (
+                  <FlexItem>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={<ExternalLinkAltIcon />}
+                      onClick={() => window.open(server.repository, '_blank')}
+                    >
+                      View Source Code
+                    </Button>
+                  </FlexItem>
+                )}
+                {server.homepage && (
+                  <FlexItem>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={<ExternalLinkAltIcon />}
+                      onClick={() => window.open(server.homepage, '_blank')}
+                    >
+                      Documentation
+                    </Button>
+                  </FlexItem>
+                )}
+              </Flex>
+            </CardBody>
+          </Card>
+        )}
       </div>
     );
   };

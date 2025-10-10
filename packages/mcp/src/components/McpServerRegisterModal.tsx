@@ -94,12 +94,7 @@ export const McpServerRegisterModal: React.FC<McpServerRegisterModalProps> = ({
   const selectedRegistryObj = registries.find((r) => r.metadata?.name === selectedRegistry);
 
   return (
-    <Modal
-      isOpen
-      onClose={handleClose}
-      variant="medium"
-      aria-labelledby="register-server-modal-title"
-    >
+    <Modal onClose={handleClose} variant="medium" aria-labelledby="register-server-modal-title">
       <ModalHeader
         title="Register Server to Registry"
         description="Connect this server to a registry by adding the required registry labels"
@@ -150,9 +145,9 @@ export const McpServerRegisterModal: React.FC<McpServerRegisterModalProps> = ({
               aria-label="Select registry"
             >
               <SelectList>
-                {registries.map((registry) => (
-                  <SelectOption key={registry.metadata?.name} value={registry.metadata?.name}>
-                    {registry.spec.displayName || registry.metadata?.name}
+                  {registries.map((registry) => (
+                    <SelectOption key={registry.metadata?.name} value={registry.metadata?.name}>
+                    {registry.metadata?.name}
                     {registry.metadata?.namespace &&
                       registry.metadata.namespace !== server.metadata?.namespace && (
                         <span className="pf-v6-u-color-200 pf-v6-u-ml-sm">

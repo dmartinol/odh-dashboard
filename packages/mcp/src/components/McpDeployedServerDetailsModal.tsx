@@ -1,7 +1,6 @@
 import * as React from 'react';
 import {
-  Alert,
-  AlertVariant,
+  Badge,
   Button,
   DescriptionList,
   DescriptionListDescription,
@@ -17,549 +16,443 @@ import {
   Tab,
   Tabs,
   TabTitleText,
-  Title,
+  Tooltip,
 } from '@patternfly/react-core';
-import { PencilAltIcon, InfoCircleIcon } from '@patternfly/react-icons';
+import {
+  CheckCircleIcon,
+  ExclamationCircleIcon,
+  InProgressIcon,
+  QuestionCircleIcon,
+  CopyIcon,
+  ExternalLinkAltIcon,
+} from '@patternfly/react-icons';
+import { useNavigate } from 'react-router-dom';
 import { McpServer, McpServerMetadata } from '../types/server';
+import { McpRegistry } from '../types/registry';
 
 interface McpDeployedServerDetailsModalProps {
   onClose: () => void;
   server: McpServer;
+  linkedRegistry?: McpRegistry;
   serverMetadata?: McpServerMetadata;
   onEdit?: (server: McpServer) => void;
 }
 
-enum DetailsTab {
-  SERVER = 'server',
-  CONFIG = 'config',
-  RESOURCES = 'resources',
-  ADVANCED = 'advanced',
+enum ServerDetailsTab {
+  OVERVIEW = 'overview',
+  SPEC = 'spec',
+  STATUS = 'status',
+  LABELS = 'labels',
 }
+
+const getStatusIcon = (phase?: string) => {
+  switch (phase) {
+    case 'Running':
+      return <CheckCircleIcon color="var(--pf-t--global--icon--color--status--success--default)" />;
+    case 'Failed':
+      return (
+        <ExclamationCircleIcon color="var(--pf-t--global--icon--color--status--danger--default)" />
+      );
+    case 'Pending':
+      return <InProgressIcon color="var(--pf-t--global--icon--color--status--info--default)" />;
+    default:
+      return (
+        <QuestionCircleIcon color="var(--pf-t--global--icon--color--status--custom--default)" />
+      );
+  }
+};
+
+const getStatusColor = (phase?: string): 'green' | 'red' | 'blue' | 'grey' => {
+  switch (phase) {
+    case 'Running':
+      return 'green';
+    case 'Failed':
+      return 'red';
+    case 'Pending':
+      return 'blue';
+    default:
+      return 'grey';
+  }
+};
 
 export const McpDeployedServerDetailsModal: React.FC<McpDeployedServerDetailsModalProps> = ({
   onClose,
   server,
+  linkedRegistry,
   serverMetadata,
   onEdit,
 }) => {
-  const [activeTabKey, setActiveTabKey] = React.useState<string>(DetailsTab.SERVER);
+  const navigate = useNavigate();
+  const [activeTabKey, setActiveTabKey] = React.useState<string>(ServerDetailsTab.OVERVIEW);
 
-  const getServerIcon = () => {
-    const logoUrl = server.metadata?.annotations?.['mcp.toolhive.stacklok.dev/server-logo'];
-    if (logoUrl) {
-      return (
-        <img
-          src={logoUrl}
-          alt="Server logo"
-          style={{ width: '32px', height: '32px' }}
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
-          }}
-        />
-      );
-    }
-    return <InfoCircleIcon style={{ width: '32px', height: '32px' }} />;
+  const handleCopyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).catch((err) => {
+      console.error('Failed to copy to clipboard:', err);
+    });
   };
 
-  const displayName =
-    server.metadata?.annotations?.['mcp.toolhive.stacklok.dev/server-display-name'] ||
-    server.metadata?.name ||
-    'Unknown Server';
-
-  const description =
-    server.metadata?.annotations?.['mcp.toolhive.stacklok.dev/server-description'] || '';
-
-  const getStatusColor = (phase?: string): 'green' | 'red' | 'blue' | 'grey' => {
-    switch (phase) {
-      case 'Running':
-        return 'green';
-      case 'Failed':
-        return 'red';
-      case 'Pending':
-        return 'blue';
-      default:
-        return 'grey';
+  const formatDate = (dateString?: string) => {
+    if (!dateString) {
+      return '—';
+    }
+    try {
+      return new Date(dateString).toLocaleString();
+    } catch {
+      return dateString;
     }
   };
 
-  const renderServerTab = () => (
-    <div className="pf-u-pt-md">
-      <DescriptionList isHorizontal isCompact>
-        <DescriptionListGroup>
-          <DescriptionListTerm>Deployment Name</DescriptionListTerm>
-          <DescriptionListDescription>
-            <code>{server.metadata?.name}</code>
-          </DescriptionListDescription>
-        </DescriptionListGroup>
+  const renderOverviewTab = () => (
+    <DescriptionList isHorizontal columnModifier={{ default: '2Col' }}>
+      <DescriptionListGroup>
+        <DescriptionListTerm>Name</DescriptionListTerm>
+        <DescriptionListDescription>{server.metadata?.name}</DescriptionListDescription>
+      </DescriptionListGroup>
 
-        <DescriptionListGroup>
-          <DescriptionListTerm>Server Name</DescriptionListTerm>
-          <DescriptionListDescription>
-            {server.metadata?.labels?.['mcp.toolhive.stacklok.dev/server-type'] || 'N/A'}
-          </DescriptionListDescription>
-        </DescriptionListGroup>
+      <DescriptionListGroup>
+        <DescriptionListTerm>Namespace</DescriptionListTerm>
+        <DescriptionListDescription>{server.metadata?.namespace}</DescriptionListDescription>
+      </DescriptionListGroup>
 
-        <DescriptionListGroup>
-          <DescriptionListTerm>Status</DescriptionListTerm>
-          <DescriptionListDescription>
-            <Label color={getStatusColor(server.status?.phase)} isCompact>
-              {server.status?.phase || 'Unknown'}
+      <DescriptionListGroup>
+        <DescriptionListTerm>Status</DescriptionListTerm>
+        <DescriptionListDescription>
+          <Label
+            icon={getStatusIcon(server.status?.phase)}
+            color={getStatusColor(server.status?.phase)}
+            isCompact
+          >
+            {server.status?.phase || 'Unknown'}
+          </Label>
+        </DescriptionListDescription>
+      </DescriptionListGroup>
+
+      <DescriptionListGroup>
+        <DescriptionListTerm>Linked Registry</DescriptionListTerm>
+        <DescriptionListDescription>
+          {linkedRegistry ? (
+            <Button
+              variant="link"
+              isInline
+              onClick={() => {
+                onClose();
+                navigate(`/mcp/registries/${linkedRegistry.metadata?.name ?? ''}`);
+              }}
+              icon={<ExternalLinkAltIcon />}
+              iconPosition="end"
+            >
+              {linkedRegistry.metadata?.name}
+            </Button>
+          ) : (
+            <Label color="grey" isCompact>
+              Unregistered
             </Label>
-            {server.status?.endpoint && (
-              <div className="pf-u-mt-xs">
-                <code className="pf-u-font-size-sm">{server.status.endpoint}</code>
-              </div>
-            )}
-          </DescriptionListDescription>
-        </DescriptionListGroup>
+          )}
+        </DescriptionListDescription>
+      </DescriptionListGroup>
 
-        <DescriptionListGroup>
-          <DescriptionListTerm>Transport</DescriptionListTerm>
-          <DescriptionListDescription>
-            <Label color="blue" isCompact>
-              {server.spec.transport || 'stdio'}
-            </Label>
-          </DescriptionListDescription>
-        </DescriptionListGroup>
+      <DescriptionListGroup>
+        <DescriptionListTerm>Image</DescriptionListTerm>
+        <DescriptionListDescription>
+          <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
+            {server.spec.image}
+          </code>
+        </DescriptionListDescription>
+      </DescriptionListGroup>
 
-        {server.spec.transport === 'stdio' && server.spec.proxyMode && (
-          <DescriptionListGroup>
-            <DescriptionListTerm>Proxy Mode</DescriptionListTerm>
-            <DescriptionListDescription>
-              <Label color="purple" isCompact>
-                {server.spec.proxyMode}
-              </Label>
-            </DescriptionListDescription>
-          </DescriptionListGroup>
-        )}
+      <DescriptionListGroup>
+        <DescriptionListTerm>Transport</DescriptionListTerm>
+        <DescriptionListDescription>
+          <Label color="blue" isCompact>
+            {server.spec.transport}
+          </Label>
+        </DescriptionListDescription>
+      </DescriptionListGroup>
 
-        {server.spec.transport === 'stdio' && server.spec.port && (
-          <DescriptionListGroup>
-            <DescriptionListTerm>Port</DescriptionListTerm>
-            <DescriptionListDescription>{server.spec.port}</DescriptionListDescription>
-          </DescriptionListGroup>
-        )}
+      <DescriptionListGroup>
+        <DescriptionListTerm>Tier</DescriptionListTerm>
+        <DescriptionListDescription>
+          <Label color="blue" isCompact>
+            {server.spec.tier}
+          </Label>
+        </DescriptionListDescription>
+      </DescriptionListGroup>
 
-        {server.spec.transport !== 'stdio' && (
-          <>
-            {server.spec.port && (
-              <DescriptionListGroup>
-                <DescriptionListTerm>Port</DescriptionListTerm>
-                <DescriptionListDescription>{server.spec.port}</DescriptionListDescription>
-              </DescriptionListGroup>
-            )}
-            {server.spec.targetPort && (
-              <DescriptionListGroup>
-                <DescriptionListTerm>Target Port</DescriptionListTerm>
-                <DescriptionListDescription>{server.spec.targetPort}</DescriptionListDescription>
-              </DescriptionListGroup>
-            )}
-          </>
-        )}
+      <DescriptionListGroup>
+        <DescriptionListTerm>Endpoint</DescriptionListTerm>
+        <DescriptionListDescription>
+          {server.status?.url || server.status?.endpoint ? (
+            <Flex
+              spaceItems={{ default: 'spaceItemsSm' }}
+              alignItems={{ default: 'alignItemsCenter' }}
+            >
+              <FlexItem>
+                <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
+                  {server.status.url || server.status.endpoint}
+                </code>
+              </FlexItem>
+              <FlexItem>
+                <Tooltip content="Copy endpoint URL">
+                  <Button
+                    variant="plain"
+                    aria-label="Copy endpoint"
+                    onClick={() =>
+                      handleCopyToClipboard(server.status?.url || server.status?.endpoint || '')
+                    }
+                    icon={<CopyIcon />}
+                  />
+                </Tooltip>
+              </FlexItem>
+            </Flex>
+          ) : (
+            <span className="pf-v6-u-color-200">—</span>
+          )}
+        </DescriptionListDescription>
+      </DescriptionListGroup>
 
-        {server.spec.args && server.spec.args.length > 0 && (
-          <DescriptionListGroup>
-            <DescriptionListTerm>Arguments</DescriptionListTerm>
-            <DescriptionListDescription>
-              <code>{server.spec.args.join(' ')}</code>
-            </DescriptionListDescription>
-          </DescriptionListGroup>
-        )}
-      </DescriptionList>
-    </div>
+      <DescriptionListGroup>
+        <DescriptionListTerm>Created</DescriptionListTerm>
+        <DescriptionListDescription>
+          {formatDate(server.metadata?.creationTimestamp)}
+        </DescriptionListDescription>
+      </DescriptionListGroup>
+
+      <DescriptionListGroup>
+        <DescriptionListTerm>UID</DescriptionListTerm>
+        <DescriptionListDescription>
+          <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-xs">
+            {server.metadata?.uid}
+          </code>
+        </DescriptionListDescription>
+      </DescriptionListGroup>
+    </DescriptionList>
   );
 
-  const renderConfigTab = () => {
-    // If we have server metadata, show ALL env vars (including undefined ones)
-    if (serverMetadata?.env_vars) {
-      // Create map of configured values
-      const configuredEnvVars = new Map<string, { type: 'value' | 'secret'; data: string }>();
+  const renderSpecTab = () => (
+    <DescriptionList isHorizontal columnModifier={{ default: '2Col' }}>
+      <DescriptionListGroup>
+        <DescriptionListTerm>Image</DescriptionListTerm>
+        <DescriptionListDescription>
+          <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
+            {server.spec.image}
+          </code>
+        </DescriptionListDescription>
+      </DescriptionListGroup>
 
-      // Add value-based env vars to map
-      server.spec.env?.forEach((env) => {
-        configuredEnvVars.set(env.name, {
-          type: 'value',
-          data: env.value || '',
-        });
-      });
+      <DescriptionListGroup>
+        <DescriptionListTerm>Transport</DescriptionListTerm>
+        <DescriptionListDescription>{server.spec.transport}</DescriptionListDescription>
+      </DescriptionListGroup>
 
-      // Add secret-based env vars to map
-      server.spec.secrets?.forEach((secret) => {
-        const envName = secret.targetEnvName || secret.key;
-        configuredEnvVars.set(envName, {
-          type: 'secret',
-          data: `${secret.name}/${secret.key}`,
-        });
-      });
+      <DescriptionListGroup>
+        <DescriptionListTerm>Tier</DescriptionListTerm>
+        <DescriptionListDescription>{server.spec.tier}</DescriptionListDescription>
+      </DescriptionListGroup>
 
-      // Build display list from ALL expected env vars
-      const allEnvVars = serverMetadata.env_vars.map((envMeta) => {
-        const configured = configuredEnvVars.get(envMeta.name);
-        return {
-          name: envMeta.name,
-          type: configured?.type || 'value',
-          data: configured?.data || '',
-          isDefined: !!configured,
-          required: envMeta.required,
-          secret: envMeta.secret,
-          description: envMeta.description,
-          default: envMeta.default,
-        };
-      });
+      {server.spec.args && server.spec.args.length > 0 && (
+        <DescriptionListGroup>
+          <DescriptionListTerm>Args</DescriptionListTerm>
+          <DescriptionListDescription>
+            <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
+              {server.spec.args.join(' ')}
+            </code>
+          </DescriptionListDescription>
+        </DescriptionListGroup>
+      )}
 
-      return (
-        <div className="pf-u-pt-md">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {allEnvVars.map((envVar, index) => (
-              <div
-                key={index}
-                className="pf-u-p-md"
-                style={{
-                  backgroundColor:
-                    index % 2 === 0
-                      ? 'transparent'
-                      : 'var(--pf-t--global--background--color--secondary--default)',
-                  borderRadius: '4px',
-                }}
-              >
-                <Flex
-                  alignItems={{ default: 'alignItemsCenter' }}
-                  spaceItems={{ default: 'spaceItemsSm' }}
-                  className="pf-u-mb-sm"
-                >
-                  <FlexItem>
-                    <strong>{envVar.name}</strong>
-                  </FlexItem>
-                  {!envVar.isDefined && (
-                    <FlexItem>
-                      <Label color="grey" isCompact>
-                        Undefined
-                      </Label>
-                    </FlexItem>
-                  )}
-                  {envVar.required && (
-                    <FlexItem>
-                      <Label color="red" isCompact>
-                        Required
-                      </Label>
-                    </FlexItem>
-                  )}
-                  {envVar.secret && (
-                    <FlexItem>
-                      <Label color="orange" isCompact>
-                        Secret
-                      </Label>
-                    </FlexItem>
-                  )}
-                  {envVar.description && (
-                    <FlexItem className="pf-u-color-200 pf-u-font-size-sm">
-                      {envVar.description}
-                    </FlexItem>
-                  )}
-                </Flex>
-                {envVar.isDefined ? (
-                  <div className="pf-u-ml-lg">
-                    {envVar.type === 'value' ? (
-                      <div>
-                        <Label color="blue" isCompact>
-                          Value
-                        </Label>
-                        <code className="pf-u-ml-sm pf-u-font-size-sm">
-                          {envVar.secret ? '••••••••' : envVar.data}
-                        </code>
-                      </div>
-                    ) : (
-                      <div>
-                        <Label color="purple" isCompact>
-                          Secret Reference
-                        </Label>
-                        <code className="pf-u-ml-sm pf-u-font-size-sm">{envVar.data}</code>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="pf-u-ml-lg pf-u-color-200 pf-u-font-size-sm">
-                    Not configured
-                    {envVar.default && ` (Default: ${envVar.default})`}
-                  </div>
-                )}
+      {server.spec.env && server.spec.env.length > 0 && (
+        <DescriptionListGroup>
+          <DescriptionListTerm>Environment Variables</DescriptionListTerm>
+          <DescriptionListDescription>
+            {server.spec.env.map((envVar) => (
+              <div key={envVar.name}>
+                <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
+                  {envVar.name}={envVar.value || '***'}
+                </code>
               </div>
             ))}
-          </div>
-        </div>
-      );
-    }
+          </DescriptionListDescription>
+        </DescriptionListGroup>
+      )}
 
-    // Fallback: If no metadata, show only configured env vars
-    const hasEnv = server.spec.env && server.spec.env.length > 0;
-    const hasSecrets = server.spec.secrets && server.spec.secrets.length > 0;
-
-    if (!hasEnv && !hasSecrets) {
-      return (
-        <div className="pf-u-pt-md">
-          <Alert variant={AlertVariant.info} title="No configuration" isInline>
-            This server has no environment variables configured.
-          </Alert>
-        </div>
-      );
-    }
-
-    // Collect all env vars (both values and secrets)
-    const allEnvVars: Array<{
-      name: string;
-      type: 'value' | 'secret';
-      data: string;
-      required?: boolean;
-      secret?: boolean;
-      description?: string;
-    }> = [];
-
-    // Add value-based env vars
-    server.spec.env?.forEach((env) => {
-      const metadata = serverMetadata?.env_vars?.find((v) => v.name === env.name);
-      allEnvVars.push({
-        name: env.name,
-        type: 'value',
-        data: env.value || '',
-        required: metadata?.required,
-        secret: metadata?.secret,
-        description: metadata?.description,
-      });
-    });
-
-    // Add secret-based env vars
-    server.spec.secrets?.forEach((secret) => {
-      const envName = secret.targetEnvName || secret.key;
-      const metadata = serverMetadata?.env_vars?.find((v) => v.name === envName);
-      allEnvVars.push({
-        name: envName,
-        type: 'secret',
-        data: `${secret.name}/${secret.key}`,
-        required: metadata?.required,
-        secret: metadata?.secret,
-        description: metadata?.description,
-      });
-    });
-
-    return (
-      <div className="pf-u-pt-md">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {allEnvVars.map((envVar, index) => (
-            <div
-              key={index}
-              className="pf-u-p-md"
-              style={{
-                backgroundColor:
-                  index % 2 === 0
-                    ? 'transparent'
-                    : 'var(--pf-t--global--background--color--secondary--default)',
-                borderRadius: '4px',
-              }}
-            >
-              <Flex
-                alignItems={{ default: 'alignItemsCenter' }}
-                spaceItems={{ default: 'spaceItemsSm' }}
-                className="pf-u-mb-sm"
-              >
-                <FlexItem>
-                  <strong>{envVar.name}</strong>
-                </FlexItem>
-                {envVar.required && (
-                  <FlexItem>
-                    <Label color="red" isCompact>
-                      Required
-                    </Label>
-                  </FlexItem>
-                )}
-                {envVar.secret && (
-                  <FlexItem>
-                    <Label color="orange" isCompact>
-                      Secret
-                    </Label>
-                  </FlexItem>
-                )}
-                <FlexItem>
-                  <Label color={envVar.type === 'secret' ? 'orange' : 'blue'} isCompact>
-                    {envVar.type === 'secret' ? 'Secret' : 'Value'}
-                  </Label>
-                </FlexItem>
-                {envVar.description && (
-                  <FlexItem className="pf-u-color-200 pf-u-font-size-sm">
-                    {envVar.description}
-                  </FlexItem>
-                )}
-              </Flex>
+      {server.spec.resources && (
+        <DescriptionListGroup>
+          <DescriptionListTerm>Resources</DescriptionListTerm>
+          <DescriptionListDescription>
+            {server.spec.resources.requests && (
               <div>
-                {envVar.type === 'secret' ? (
-                  <>
-                    Secret: <code>{envVar.data.split('/')[0]}</code>, Key:{' '}
-                    <code>{envVar.data.split('/')[1]}</code>
-                  </>
-                ) : (
-                  <code>{envVar.data || '***'}</code>
-                )}
+                <strong>Requests:</strong> CPU:{' '}
+                {server.spec.resources.requests.cpu || '—'}, Memory:{' '}
+                {server.spec.resources.requests.memory || '—'}
               </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  const renderResourcesTab = () => (
-    <div className="pf-u-pt-md">
-      <DescriptionList isHorizontal isCompact>
-        <DescriptionListGroup>
-          <DescriptionListTerm>
-            <strong>Limits</strong>
-          </DescriptionListTerm>
-          <DescriptionListDescription> </DescriptionListDescription>
-        </DescriptionListGroup>
-
-        <DescriptionListGroup>
-          <DescriptionListTerm>CPU</DescriptionListTerm>
-          <DescriptionListDescription>
-            {server.spec.resources?.limits?.cpu || 'Not set'}
+            )}
+            {server.spec.resources.limits && (
+              <div>
+                <strong>Limits:</strong> CPU:{' '}
+                {server.spec.resources.limits.cpu || '—'}, Memory:{' '}
+                {server.spec.resources.limits.memory || '—'}
+              </div>
+            )}
           </DescriptionListDescription>
         </DescriptionListGroup>
+      )}
 
+      {server.status?.replicas !== undefined && (
         <DescriptionListGroup>
-          <DescriptionListTerm>Memory</DescriptionListTerm>
-          <DescriptionListDescription>
-            {server.spec.resources?.limits?.memory || 'Not set'}
-          </DescriptionListDescription>
+          <DescriptionListTerm>Replicas</DescriptionListTerm>
+          <DescriptionListDescription>{server.status.replicas}</DescriptionListDescription>
         </DescriptionListGroup>
-
-        <DescriptionListGroup>
-          <DescriptionListTerm>
-            <strong>Requests</strong>
-          </DescriptionListTerm>
-          <DescriptionListDescription> </DescriptionListDescription>
-        </DescriptionListGroup>
-
-        <DescriptionListGroup>
-          <DescriptionListTerm>CPU</DescriptionListTerm>
-          <DescriptionListDescription>
-            {server.spec.resources?.requests?.cpu || 'Not set'}
-          </DescriptionListDescription>
-        </DescriptionListGroup>
-
-        <DescriptionListGroup>
-          <DescriptionListTerm>Memory</DescriptionListTerm>
-          <DescriptionListDescription>
-            {server.spec.resources?.requests?.memory || 'Not set'}
-          </DescriptionListDescription>
-        </DescriptionListGroup>
-      </DescriptionList>
-    </div>
+      )}
+    </DescriptionList>
   );
 
-  const renderAdvancedTab = () => {
-    const podSpec = server.spec.podTemplateSpec?.spec;
+  const renderStatusTab = () => (
+    <DescriptionList isHorizontal columnModifier={{ default: '2Col' }}>
+      <DescriptionListGroup>
+        <DescriptionListTerm>Phase</DescriptionListTerm>
+        <DescriptionListDescription>
+          <Label
+            icon={getStatusIcon(server.status?.phase)}
+            color={getStatusColor(server.status?.phase)}
+            isCompact
+          >
+            {server.status?.phase || 'Unknown'}
+          </Label>
+        </DescriptionListDescription>
+      </DescriptionListGroup>
 
-    if (!podSpec) {
-      return (
-        <div className="pf-u-pt-md">
-          <Alert variant={AlertVariant.info} title="No advanced configuration" isInline>
-            This server has no advanced pod configuration.
-          </Alert>
-        </div>
-      );
-    }
+      <DescriptionListGroup>
+        <DescriptionListTerm>Ready</DescriptionListTerm>
+        <DescriptionListDescription>
+          {server.status?.ready ? (
+            <Label color="green" isCompact>
+              Yes
+            </Label>
+          ) : (
+            <Label color="red" isCompact>
+              No
+            </Label>
+          )}
+        </DescriptionListDescription>
+      </DescriptionListGroup>
 
-    return (
-      <div className="pf-u-pt-md">
-        <DescriptionList isHorizontal isCompact>
-          {podSpec.imagePullSecrets && podSpec.imagePullSecrets.length > 0 && (
-            <DescriptionListGroup>
-              <DescriptionListTerm>Image Pull Secrets</DescriptionListTerm>
+      {server.status?.message && (
+        <DescriptionListGroup>
+          <DescriptionListTerm>Message</DescriptionListTerm>
+          <DescriptionListDescription>{server.status.message}</DescriptionListDescription>
+        </DescriptionListGroup>
+      )}
+
+      {server.status?.endpoint && (
+        <DescriptionListGroup>
+          <DescriptionListTerm>Endpoint</DescriptionListTerm>
+          <DescriptionListDescription>
+            <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
+              {server.status.endpoint}
+            </code>
+          </DescriptionListDescription>
+        </DescriptionListGroup>
+      )}
+
+      {server.status?.url && (
+        <DescriptionListGroup>
+          <DescriptionListTerm>URL</DescriptionListTerm>
+          <DescriptionListDescription>
+            <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
+              {server.status.url}
+            </code>
+          </DescriptionListDescription>
+        </DescriptionListGroup>
+      )}
+
+      {(server.status?.replicas !== undefined || server.status?.readyReplicas !== undefined) && (
+        <>
+          <DescriptionListGroup>
+            <DescriptionListTerm>Replicas</DescriptionListTerm>
+            <DescriptionListDescription>{server.status.replicas ?? 0}</DescriptionListDescription>
+          </DescriptionListGroup>
+
+          <DescriptionListGroup>
+            <DescriptionListTerm>Ready Replicas</DescriptionListTerm>
+            <DescriptionListDescription>
+              {server.status.readyReplicas ?? 0}
+            </DescriptionListDescription>
+          </DescriptionListGroup>
+        </>
+      )}
+
+      {server.status?.conditions && server.status.conditions.length > 0 && (
+        <DescriptionListGroup>
+          <DescriptionListTerm>Conditions</DescriptionListTerm>
+          <DescriptionListDescription>
+            {server.status.conditions.map((condition, idx) => (
+              <div key={idx} className="pf-v6-u-mb-sm">
+                <strong>{condition.type}:</strong> {condition.status}
+                {condition.message && <div className="pf-v6-u-ml-md">{condition.message}</div>}
+              </div>
+            ))}
+          </DescriptionListDescription>
+        </DescriptionListGroup>
+      )}
+    </DescriptionList>
+  );
+
+  const renderLabelsTab = () => (
+    <DescriptionList isHorizontal columnModifier={{ default: '1Col' }}>
+      {server.metadata?.labels && Object.keys(server.metadata.labels).length > 0 ? (
+        Object.entries(server.metadata.labels).map(([key, value]) => (
+          <DescriptionListGroup key={key}>
+            <DescriptionListTerm>
+              <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">{key}</code>
+            </DescriptionListTerm>
+            <DescriptionListDescription>
+              <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">{value}</code>
+              {key.startsWith('toolhive.stacklok.io/') && (
+                <Badge className="pf-v6-u-ml-sm" isRead>
+                  Registry Label
+                </Badge>
+              )}
+            </DescriptionListDescription>
+          </DescriptionListGroup>
+        ))
+      ) : (
+        <DescriptionListGroup>
+          <DescriptionListTerm>Labels</DescriptionListTerm>
+          <DescriptionListDescription>No labels</DescriptionListDescription>
+        </DescriptionListGroup>
+      )}
+
+      {server.metadata?.annotations && Object.keys(server.metadata.annotations).length > 0 && (
+        <>
+          <DescriptionListGroup>
+            <DescriptionListTerm>
+              <strong>Annotations</strong>
+            </DescriptionListTerm>
+            <DescriptionListDescription>
+              <div />
+            </DescriptionListDescription>
+          </DescriptionListGroup>
+          {Object.entries(server.metadata.annotations).map(([key, value]) => (
+            <DescriptionListGroup key={key}>
+              <DescriptionListTerm>
+                <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">{key}</code>
+              </DescriptionListTerm>
               <DescriptionListDescription>
-                <Flex spaceItems={{ default: 'spaceItemsXs' }}>
-                  {podSpec.imagePullSecrets.map((secret, index) => (
-                    <FlexItem key={index}>
-                      <Label color="blue" isCompact>
-                        {secret.name}
-                      </Label>
-                    </FlexItem>
-                  ))}
-                </Flex>
+                <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">{value}</code>
               </DescriptionListDescription>
             </DescriptionListGroup>
-          )}
-
-          {podSpec.serviceAccountName && (
-            <DescriptionListGroup>
-              <DescriptionListTerm>Service Account</DescriptionListTerm>
-              <DescriptionListDescription>{podSpec.serviceAccountName}</DescriptionListDescription>
-            </DescriptionListGroup>
-          )}
-
-          {podSpec.nodeSelector && Object.keys(podSpec.nodeSelector).length > 0 && (
-            <DescriptionListGroup>
-              <DescriptionListTerm>Node Selector</DescriptionListTerm>
-              <DescriptionListDescription>
-                <Flex direction={{ default: 'column' }} spaceItems={{ default: 'spaceItemsXs' }}>
-                  {Object.entries(podSpec.nodeSelector).map(([key, value]) => (
-                    <FlexItem key={key}>
-                      <code>
-                        {key}={value}
-                      </code>
-                    </FlexItem>
-                  ))}
-                </Flex>
-              </DescriptionListDescription>
-            </DescriptionListGroup>
-          )}
-
-          {podSpec.securityContext && (
-            <>
-              {podSpec.securityContext.runAsNonRoot && (
-                <DescriptionListGroup>
-                  <DescriptionListTerm>Run as Non-Root</DescriptionListTerm>
-                  <DescriptionListDescription>
-                    <Label color="green" isCompact>
-                      Enabled
-                    </Label>
-                  </DescriptionListDescription>
-                </DescriptionListGroup>
-              )}
-
-              {podSpec.securityContext.runAsUser !== undefined && (
-                <DescriptionListGroup>
-                  <DescriptionListTerm>User ID</DescriptionListTerm>
-                  <DescriptionListDescription>
-                    {podSpec.securityContext.runAsUser}
-                  </DescriptionListDescription>
-                </DescriptionListGroup>
-              )}
-
-              {podSpec.securityContext.runAsGroup !== undefined && (
-                <DescriptionListGroup>
-                  <DescriptionListTerm>Group ID</DescriptionListTerm>
-                  <DescriptionListDescription>
-                    {podSpec.securityContext.runAsGroup}
-                  </DescriptionListDescription>
-                </DescriptionListGroup>
-              )}
-            </>
-          )}
-        </DescriptionList>
-      </div>
-    );
-  };
+          ))}
+        </>
+      )}
+    </DescriptionList>
+  );
 
   return (
-    <Modal isOpen onClose={onClose} variant="medium" data-testid="mcp-deployed-server-details">
-      <ModalHeader>
-        <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
-          <FlexItem>{getServerIcon()}</FlexItem>
-          <FlexItem>
-            <Title headingLevel="h2" size="xl">
-              {displayName}
-            </Title>
-          </FlexItem>
-        </Flex>
-        {description && <div className="pf-u-color-200 pf-u-mt-sm">{description}</div>}
+    <Modal onClose={onClose} variant="medium" aria-labelledby="server-details-modal-title">
+      <ModalHeader title={`Server: ${server.metadata?.name ?? 'Unknown'}`}>
+        <div className="pf-v6-u-color-200 pf-v6-u-font-size-sm">
+          Namespace: {server.metadata?.namespace ?? 'Unknown'}
+        </div>
       </ModalHeader>
       <ModalBody>
         <Tabs
@@ -567,36 +460,45 @@ export const McpDeployedServerDetailsModal: React.FC<McpDeployedServerDetailsMod
           onSelect={(e, tabIndex) => setActiveTabKey(String(tabIndex))}
           aria-label="Server details tabs"
         >
-          <Tab eventKey={DetailsTab.SERVER} title={<TabTitleText>Server</TabTitleText>}>
-            {renderServerTab()}
+          <Tab
+            eventKey={ServerDetailsTab.OVERVIEW}
+            title={<TabTitleText>Overview</TabTitleText>}
+            aria-label="Overview tab"
+          >
+            {renderOverviewTab()}
           </Tab>
-          <Tab eventKey={DetailsTab.CONFIG} title={<TabTitleText>Config</TabTitleText>}>
-            {renderConfigTab()}
+          <Tab
+            eventKey={ServerDetailsTab.SPEC}
+            title={<TabTitleText>Spec</TabTitleText>}
+            aria-label="Spec tab"
+          >
+            {renderSpecTab()}
           </Tab>
-          <Tab eventKey={DetailsTab.RESOURCES} title={<TabTitleText>Resources</TabTitleText>}>
-            {renderResourcesTab()}
+          <Tab
+            eventKey={ServerDetailsTab.STATUS}
+            title={<TabTitleText>Status</TabTitleText>}
+            aria-label="Status tab"
+          >
+            {renderStatusTab()}
           </Tab>
-          <Tab eventKey={DetailsTab.ADVANCED} title={<TabTitleText>Advanced</TabTitleText>}>
-            {renderAdvancedTab()}
+          <Tab
+            eventKey={ServerDetailsTab.LABELS}
+            title={<TabTitleText>Labels & Annotations</TabTitleText>}
+            aria-label="Labels tab"
+          >
+            {renderLabelsTab()}
           </Tab>
         </Tabs>
       </ModalBody>
       <ModalFooter>
-        <Button variant="secondary" onClick={onClose}>
-          Close
-        </Button>
         {onEdit && (
-          <Button
-            variant="primary"
-            icon={<PencilAltIcon />}
-            onClick={() => {
-              onEdit(server);
-              onClose();
-            }}
-          >
+          <Button variant="secondary" onClick={() => onEdit(server)} className="pf-v6-u-mr-sm">
             Edit
           </Button>
         )}
+        <Button variant="primary" onClick={onClose}>
+          Close
+        </Button>
       </ModalFooter>
     </Modal>
   );

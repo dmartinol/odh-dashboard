@@ -52,8 +52,13 @@ export const McpServerDeleteModal: React.FC<McpServerDeleteModalProps> = ({
   };
 
   return (
-    <Modal isOpen onClose={handleClose} variant="small" aria-labelledby="delete-server-modal-title">
-      <ModalHeader title="Delete Server?" titleIconVariant="warning" />
+    <Modal
+      onClose={handleClose}
+      variant="small"
+      aria-labelledby="delete-server-modal-title"
+      titleIconVariant="warning"
+    >
+      <ModalHeader title="Delete Server?" labelText="This action cannot be undone" />
       <ModalBody>
         {error && (
           <Alert variant={AlertVariant.danger} title="Error" className="pf-v6-u-mb-md" isInline>

@@ -82,7 +82,6 @@ const McpRegistryDetailsPage: React.FC = () => {
       }
     }
   }, [registry, preferredProject, projects, updatePreferredProject]);
-
   // Load ConfigMaps for ConfigMap-based registries
   const [configMaps] = useConfigMaps(registry?.metadata?.namespace);
 
@@ -169,6 +168,7 @@ const McpRegistryDetailsPage: React.FC = () => {
       discoverServers();
     }
   }, [registry, configMaps]);
+
   const getSourceTypeIcon = (sourceType?: string) => {
     switch (sourceType) {
       case 'git':

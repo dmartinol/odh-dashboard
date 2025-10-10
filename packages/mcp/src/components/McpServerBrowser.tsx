@@ -365,9 +365,9 @@ export const McpServerBrowser: React.FC<McpServerBrowserProps> = ({
                 aria-label="Filter by transport"
               >
                 <FormSelectOption value="all" label="All Transports" />
-                <FormSelectOption value="stdio" label="stdio" />
-                <FormSelectOption value="sse" label="sse" />
-                <FormSelectOption value="streamable-http" label="streamable-http" />
+                <FormSelectOption value="stdio" label="STDIO" />
+                <FormSelectOption value="sse" label="SSE" />
+                <FormSelectOption value="streamable-http" label="Streamable HTTP" />
               </FormSelect>
             </ToolbarItem>
             <ToolbarItem>
@@ -383,6 +383,7 @@ export const McpServerBrowser: React.FC<McpServerBrowserProps> = ({
                 <FormSelectOption value="all" label="All Tiers" />
                 <FormSelectOption value="official" label="Official" />
                 <FormSelectOption value="community" label="Community" />
+                <FormSelectOption value="experimental" label="Experimental" />
               </FormSelect>
             </ToolbarItem>
           </ToolbarGroup>
@@ -430,8 +431,6 @@ export const McpServerBrowser: React.FC<McpServerBrowserProps> = ({
           }}
           server={selectedServer}
           onDeploy={(server) => {
-            setDetailsModalOpen(false);
-            setSelectedServer(null);
             setServerToDeploy(server);
             setDeployModalOpen(true);
             onServerDeploy?.(server);
@@ -442,6 +441,7 @@ export const McpServerBrowser: React.FC<McpServerBrowserProps> = ({
       {/* Server Deploy Modal */}
       {serverToDeploy && deployModalOpen && (
         <McpServerDeployModal
+          isOpen
           onClose={() => {
             setDeployModalOpen(false);
             setServerToDeploy(null);

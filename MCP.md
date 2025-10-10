@@ -90,30 +90,6 @@ The MCP integration will follow ODH's design system while incorporating modern U
 │ 🏷️ git • ✅ healthy • Last sync: 30m ago              │
 │ github.com/company/mcp-registry                         │
 ├─────────────────────────────────────────────────────────┤
-│ [Overview] [Available Servers (24)] [Deployed Servers] │
-├─────────────────────────────────────────────────────────┤
-│ 📊 Registry Information                                 │
-│ ┌─ Source: Git Repository ────────────────────────────┐ │
-│ │ URL: github.com/company/mcp-registry               │ │
-│ │ Branch: main • Commit: abc123f                     │ │
-│ │ Last Sync: 2024-01-09 14:30 UTC                    │ │
-│ └───────────────────────────────────────────────────────┘ │
-│ ┌─ Status & Metrics ──────────────────────────────────┐ │
-│ │ Health: ✅ Healthy • Servers: 24 • Deployments: 8  │ │
-│ │ Created: 2024-01-01 • Namespace: production        │ │
-│ └───────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────┘
-```
-
-#### 3. Servers Page (`/mcp/servers`)
-```
-┌─────────────────────────────────────────────────────────┐
-│ 🏠 MCP > Registries > Production Registry              │
-├─────────────────────────────────────────────────────────┤
-│ Production Registry                          [Edit][⚙️] │
-│ 🏷️ git • ✅ healthy • Last sync: 30m ago              │
-│ github.com/company/mcp-registry                         │
-├─────────────────────────────────────────────────────────┤
 │ [Overview] [Servers (24)] [Configuration]              │
 ├─────────────────────────────────────────────────────────┤
 │ ℹ️ View all deployed servers                           │
@@ -305,7 +281,6 @@ const extensions: NavExtension[] = [
 **🎯 Overall Progress: Phases 1-4 Complete, Ready for Phase 5**
 
 **✅ Completed:**
-
 - ✅ **Full Phase 1**: Package structure, navigation, and API foundation
 - ✅ MCP package integrated into ODH Dashboard build system
 - ✅ Navigation menu items appearing correctly
@@ -334,7 +309,6 @@ const extensions: NavExtension[] = [
 - ✅ **Registry Details Updates**: Removed Deployed Servers tab, renamed Available Servers to Servers, added link to Servers page
 
 **⏳ Next Steps:**
-
 - Phase 5: Advanced features and production polish
 - Performance optimization and caching strategies
 - Accessibility improvements and keyboard navigation
@@ -488,7 +462,6 @@ const extensions: NavExtension[] = [
 - Foundation ready for Phase 3 server discovery development
 
 ### Phase 3: Server Discovery (Week 5-6) ✅ **COMPLETED**
-
 **Goal: Server browsing and deployment**
 
 #### Status Update:
@@ -501,28 +474,24 @@ const extensions: NavExtension[] = [
 #### Tasks:
 
 1. **Server Browser** ✅ **COMPLETED**
-
    - ✅ Card-based server listing with professional layout
    - ✅ Advanced filtering (transport, tier, tags)
    - ✅ Search functionality with real-time filtering
    - ✅ Server categorization and grouping with badges
 
 2. **Server Details** ✅ **COMPLETED**
-
    - ✅ Comprehensive server information modal
    - ✅ Tabbed interface (Overview, Tools, Prompts, Resources)
    - ✅ Logo integration from server metadata
    - ✅ Technical specifications display with complete metadata
 
 3. **Server Deployment** ✅ **COMPLETED**
-
    - ✅ Advanced deployment functionality (replaced quick deploy with full configuration)
    - ✅ Complete deployment configuration dialog
    - ✅ Namespace/project integration with ProjectsContext
    - ✅ Resource validation and form validation
 
 4. **Advanced Deployment** ✅ **COMPLETED**
-
    - ✅ Full deployment configuration dialog with expandable advanced settings
    - ✅ Environment variables management with add/remove functionality
    - ✅ Resource limits and requests configuration
@@ -558,15 +527,13 @@ const extensions: NavExtension[] = [
    - ✅ **Tools Tab Fixes**: Fixed tool name display and removed unnecessary fallback message for tools without descriptions - **COMPLETED**
    - ✅ **MCP v0 API Tools Parsing**: Fixed tools parsing to handle string arrays from MCP v0 API instead of object arrays - **COMPLETED**
 
-**Deliverables:** ✅ **ALL COMPLETED** _(Completed: January 2025)_
-
+**Deliverables:** ✅ **ALL COMPLETED** *(Completed: January 2025)*
 - ✅ Server discovery and browsing UI with real-time filtering
 - ✅ Server deployment workflows with MCPServer CRD generation
 - ✅ Configuration management system with advanced settings
 - ✅ Server details modal with comprehensive information display
 
 **🎉 Phase 3 Summary:**
-
 - Complete server discovery system with ToolHive registry format parsing
 - Professional server browser with advanced filtering (transport, tier, tags, search)
 - Comprehensive server details modal with tabbed interface showing tools, prompts, and resources
@@ -582,7 +549,6 @@ const extensions: NavExtension[] = [
 **Goal: Monitor and manage deployed MCPServer instances**
 
 #### Status Update:
-
 - ✅ **Servers Page Implementation**: Complete servers table with namespace selector and filtering
 - ✅ **Server-Registry Matching**: Implemented label-based matching logic for linking servers to registries
 - ✅ **Sortable Table**: All columns sortable (name, status, registry, transport)
@@ -594,7 +560,6 @@ const extensions: NavExtension[] = [
 #### Tasks:
 
 1. **Servers Table** ✅ **COMPLETED**
-
    - Sortable columns: Name (default), Status, Linked Registry, Endpoint, Transport
    - Status indicators from Deployment phase (Running/Pending/Failed/Unknown)
    - Linked registry display with clickable links to registry details
@@ -605,7 +570,6 @@ const extensions: NavExtension[] = [
    - Row action menus (hamburger) with View details, Register/Unregister, and Delete options
 
 2. **Servers Toolbar** ✅ **COMPLETED**
-
    - Namespace selector with project context integration
    - Search by name with partial matching
    - Filter by linked registry (including "Unregistered" option)
@@ -614,7 +578,6 @@ const extensions: NavExtension[] = [
    - URL query parameter support for pre-filtering
 
 3. **Server-Registry Matching** ✅ **COMPLETED**
-
    - Label-based matching using:
      - `toolhive.stacklok.io/registry-name`
      - `toolhive.stacklok.io/registry-namespace`
@@ -623,13 +586,11 @@ const extensions: NavExtension[] = [
    - Display "Unregistered" label for servers without valid registry links
 
 4. **Registry Details Integration** ✅ **COMPLETED**
-
    - Removed "Deployed Servers" tab (functionality moved to Servers page)
    - Renamed "Available Servers" tab to "Servers"
    - Added prominent link/button to navigate to Servers page with pre-filter
    - Alert component explaining where to find deployed instances
    - Clean separation between registry metadata and deployed instances
-
 5. **Server Actions & Modals** ✅ **COMPLETED**
    - **McpDeployedServerDetailsModal**: Comprehensive modal with tabbed interface
      - Overview tab: Server metadata, deployment info, endpoint with copy functionality
@@ -649,7 +610,6 @@ const extensions: NavExtension[] = [
    - **K8s API Functions**: Added patchMcpServer for label updates
 
 **Deliverables:** ✅ **ALL COMPLETED**
-
 - Comprehensive servers table with sorting and filtering
 - Namespace-aware server management
 - Server-registry relationship visualization
@@ -660,7 +620,6 @@ const extensions: NavExtension[] = [
 - Server deletion with confirmation
 
 **🎉 Phase 4 Summary:**
-
 - Complete servers management system with table-based UI
 - Namespace selector for multi-project server viewing
 - Advanced filtering by name, registry, transport (stdio/sse/streamable-http), and status
