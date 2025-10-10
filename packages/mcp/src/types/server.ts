@@ -13,7 +13,7 @@ export interface McpServer extends K8sResourceCommon {
   status?: McpServerStatus;
 }
 
-export type McpTransport = 'stdio' | 'sse' | 'http' | 'websocket';
+export type McpTransport = 'stdio' | 'streamable-http' | 'sse';
 
 export type McpServerTier = 'official' | 'community' | 'experimental';
 
@@ -65,6 +65,7 @@ export interface McpServerStatus {
   replicas?: number;
   readyReplicas?: number;
   endpoint?: string;
+  url?: string; // Alternative endpoint field
   conditions?: Array<{
     type: string;
     status: 'True' | 'False' | 'Unknown';
@@ -89,6 +90,15 @@ export interface McpServerMetadata {
   tools?: McpToolMetadata[];
   prompts?: McpPromptMetadata[];
   resources?: McpResourceMetadata[];
+  env_vars?: McpEnvironmentVariable[];
+}
+
+export interface McpEnvironmentVariable {
+  name: string;
+  description?: string;
+  required?: boolean;
+  secret?: boolean;
+  default?: string;
 }
 
 export interface McpToolMetadata {

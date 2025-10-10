@@ -1,4 +1,5 @@
 import { ConfigMapKind } from '@odh-dashboard/internal/k8sTypes';
+import { McpServerMetadata, McpTransport, McpServerTier } from '../types';
 
 export interface GitValidationResult {
   isValid: boolean;
@@ -21,12 +22,67 @@ export interface TagDiscoveryResult {
   error?: string;
 }
 
+export interface ServerDiscoveryResult {
+  servers: McpServerMetadata[];
+  error?: string;
+}
+
 interface ServerType {
   tags?: string[];
   [key: string]: unknown;
 }
 
+interface ToolHiveServerData {
+  image?: string;
+  transport?: McpTransport;
+  tier?: McpServerTier;
+  displayName?: string;
+  description?: string;
+  version?: string;
+  author?: string;
+  homepage?: string;
+  repository?: string;
+  license?: string;
+  tags?: string[];
+  logo?: string;
+  tools?: Array<
+    | string
+    | {
+        name: string;
+        description?: string;
+        inputSchema?: Record<string, unknown>;
+      }
+  >;
+  prompts?: Array<{
+    name: string;
+    description?: string;
+    arguments?: Array<{
+      name: string;
+      description?: string;
+      required?: boolean;
+    }>;
+  }>;
+  resources?: Array<{
+    uri: string;
+    name?: string;
+    description?: string;
+    mimeType?: string;
+  }>;
+  env_vars?: Array<{
+    name: string;
+    description?: string;
+    required?: boolean;
+    secret?: boolean;
+    default?: string;
+  }>;
+  [key: string]: unknown;
+}
+
 const isServerType = (server: unknown): server is ServerType => {
+  return typeof server === 'object' && server !== null;
+};
+
+const isToolHiveServerData = (server: unknown): server is ToolHiveServerData => {
   return typeof server === 'object' && server !== null;
 };
 
@@ -268,4 +324,701 @@ export const discoverTagsFromConfigMap = async (
   }
 
   return parseRegistryForTags(data);
+};
+
+/**
+ * Check if registry data follows MCP v0 API format (array of basic server info without details)
+ */
+const isMcpV0Format = (registryData: unknown): boolean => {
+  // Check for array of servers (from /v0/servers endpoint)
+  if (
+    Array.isArray(registryData) &&
+    registryData.length > 0 &&
+    typeof registryData[0] === 'object' &&
+    registryData[0] !== null &&
+    'name' in registryData[0]
+  ) {
+    return true;
+  }
+
+  // Check for single server object (from /v0/servers/{serverId} endpoint)
+  if (typeof registryData === 'object' && registryData !== null && 'name' in registryData) {
+    return true;
+  }
+
+  return false;
+};
+
+// Interface for basic server info from MCP v0 API
+interface McpV0BasicServer {
+  name: string;
+  [key: string]: unknown;
+}
+
+// Interface for detailed server info from MCP v0 API
+interface McpV0DetailedServer {
+  name: string;
+  displayName?: string;
+  description?: string;
+  version?: string;
+  author?: string;
+  homepage?: string;
+  repository?: string;
+  license?: string;
+  tags?: string[];
+  logo?: string;
+  tools?: (
+    | string
+    | { name: string; description?: string; inputSchema?: Record<string, unknown> }
+  )[];
+  prompts?: Array<{
+    name: string;
+    description?: string;
+    arguments?: Array<{
+      name: string;
+      description?: string;
+      required?: boolean;
+    }>;
+  }>;
+  resources?: Array<{
+    uri: string;
+    name?: string;
+    description?: string;
+    mimeType?: string;
+  }>;
+  env_vars?: Array<{
+    name: string;
+    description?: string;
+    required?: boolean;
+    secret?: boolean;
+    default?: string;
+  }>;
+  [key: string]: unknown;
+}
+
+/**
+ * Parse MCP v0 API format (array of basic server info or single server object)
+ * This format requires additional API calls to get detailed server information
+ */
+const parseMcpV0Format = async (
+  registryData: unknown[] | unknown,
+  baseUrl?: string,
+): Promise<McpServerMetadata[]> => {
+  const servers: McpServerMetadata[] = [];
+
+  // Convert single object to array for uniform processing
+  const dataArray = Array.isArray(registryData) ? registryData : [registryData];
+
+  console.log(`🔍 [MCP-V0] Processing ${dataArray.length} servers from MCP v0 format`);
+
+  for (const serverData of dataArray) {
+    if (typeof serverData === 'object' && serverData !== null && 'name' in serverData) {
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      const basicServer = serverData as McpV0BasicServer;
+
+      // Try to fetch detailed server info from individual endpoint if baseUrl is available
+      let detailedServer: McpV0DetailedServer = basicServer;
+      if (baseUrl && basicServer.name) {
+        try {
+          const detailResponse = await fetch(`${baseUrl}/v0/servers/${basicServer.name}`);
+          if (detailResponse.ok) {
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+            detailedServer = (await detailResponse.json()) as McpV0DetailedServer;
+            console.log(`✅ [MCP-V0] Fetched detailed info for ${basicServer.name}`);
+            console.log(`🔍 [MCP-V0] Detailed server data:`, detailedServer);
+            console.log(`🔍 [MCP-V0] Detailed server tools:`, detailedServer.tools);
+            console.log(`🔍 [MCP-V0] Tools array length:`, detailedServer.tools?.length);
+            if (detailedServer.tools && detailedServer.tools.length > 0) {
+              detailedServer.tools.forEach((tool, index) => {
+                console.log(`🔍 [MCP-V0] Raw tool ${index}:`, tool, `(type: ${typeof tool})`);
+              });
+            }
+          } else {
+            console.warn(
+              `⚠️ [MCP-V0] Failed to fetch details for ${basicServer.name}: ${detailResponse.status}`,
+            );
+          }
+        } catch (error) {
+          console.warn(`⚠️ [MCP-V0] Error fetching details for ${basicServer.name}:`, error);
+        }
+      }
+
+      // Convert to McpServerMetadata format
+      const server: McpServerMetadata = {
+        name: detailedServer.name,
+        displayName: detailedServer.displayName || detailedServer.name,
+        description: detailedServer.description,
+        version: detailedServer.version,
+        author: detailedServer.author,
+        homepage: detailedServer.homepage,
+        repository: detailedServer.repository,
+        license: detailedServer.license,
+        tags: detailedServer.tags || [],
+        logo: detailedServer.logo,
+        tools:
+          detailedServer.tools?.map((tool, index) => {
+            console.log(`🔍 [MCP-V0] Processing tool ${index}:`, tool);
+            console.log(`🔍 [MCP-V0] Tool type:`, typeof tool);
+
+            // Handle MCP v0 format where tools is an array of strings
+            if (typeof tool === 'string') {
+              console.log(`🔍 [MCP-V0] Tool is string: "${tool}"`);
+              return {
+                name: tool,
+                description: undefined,
+                inputSchema: undefined,
+              };
+            }
+            // Handle object format with name, description, inputSchema
+            console.log(`🔍 [MCP-V0] Tool is object with name: "${tool.name}"`);
+            const result = {
+              name: tool.name || String(tool),
+              description: tool.description,
+              inputSchema: tool.inputSchema,
+            };
+            console.log(`🔍 [MCP-V0] Processed tool result:`, result);
+            return result;
+          }) || [],
+        prompts:
+          detailedServer.prompts?.map((prompt) => ({
+            name: prompt.name,
+            description: prompt.description,
+            arguments: prompt.arguments || [],
+          })) || [],
+        resources:
+          detailedServer.resources?.map((resource) => ({
+            uri: resource.uri,
+            name: resource.name,
+            description: resource.description,
+            mimeType: resource.mimeType,
+          })) || [],
+        // eslint-disable-next-line camelcase
+        env_vars:
+          detailedServer.env_vars?.map((envVar) => ({
+            name: envVar.name,
+            description: envVar.description,
+            required: envVar.required,
+            secret: envVar.secret,
+            default: envVar.default,
+          })) || [],
+      };
+
+      console.log(`🔍 [MCP-V0] Raw tools data for ${server.name}:`, detailedServer.tools);
+      console.log(
+        `🔍 [MCP-V0] Processed server ${server.name} with ${server.tools?.length || 0} tools, ${
+          server.prompts?.length || 0
+        } prompts, ${server.resources?.length || 0} resources, ${
+          // eslint-disable-next-line camelcase
+          server.env_vars?.length || 0
+        } env_vars`,
+      );
+      if (server.tools && server.tools.length > 0) {
+        console.log(
+          `🔍 [MCP-V0] Tool names for ${server.name}:`,
+          server.tools.map((t) => t.name),
+        );
+      }
+      servers.push(server);
+    }
+  }
+
+  return servers;
+};
+
+/**
+ * Parse ToolHive registry format and extract servers
+ * ToolHive format has servers as an object where each key is a server name
+ * and the value contains server metadata
+ */
+export const parseRegistryForServers = async (
+  content: string,
+  baseUrl?: string,
+): Promise<ServerDiscoveryResult> => {
+  try {
+    console.log(
+      `🔍 [REGISTRY] Starting to parse registry content:`,
+      `${content.substring(0, 200)}...`,
+    );
+
+    // Parse as JSON
+    const registryData = JSON.parse(content);
+    let servers: McpServerMetadata[] = [];
+
+    console.log(`🔍 [REGISTRY] Registry data structure:`, Object.keys(registryData));
+    console.log(`🔍 [REGISTRY] Full registry data:`, registryData);
+    console.log(`🔍 [REGISTRY] Registry data type:`, typeof registryData);
+    console.log(`🔍 [REGISTRY] Has servers property:`, 'servers' in registryData);
+    console.log(`🔍 [REGISTRY] Servers type:`, typeof registryData.servers);
+
+    // Check if this is MCP v0 API format (array of servers or single server)
+    if (isMcpV0Format(registryData)) {
+      console.log(`🔍 [REGISTRY] Detected MCP v0 API format`);
+      servers = await parseMcpV0Format(registryData, baseUrl);
+    }
+    // ToolHive format: { "servers": { "server-name": { ... }, ... } }
+    else if (registryData.servers && typeof registryData.servers === 'object') {
+      // Process servers in parallel for better performance
+      const serverPromises = Object.entries(registryData.servers).map(
+        async ([serverName, serverData]) => {
+          try {
+            console.log(`🔍 [SERVER] Starting to process server: ${serverName}`);
+            if (isToolHiveServerData(serverData)) {
+              // Convert ToolHive format to McpServerMetadata
+              // Ensure transport and tier are included in tags if they're specified as direct fields
+              const allTags = new Set(serverData.tags || []);
+              if (serverData.transport) {
+                allTags.add(serverData.transport);
+              }
+              if (serverData.tier) {
+                allTags.add(serverData.tier);
+              }
+
+              // Try to fetch logo if not provided but repository is available
+              let logoUrl = serverData.logo;
+              if (!logoUrl && serverData.repository) {
+                try {
+                  const fetchedLogo = await getProjectLogoUrl(serverData.repository);
+                  logoUrl = fetchedLogo || undefined;
+                } catch (error) {
+                  console.warn(`Failed to fetch logo for ${serverName}:`, error);
+                }
+              }
+
+              // Debug logging for server data
+              console.log(`🔍 [SERVER] Processing server: ${serverName}`);
+              console.log(`🔍 [SERVER] Raw server data:`, serverData);
+              console.log(`🔍 [SERVER] Tools count: ${serverData.tools?.length || 0}`);
+              console.log(`🔍 [SERVER] Prompts count: ${serverData.prompts?.length || 0}`);
+              console.log(`🔍 [SERVER] Resources count: ${serverData.resources?.length || 0}`);
+              console.log(`🔍 [SERVER] Env vars count: ${serverData.env_vars?.length || 0}`);
+
+              if (serverData.tools && serverData.tools.length > 0) {
+                console.log(`🔍 [SERVER] Raw tools array for ${serverName}:`, serverData.tools);
+                serverData.tools.forEach((tool, index) => {
+                  console.log(`🔍 [SERVER] Raw tool ${index}:`, tool);
+                  console.log(`🔍 [SERVER] Raw tool ${index} type:`, typeof tool);
+                  if (typeof tool === 'object') {
+                    console.log(`🔍 [SERVER] Raw tool ${index} keys:`, Object.keys(tool));
+                  }
+                });
+                console.log(
+                  `🔍 [SERVER] Tools names for ${serverName}:`,
+                  serverData.tools.map((t) => (typeof t === 'string' ? t : t.name)),
+                );
+              }
+
+              // Check if this might be MCP v0 API format
+              if (
+                !serverData.tools &&
+                !serverData.prompts &&
+                !serverData.resources &&
+                !serverData.env_vars
+              ) {
+                console.log(
+                  `⚠️ [SERVER] Server ${serverName} has no tools/prompts/resources/env_vars - might need MCP v0 API call`,
+                );
+              }
+
+              const server: McpServerMetadata = {
+                name: serverName,
+                displayName: serverData.displayName || serverName,
+                description: serverData.description,
+                version: serverData.version,
+                author: serverData.author,
+                homepage: serverData.homepage,
+                repository: serverData.repository,
+                license: serverData.license,
+                tags: Array.from(allTags),
+                logo: logoUrl,
+                tools:
+                  serverData.tools?.map((tool, index) => {
+                    console.log(`🔍 [TOOLHIVE] Processing tool ${index} for ${serverName}:`, tool);
+                    console.log(`🔍 [TOOLHIVE] Tool ${index} type:`, typeof tool);
+
+                    // Handle tools as strings (ToolHive format can have string arrays)
+                    if (typeof tool === 'string') {
+                      console.log(`🔍 [TOOLHIVE] Tool ${index} is a string: "${tool}"`);
+                      return {
+                        name: tool,
+                        description: undefined,
+                        inputSchema: undefined,
+                      };
+                    }
+
+                    // Handle tools as objects
+                    console.log(`🔍 [TOOLHIVE] Tool ${index} name:`, tool.name);
+
+                    const result = {
+                      name: tool.name,
+                      description: tool.description,
+                      inputSchema: tool.inputSchema,
+                    };
+                    console.log(`🔍 [TOOLHIVE] Processed tool ${index} result:`, result);
+                    return result;
+                  }) || [],
+                prompts:
+                  serverData.prompts?.map((prompt) => ({
+                    name: prompt.name,
+                    description: prompt.description,
+                    arguments: prompt.arguments || [],
+                  })) || [],
+                resources:
+                  serverData.resources?.map((resource) => ({
+                    uri: resource.uri,
+                    name: resource.name,
+                    description: resource.description,
+                    mimeType: resource.mimeType,
+                  })) || [],
+                // eslint-disable-next-line camelcase
+                env_vars:
+                  serverData.env_vars?.map((envVar) => ({
+                    name: envVar.name,
+                    description: envVar.description,
+                    required: envVar.required,
+                    secret: envVar.secret,
+                    default: envVar.default,
+                  })) || [],
+              };
+
+              console.log(
+                `✅ [SERVER] Processed server ${serverName} with ${
+                  server.tools?.length || 0
+                } tools, ${server.prompts?.length || 0} prompts, ${
+                  server.resources?.length || 0
+                } resources, ${server.env_vars?.length || 0} env_vars`,
+              );
+
+              return server;
+            }
+            return null;
+          } catch (serverError) {
+            console.error(`❌ [SERVER] Error processing server ${serverName}:`, serverError);
+            console.error(`❌ [SERVER] Server data that failed:`, serverData);
+            return null;
+          }
+        },
+      );
+
+      // Wait for all servers to be processed
+      const processedServers = await Promise.all(serverPromises);
+
+      // Filter out null results and add to servers array
+      processedServers.forEach((server) => {
+        if (server) {
+          servers.push(server);
+        }
+      });
+    }
+
+    return {
+      servers: servers.toSorted((a, b) => a.name.localeCompare(b.name)),
+    };
+  } catch (error) {
+    console.error(`❌ [REGISTRY] Error parsing registry data:`, error);
+    console.error(
+      `❌ [REGISTRY] Error stack:`,
+      error instanceof Error ? error.stack : 'No stack available',
+    );
+    console.error(`❌ [REGISTRY] Content that failed to parse:`, content.substring(0, 500));
+
+    return {
+      servers: [],
+      error: `Failed to parse registry data for servers: ${
+        error instanceof Error ? error.message : 'Unknown error'
+      }`,
+    };
+  }
+};
+
+/**
+ * Discovers servers from a direct HTTP API endpoint (MCP v0 format)
+ */
+export const discoverServersFromHttp = async (url: string): Promise<ServerDiscoveryResult> => {
+  try {
+    console.log(`🔍 [HTTP] Fetching servers from HTTP endpoint: ${url}`);
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      return {
+        servers: [],
+        error: `Failed to fetch from HTTP endpoint: ${response.status} ${response.statusText}`,
+      };
+    }
+
+    const content = await response.text();
+
+    // For direct API endpoints, use the base URL for detailed server fetching
+    const baseUrl = url.replace(/\/v0\/servers.*$/, '');
+    console.log(`🔍 [HTTP] Using base URL for detailed calls: ${baseUrl}`);
+
+    return await parseRegistryForServers(content, baseUrl);
+  } catch (error) {
+    return {
+      servers: [],
+      error: `Network error while fetching from HTTP endpoint: ${
+        error instanceof Error ? error.message : 'Unknown error'
+      }`,
+    };
+  }
+};
+
+/**
+ * Discovers servers from a Git repository source
+ */
+export const discoverServersFromGit = async (
+  repository: string,
+  branch = 'main',
+  path = '',
+  baseApiUrl?: string,
+): Promise<ServerDiscoveryResult> => {
+  try {
+    // For GitHub repositories, construct raw content URL
+    if (repository.includes('github.com')) {
+      // Convert GitHub URL to raw content URL
+      // From: https://github.com/user/repo.git or https://github.com/user/repo
+      // To: https://raw.githubusercontent.com/user/repo/branch/path
+
+      const repoUrl = repository.replace(/\.git$/, '');
+      const parts = repoUrl.replace('https://github.com/', '').split('/');
+
+      if (parts.length >= 2) {
+        const owner = parts[0];
+        const repo = parts[1];
+        const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`;
+
+        try {
+          const response = await fetch(rawUrl);
+          if (response.ok) {
+            const content = await response.text();
+            return await parseRegistryForServers(content, baseApiUrl);
+          }
+          return {
+            servers: [],
+            error: `Failed to fetch registry file: ${response.status} ${response.statusText}`,
+          };
+        } catch (fetchError) {
+          return {
+            servers: [],
+            error: `Network error while fetching registry file: ${
+              fetchError instanceof Error ? fetchError.message : 'Unknown error'
+            }`,
+          };
+        }
+      }
+    }
+
+    // For other Git providers or if GitHub parsing fails, return helpful error
+    return {
+      servers: [],
+      error: 'Server discovery is currently supported for GitHub repositories only',
+    };
+  } catch (error) {
+    return {
+      servers: [],
+      error: `Failed to discover servers: ${
+        error instanceof Error ? error.message : 'Unknown error'
+      }`,
+    };
+  }
+};
+
+/**
+ * Discovers servers from a ConfigMap source
+ */
+export const discoverServersFromConfigMap = async (
+  configMap: ConfigMapKind,
+  key: string,
+  baseApiUrl?: string,
+): Promise<ServerDiscoveryResult> => {
+  const data = configMap.data?.[key];
+
+  if (!data) {
+    return {
+      servers: [],
+      error: `Key '${key}' not found in ConfigMap`,
+    };
+  }
+
+  return parseRegistryForServers(data, baseApiUrl);
+};
+
+/**
+ * Construct raw URL for fetching file content from Git hosting services
+ */
+const constructRawUrl = (
+  repositoryUrl: string,
+  filePath: string,
+  branch: string,
+): string | null => {
+  try {
+    // Remove .git suffix if present
+    const repoUrl = repositoryUrl.replace(/\.git$/, '');
+    const parsedUrl = new URL(repoUrl);
+
+    // Handle different Git hosting providers
+    if (parsedUrl.hostname.includes('github.com')) {
+      // GitHub raw URL format: https://raw.githubusercontent.com/owner/repo/branch/path
+      const pathParts = parsedUrl.pathname.split('/').filter((p) => p.length > 0);
+      if (pathParts.length >= 2) {
+        const [owner, repo] = pathParts;
+        return `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`;
+      }
+    } else if (parsedUrl.hostname.includes('gitlab.com')) {
+      // GitLab raw URL format: https://gitlab.com/owner/repo/-/raw/branch/path
+      return `https://gitlab.com${parsedUrl.pathname}/-/raw/${branch}/${filePath}`;
+    } else if (parsedUrl.hostname.includes('bitbucket.org')) {
+      // Bitbucket raw URL format: https://bitbucket.org/owner/repo/raw/branch/path
+      return `https://bitbucket.org${parsedUrl.pathname}/raw/${branch}/${filePath}`;
+    }
+
+    console.warn(`Unsupported Git hosting service: ${parsedUrl.hostname}`);
+    return null;
+  } catch (error) {
+    console.error('Error constructing raw URL:', error);
+    return null;
+  }
+};
+
+/**
+ * Get project logo URL from a Git repository following GitValidationService pattern
+ */
+export const getProjectLogoUrl = async (
+  repositoryUrl: string,
+  branch = 'main',
+): Promise<string | null> => {
+  console.log(`🔍 [LOGO] Starting logo fetch for ${repositoryUrl}:${branch}`);
+
+  try {
+    const parsedUrl = new URL(repositoryUrl);
+    console.log(`🔍 [LOGO] Parsed URL hostname: ${parsedUrl.hostname}`);
+
+    // For GitHub repositories, get the organization/user avatar
+    if (parsedUrl.hostname.includes('github.com')) {
+      const pathParts = parsedUrl.pathname.split('/').filter((p) => p.length > 0);
+      if (pathParts.length >= 2) {
+        const owner = pathParts[0];
+        // GitHub avatar URL format: https://avatars.githubusercontent.com/USERNAME?v=4
+        const avatarUrl = `https://avatars.githubusercontent.com/${owner}?v=4`;
+
+        console.log(`🔍 [LOGO] Checking GitHub avatar for ${owner}: ${avatarUrl}`);
+
+        try {
+          // Create abort controller for timeout
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+          // Verify the avatar exists
+          const response = await fetch(avatarUrl, {
+            method: 'HEAD',
+            signal: controller.signal,
+          });
+
+          clearTimeout(timeoutId);
+
+          console.log(`🔍 [LOGO] Response status for ${owner}: ${response.status}`);
+
+          if (response.ok) {
+            console.log(`✅ [LOGO] Found logo for ${owner}: ${avatarUrl}`);
+            return avatarUrl;
+          }
+          console.log(
+            `❌ [LOGO] Non-OK response for ${owner}: ${response.status} ${response.statusText}`,
+          );
+        } catch (error) {
+          console.error(`❌ [LOGO] Error fetching avatar for ${owner}:`, error);
+        }
+      }
+    }
+
+    // For GitLab repositories, try to get the user/group avatar
+    else if (parsedUrl.hostname.includes('gitlab.com')) {
+      const pathParts = parsedUrl.pathname.split('/').filter((p) => p.length > 0);
+      if (pathParts.length >= 2) {
+        const owner = pathParts[0];
+        // GitLab avatar URL format fallback
+        const avatarUrl = `https://gitlab.com/${owner}.png`;
+
+        try {
+          // Create abort controller for timeout
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+          const response = await fetch(avatarUrl, {
+            method: 'HEAD',
+            signal: controller.signal,
+          });
+
+          clearTimeout(timeoutId);
+
+          if (response.ok) {
+            console.log(`✅ [LOGO] Found GitLab logo for ${owner}: ${avatarUrl}`);
+            return avatarUrl;
+          }
+        } catch (error) {
+          // Continue to file-based approach for GitLab
+        }
+      }
+    }
+
+    // Fallback: Look for common logo files in the repository
+    const logoFiles = [
+      'logo.png',
+      'logo.svg',
+      'logo.jpg',
+      'logo.jpeg',
+      'icon.png',
+      'icon.svg',
+      'icon.jpg',
+      'icon.jpeg',
+      'assets/logo.png',
+      'assets/logo.svg',
+      'assets/icon.png',
+      'assets/icon.svg',
+      'docs/logo.png',
+      'docs/logo.svg',
+      'docs/icon.png',
+      'docs/icon.svg',
+      '.github/logo.png',
+      '.github/logo.svg',
+      '.github/icon.png',
+      '.github/icon.svg',
+      'images/logo.png',
+      'images/logo.svg',
+      'images/icon.png',
+      'images/icon.svg',
+    ];
+
+    for (const logoFile of logoFiles) {
+      try {
+        const rawUrl = constructRawUrl(repositoryUrl, logoFile, branch);
+        if (!rawUrl) {
+          continue;
+        }
+
+        // Create abort controller for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        const response = await fetch(rawUrl, {
+          method: 'HEAD', // Just check if file exists
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          console.log(`✅ [LOGO] Found repository logo at: ${rawUrl}`);
+          return rawUrl;
+        }
+      } catch (error) {
+        // Continue to next logo file
+        continue;
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching project logo:', error);
+  }
+
+  console.log(`📄 [LOGO] No logo found for ${repositoryUrl}`);
+  return null;
 };

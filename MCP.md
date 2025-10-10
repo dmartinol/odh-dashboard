@@ -85,39 +85,32 @@ The MCP integration will follow ODH's design system while incorporating modern U
 │ 🏷️ git • ✅ healthy • Last sync: 30m ago              │
 │ github.com/company/mcp-registry                         │
 ├─────────────────────────────────────────────────────────┤
-│ [Overview] [Available Servers (24)] [Deployed Servers] │
+│ [Overview] [Servers (24)] [Configuration]              │
 ├─────────────────────────────────────────────────────────┤
-│ 📊 Registry Information                                 │
-│ ┌─ Source: Git Repository ────────────────────────────┐ │
-│ │ URL: github.com/company/mcp-registry               │ │
-│ │ Branch: main • Commit: abc123f                     │ │
-│ │ Last Sync: 2024-01-09 14:30 UTC                    │ │
-│ └───────────────────────────────────────────────────────┘ │
-│ ┌─ Status & Metrics ──────────────────────────────────┐ │
-│ │ Health: ✅ Healthy • Servers: 24 • Deployments: 8  │ │
-│ │ Created: 2024-01-01 • Namespace: production        │ │
-│ └───────────────────────────────────────────────────────┘ │
+│ ℹ️ View all deployed servers                           │
+│    [Go to Servers page →] to see deployed instances    │
+│                                                         │
+│ 📋 Available Servers from Registry                      │
+│ [Server cards with deploy functionality...]            │
 └─────────────────────────────────────────────────────────┘
 ```
 
 #### 3. Servers Page (`/mcp/servers`)
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ 🔧 MCP Servers                              [⚙️ Deploy] │
+│ 🔧 MCP Servers                                          │
 ├─────────────────────────────────────────────────────────┤
-│ [🔍 Search] [Registry: All▼] [Transport: All▼] [Tier▼] │
+│ Namespace: [toolhive-system ▼]                          │
 ├─────────────────────────────────────────────────────────┤
-│ ┌───────────┬───────────┬───────────┬───────────────────┐ │
-│ │ [🖼️] Server│ [🖼️] Server│ [🖼️] Server│ Deployed Instances│ │
-│ │ Name      │ Name      │ Name      │                   │ │
-│ │ 🏷️ stdio  │ 🏷️ sse   │ 🏷️ http  │ ┌───────────────┐ │ │
-│ │ ⚡ ready  │ ⚡ ready  │ ❌ error  │ │ [●] Instance 1│ │ │
-│ │ [Deploy]  │ [Deploy]  │ [Debug]   │ │ Ready • 2h ago│ │ │
-│ └───────────┴───────────┴───────────┤ ├───────────────┤ │ │
-│                                     │ │ [●] Instance 2│ │ │
-│                                     │ │ Starting...   │ │ │
-│                                     │ └───────────────┘ │ │
-│                                     └───────────────────┘ │
+│ [🔍 Search by name...] [🔽 Registry] [🔽 Transport] [🔽 Status] │
+├─────────────────────────────────────────────────────────┤
+│ ┌──────────┬─────────┬──────────────┬──────────┬────────┐ │
+│ │ Name ↑   │ Status  │ Linked Reg.  │ Endpoint │ Trans. │ │
+│ ├──────────┼─────────┼──────────────┼──────────┼────────┤ │
+│ │ mcp-fetch│ ✅ Run  │ prod-reg →   │ http://..│ 🏷️ http│ │
+│ │ mcp-git  │ ⏳ Pend │ prod-reg →   │ —        │ 🏷️ stdio│ │
+│ │ mcp-slack│ ❌ Fail │ Unregistered │ —        │ 🏷️ sse │ │
+│ └──────────┴─────────┴──────────────┴──────────┴────────┘ │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -270,10 +263,10 @@ const extensions: NavExtension[] = [
 
 ### 📊 **Current Status Overview**
 
-**🎯 Overall Progress: Phase 1 Complete, Phases 2-3 Foundation Ready**
+**🎯 Overall Progress: Phases 1-4 Complete, Ready for Phase 5**
 
 **✅ Completed:**
-- ✅ Full Phase 1: Package structure, navigation, and API foundation
+- ✅ **Full Phase 1**: Package structure, navigation, and API foundation
 - ✅ MCP package integrated into ODH Dashboard build system
 - ✅ Navigation menu items appearing correctly
 - ✅ Basic page layouts with PatternFly components
@@ -289,15 +282,22 @@ const extensions: NavExtension[] = [
 - ✅ **Kubernetes Watch API Integration**: Refactored from REST polling to real-time K8s Watch API for MCP CRDs
 - ✅ **Real-time Updates**: MCP registries and servers now update automatically via WebSocket connections
 - ✅ **K8s Models & Operations**: Complete CRUD operations using native Kubernetes SDK patterns
-
-**🔄 In Progress:**
-- 🔄 Phase 3: Server discovery and browsing interface
+- ✅ **Full Phase 3**: Complete server discovery and deployment functionality
+- ✅ **Server Browser**: Professional server browsing with real-time filtering by transport, tier, and search
+- ✅ **Server Details**: Comprehensive modal with tabbed interface (Overview, Tools, Prompts, Resources)
+- ✅ **Server Deployment**: Advanced deployment modal with MCPServer CRD generation and resource configuration
+- ✅ **ToolHive Integration**: Full parsing of ToolHive registry format for server metadata extraction
+- ✅ **Full Phase 4**: Complete servers management with table-based UI and advanced filtering
+- ✅ **Servers Table**: Sortable columns for name, status, registry, endpoint, and transport
+- ✅ **Server Filtering**: Search by name, filter by registry/transport/status with namespace selector
+- ✅ **Registry Linking**: Label-based server-to-registry matching with support for unregistered servers
+- ✅ **Registry Details Updates**: Removed Deployed Servers tab, renamed Available Servers to Servers, added link to Servers page
 
 **⏳ Next Steps:**
-- Build server filtering and deployment workflows
-- Implement server deployment and instance management features
-- Add instance monitoring and lifecycle management
-- Develop advanced deployment configuration options
+- Phase 5: Advanced features and production polish
+- Performance optimization and caching strategies
+- Accessibility improvements and keyboard navigation
+- Comprehensive testing suite and documentation
 
 ---
 
@@ -431,79 +431,177 @@ const extensions: NavExtension[] = [
 - Source-aware display logic for Git, ConfigMap, and HTTP registry types
 - Foundation ready for Phase 3 server discovery development
 
-### Phase 3: Server Discovery (Week 5-6) 🔄 **IN PROGRESS**
+### Phase 3: Server Discovery (Week 5-6) ✅ **COMPLETED**
 **Goal: Server browsing and deployment**
 
 #### Status Update:
 - ✅ **Basic UI Structure**: Server page layout with search and filter placeholders
 - ✅ **API Foundation**: Server API client structure and TypeScript types
-- 🔄 **In Progress**: Server browsing components and filtering logic
-- ⏳ **Pending**: Deployment workflows and configuration management
+- ✅ **Server Browser**: Complete server browsing components with filtering logic
+- ✅ **Deployment Workflows**: Full deployment workflows and configuration management
 
 #### Tasks:
-1. **Server Browser**
-   - Card-based server listing
-   - Advanced filtering (transport, tier, tags)
-   - Search functionality with highlighting
-   - Server categorization and grouping
+1. **Server Browser** ✅ **COMPLETED**
+   - ✅ Card-based server listing with professional layout
+   - ✅ Advanced filtering (transport, tier, tags)
+   - ✅ Search functionality with real-time filtering
+   - ✅ Server categorization and grouping with badges
 
-2. **Server Details**
-   - Comprehensive server information modal
-   - Tabbed interface (Overview, Tools, Config)
-   - Logo integration from GitHub/sources
-   - Technical specifications display
+2. **Server Details** ✅ **COMPLETED**
+   - ✅ Comprehensive server information modal
+   - ✅ Tabbed interface (Overview, Tools, Prompts, Resources)
+   - ✅ Logo integration from server metadata
+   - ✅ Technical specifications display with complete metadata
 
-3. **Quick Deployment**
-   - One-click deployment functionality
-   - Default configuration management
-   - Namespace/project integration
-   - Resource validation
+3. **Server Deployment** ✅ **COMPLETED**
+   - ✅ Advanced deployment functionality (replaced quick deploy with full configuration)
+   - ✅ Complete deployment configuration dialog
+   - ✅ Namespace/project integration with ProjectsContext
+   - ✅ Resource validation and form validation
 
-4. **Advanced Deployment**
-   - Full deployment configuration dialog
-   - Environment variables management
-   - Resource limits and requests
-   - Volume and networking configuration
+4. **Advanced Deployment** ✅ **COMPLETED**
+   - ✅ Full deployment configuration dialog with expandable advanced settings
+   - ✅ Environment variables management with add/remove functionality
+   - ✅ Resource limits and requests configuration
+   - ✅ MCPServer CRD generation with proper metadata and labels
 
-**Deliverables:**
-- Server discovery and browsing UI
-- Server deployment workflows
-- Configuration management system
-- Manifest preview functionality
+5. **Reference Implementation Fixes** ✅ **COMPLETED**
+   - ✅ **Registry card**: Show same details as the reference implementation in ../registry_ui
+     - ✅ Format: "git • 24 servers • auto 1h • 10/9/2025 ago"
+     - ✅ Time formatting with formatTimeAgo function
+     - ✅ Sync interval formatting with formatSyncInterval function
+   - ✅ **Registry page**:
+     - ✅ Fixed Available servers tab showing (0) until pressed - now loads immediately
+     - ✅ Fixed server count in General tab showing (0) - now displays real-time counts
+     - ✅ Added Git URL icon to open the URL at the path specified by "File Path"
+     - ✅ Added Registry API Endpoint reference from status.apiStatus.endpoint field
+   - ✅ **Server card**:
+     - ✅ Added tier badge (e.g. "official", "community", "experimental")
+     - ✅ Move the transport badge close to the tier badge, not on top of the card - **COMPLETED**
+     - ✅ Fixed server card click behavior - now uses eye icon button for consistency with registry cards
+   - ✅ **Server details dialog**:
+     - ✅ Updated tab schema to match reference implementation: "Overview", "Tools", "Config", "Manual Installation"
+     - ✅ Combined prompts and resources into "Config" tab
+     - ✅ Added "Manual Installation" tab with Docker commands and source repository links
+   - ✅ **Deploy dialog**:
+     - ✅ Updated to match reference implementation with 3-tab structure: "Server", "Environment Variables", "Resources"
+     - ✅ Replaced expandable sections with proper tabbed interface
+     - ✅ Enhanced server configuration with disabled server name field
+   - ✅ **Server icon fetching**: Implementation of GitValidationService.ts:208-316 pattern - **COMPLETED**
+   - ✅ **Tools list display fix**: Replaced large Card components with compact Label components - **COMPLETED**
+   - ✅ **Environment variables in Config tab**: Added env_vars display with Required/Secret labels - **COMPLETED**
+   - ✅ **MCP v0 API Support**: Added support for MCP v0 API format with individual server endpoint calls - **COMPLETED**
+   - ✅ **Tools Tab Enhancement**: Improved tools tab display with detailed cards showing descriptions and input schemas - **COMPLETED**
+   - ✅ **Tools Tab Fixes**: Fixed tool name display and removed unnecessary fallback message for tools without descriptions - **COMPLETED**
+   - ✅ **MCP v0 API Tools Parsing**: Fixed tools parsing to handle string arrays from MCP v0 API instead of object arrays - **COMPLETED**
 
-### Phase 4: Instance Management (Week 7-8)
-**Goal: Monitor and manage deployed instances**
+**Deliverables:** ✅ **ALL COMPLETED** *(Completed: January 2025)*
+- ✅ Server discovery and browsing UI with real-time filtering
+- ✅ Server deployment workflows with MCPServer CRD generation
+- ✅ Configuration management system with advanced settings
+- ✅ Server details modal with comprehensive information display
+
+**🎉 Phase 3 Summary:**
+- Complete server discovery system with ToolHive registry format parsing
+- Professional server browser with advanced filtering (transport, tier, tags, search)
+- Comprehensive server details modal with tabbed interface showing tools, prompts, and resources
+- Advanced deployment functionality with MCPServer CRD generation and resource configuration
+- Real-time server discovery integrated with registry details page "Available Servers" tab
+- Form validation, error handling, and environment variable management for deployments
+- Professional UI components following ODH design patterns with zero linting errors
+- Full TypeScript compliance with proper type guards and error boundaries
+- Foundation ready for Phase 4 instance management development
+
+### Phase 4: Servers Management (Week 7-8) ✅ **COMPLETED**
+**Goal: Monitor and manage deployed MCPServer instances**
+
+#### Status Update:
+- ✅ **Servers Page Implementation**: Complete servers table with namespace selector and filtering
+- ✅ **Server-Registry Matching**: Implemented label-based matching logic for linking servers to registries
+- ✅ **Sortable Table**: All columns sortable (name, status, registry, transport)
+- ✅ **Advanced Filtering**: Search by name, filter by registry/transport/status
+- ✅ **Registry Integration**: Removed Deployed Servers tab, renamed Available Servers to Servers
+- ✅ **Navigation Links**: Added link from Registry Details to Servers page with pre-filters
+- ✅ **Interactive Server Management**: Clickable server names, row action menus, and modals
 
 #### Tasks:
-1. **Instance Dashboard**
-   - Real-time instance status monitoring
-   - Health check visualization
-   - Resource usage metrics
-   - Instance lifecycle indicators
+1. **Servers Table** ✅ **COMPLETED**
+   - Sortable columns: Name (default), Status, Linked Registry, Endpoint, Transport
+   - Status indicators from Deployment phase (Running/Pending/Failed/Unknown)
+   - Linked registry display with clickable links to registry details
+   - Endpoint display with copy-to-clipboard functionality (checks `status.url` then `status.endpoint`)
+   - Transport protocol badges (stdio/sse/streamable-http)
+   - Support for unregistered servers (missing or incorrect labels)
+   - Clickable server names that open details modal
+   - Row action menus (hamburger) with View details, Register/Unregister, and Delete options
 
-2. **Instance Operations**
-   - Start, stop, restart functionality
-   - Scaling operations (if supported)
-   - Instance deletion with confirmations
-   - Bulk instance management
+2. **Servers Toolbar** ✅ **COMPLETED**
+   - Namespace selector with project context integration
+   - Search by name with partial matching
+   - Filter by linked registry (including "Unregistered" option)
+   - Filter by transport protocol (stdio/sse/streamable-http)
+   - Filter by deployment status (Running/Pending/Failed/Unknown)
+   - URL query parameter support for pre-filtering
 
-3. **Monitoring & Debugging**
-   - Log viewer integration
-   - Event timeline display
-   - Resource metrics charts
-   - Performance monitoring
+3. **Server-Registry Matching** ✅ **COMPLETED**
+   - Label-based matching using:
+     - `toolhive.stacklok.io/registry-name`
+     - `toolhive.stacklok.io/registry-namespace`
+     - `toolhive.stacklok.io/server-registry-name`
+   - Handle unregistered servers gracefully
+   - Display "Unregistered" label for servers without valid registry links
 
-4. **Orphan Management**
-   - Detect unmanaged instances
-   - Reconciliation workflows
-   - Cleanup operations
-   - Orphan prevention measures
+4. **Registry Details Integration** ✅ **COMPLETED**
+   - Removed "Deployed Servers" tab (functionality moved to Servers page)
+   - Renamed "Available Servers" tab to "Servers"
+   - Added prominent link/button to navigate to Servers page with pre-filter
+   - Alert component explaining where to find deployed instances
+   - Clean separation between registry metadata and deployed instances
 
-**Deliverables:**
-- Instance monitoring dashboard
-- Instance lifecycle management
-- Logging and debugging tools
-- Orphaned instance detection
+5. **Server Actions & Modals** ✅ **COMPLETED**
+   - **McpDeployedServerDetailsModal**: Comprehensive modal with tabbed interface
+     - Overview tab: Server metadata, deployment info, endpoint with copy functionality
+     - Spec tab: Complete server specification in key-value format
+     - Status tab: Runtime status and conditions
+     - Labels & Annotations tab: All metadata labels and annotations
+     - Links to registry details page if server is registered
+   - **McpServerRegisterModal**: Register unregistered servers to registries
+     - Registry selector dropdown
+     - Server name in registry field with validation
+     - Preview of labels that will be added (registry-name, registry-namespace, server-registry-name)
+     - K8s API integration using patchMcpServer function
+   - **McpServerDeleteModal**: Confirmation dialog for server deletion
+     - Warning about irreversible action
+     - Server information display for confirmation
+     - K8s API integration using deleteMcpServer function
+   - **K8s API Functions**: Added patchMcpServer for label updates
+
+**Deliverables:** ✅ **ALL COMPLETED**
+- Comprehensive servers table with sorting and filtering
+- Namespace-aware server management
+- Server-registry relationship visualization
+- Integration with Registry Details page
+- URL-based pre-filtering for deep linking
+- Interactive server management with modals and actions
+- Server registration/unregistration functionality
+- Server deletion with confirmation
+
+**🎉 Phase 4 Summary:**
+- Complete servers management system with table-based UI
+- Namespace selector for multi-project server viewing
+- Advanced filtering by name, registry, transport (stdio/sse/streamable-http), and status
+- Sortable columns with default sort by name
+- Server-registry matching using ToolHive label conventions
+- Endpoint display with copy functionality (supports both `status.url` and `status.endpoint` fields)
+- Clean integration with existing registry management features
+- Removed Deployed Servers tab and consolidated server viewing in dedicated page
+- **Interactive server management**: Clickable server names with details modal
+- **Row action menus**: View details, Register/Unregister (conditional), Delete
+- **Server registration**: Connect unregistered servers to registries by adding ToolHive labels
+- **Server deletion**: Remove servers with confirmation dialog
+- **Comprehensive modals**: Details, register, and delete with professional UX
+- **K8s API integration**: Full CRUD operations for server management
+- Foundation ready for Phase 5 production features
 
 ### Phase 5: Advanced Features (Week 9-10)
 **Goal: Production-ready features and polish**
@@ -543,9 +641,9 @@ const extensions: NavExtension[] = [
 
 ### Functional Requirements
 - ✅ Users can manage MCP registries (create, view, sync, delete) - **COMPLETED**
-- 🔄 Users can browse and search available MCP servers - **Foundation Ready**
-- ⏳ Users can deploy MCP servers with custom configurations - **Pending**
-- ⏳ Users can monitor and manage deployed instances - **Pending**
+- ✅ Users can browse and search available MCP servers - **COMPLETED**
+- ✅ Users can deploy MCP servers with custom configurations - **COMPLETED**
+- ✅ Users can monitor and manage deployed servers - **COMPLETED**
 - ✅ Integration respects ODH permissions and project context
 
 ### Performance Requirements

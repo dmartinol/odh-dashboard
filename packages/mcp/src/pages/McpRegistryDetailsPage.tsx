@@ -27,24 +27,24 @@ import {
   Card,
   CardBody,
 } from '@patternfly/react-core';
-import {
-  CodeBranchIcon,
-  GlobeIcon,
-  FileAltIcon,
-  ServerIcon,
-  ClusterIcon,
-  EditIcon,
-  CogIcon,
-} from '@patternfly/react-icons';
+import { CodeBranchIcon, GlobeIcon, FileAltIcon, EditIcon, CogIcon } from '@patternfly/react-icons';
+import { ConfigMapKind } from '@odh-dashboard/internal/k8sTypes';
 import { McpRegistryStatusLabel } from '../components/McpRegistryStatusLabel';
 import { McpRegistryCreateModal } from '../components/McpRegistryCreateModal';
+import { McpServerBrowser } from '../components/McpServerBrowser';
 import { useMcpRegistries } from '../hooks/useMcpRegistries';
+import useConfigMaps from '../hooks/useConfigMaps';
 import { ProjectsContext } from '../../../../frontend/src/concepts/projects/ProjectsContext';
+import { McpServerMetadata } from '../types';
+import {
+  discoverServersFromGit,
+  discoverServersFromConfigMap,
+  discoverServersFromHttp,
+} from '../utils/registryValidation';
 
 enum RegistryDetailsTab {
   OVERVIEW = 'overview',
-  AVAILABLE_SERVERS = 'available-servers',
-  DEPLOYED_SERVERS = 'deployed-servers',
+  SERVERS = 'servers',
   CONFIGURATION = 'configuration',
 }
 
@@ -55,11 +55,103 @@ const McpRegistryDetailsPage: React.FC = () => {
   const [activeTabKey, setActiveTabKey] = React.useState<string>(RegistryDetailsTab.OVERVIEW);
   const [editModalOpen, setEditModalOpen] = React.useState(false);
 
+  // Server discovery state
+  const [discoveredServers, setDiscoveredServers] = React.useState<McpServerMetadata[]>([]);
+  const [serversLoading, setServersLoading] = React.useState(false);
+  const [serversError, setServersError] = React.useState<string>();
+
   // Get the registry data
   const [registries, loaded, error] = useMcpRegistries(preferredProject?.metadata.name || '');
   const registry = React.useMemo(() => {
     return registries.find((reg) => reg.metadata?.name === name);
   }, [registries, name]);
+
+  // Load ConfigMaps for ConfigMap-based registries
+  const [configMaps] = useConfigMaps(registry?.metadata?.namespace);
+
+  // Server discovery effect
+  React.useEffect(() => {
+    const discoverServers = async () => {
+      if (!registry?.spec.source) {
+        setDiscoveredServers([]);
+        return;
+      }
+
+      setServersLoading(true);
+      setServersError(undefined);
+
+      try {
+        let result;
+
+        // Extract base API URL from registry status for MCP v0 API calls
+        const baseApiUrl = (() => {
+          const apiStatus =
+            registry.status && 'apiStatus' in registry.status ? registry.status.apiStatus : null;
+
+          // Type guard for endpoint
+          const hasEndpoint = (status: unknown): status is { endpoint: string } => {
+            return typeof status === 'object' && status !== null && 'endpoint' in status;
+          };
+
+          if (apiStatus && hasEndpoint(apiStatus)) {
+            return String(apiStatus.endpoint);
+          }
+          return undefined;
+        })();
+
+        console.log(`🔍 [DISCOVERY] Base API URL for MCP v0 calls:`, baseApiUrl);
+
+        if (registry.spec.source.type === 'git' && registry.spec.source.git) {
+          result = await discoverServersFromGit(
+            registry.spec.source.git.repository,
+            registry.spec.source.git.branch || 'main',
+            registry.spec.source.git.path,
+            baseApiUrl,
+          );
+        } else if (registry.spec.source.type === 'configmap' && registry.spec.source.configmap) {
+          const configMap = configMaps.find(
+            (cm: ConfigMapKind) => cm.metadata.name === registry.spec.source?.configmap?.name,
+          );
+          if (configMap) {
+            result = await discoverServersFromConfigMap(
+              configMap,
+              registry.spec.source.configmap.key,
+              baseApiUrl,
+            );
+          } else {
+            result = {
+              servers: [],
+              error: 'ConfigMap not found',
+            };
+          }
+        } else if (registry.spec.source.type === 'http' && registry.spec.source.http) {
+          result = await discoverServersFromHttp(registry.spec.source.http.url);
+        } else {
+          result = {
+            servers: [],
+            error: 'Unsupported registry source type',
+          };
+        }
+
+        if (result.error) {
+          setServersError(result.error);
+          setDiscoveredServers([]);
+        } else {
+          setDiscoveredServers(result.servers);
+          setServersError(undefined);
+        }
+      } catch (err) {
+        setServersError(err instanceof Error ? err.message : 'Failed to discover servers');
+        setDiscoveredServers([]);
+      } finally {
+        setServersLoading(false);
+      }
+    };
+
+    if (registry) {
+      discoverServers();
+    }
+  }, [registry, configMaps]);
 
   const getSourceTypeIcon = (sourceType?: string) => {
     switch (sourceType) {
@@ -113,12 +205,7 @@ const McpRegistryDetailsPage: React.FC = () => {
   };
 
   const getServerCount = () => {
-    return registry?.status?.serverCount ?? 0;
-  };
-
-  const getDeployedServerCount = () => {
-    // TODO: This would come from actual deployed servers data
-    return 0;
+    return (discoveredServers.length || registry?.status?.serverCount) ?? 0;
   };
 
   const handleBackToRegistries = async () => {
@@ -190,9 +277,41 @@ const McpRegistryDetailsPage: React.FC = () => {
                 <DescriptionListGroup>
                   <DescriptionListTerm>Repository URL</DescriptionListTerm>
                   <DescriptionListDescription>
-                    <code className="pf-v6-u-font-family-monospace">
-                      {registry.spec.source.git?.repository || 'Not specified'}
-                    </code>
+                    <Flex
+                      alignItems={{ default: 'alignItemsCenter' }}
+                      spaceItems={{ default: 'spaceItemsSm' }}
+                    >
+                      <FlexItem>
+                        <code className="pf-v6-u-font-family-monospace">
+                          {registry.spec.source.git?.repository || 'Not specified'}
+                        </code>
+                      </FlexItem>
+                      {registry.spec.source.git?.repository && (
+                        <FlexItem>
+                          <Button
+                            variant="link"
+                            isInline
+                            onClick={() => {
+                              const repository = registry.spec.source?.git?.repository;
+                              const branch = registry.spec.source?.git?.branch || 'main';
+                              const path = registry.spec.source?.git?.path;
+                              if (repository) {
+                                // Construct GitHub URL to the specific file
+                                let githubUrl = repository.replace(/\.git$/, '');
+                                if (path) {
+                                  githubUrl = `${githubUrl}/blob/${branch}/${path}`;
+                                } else {
+                                  githubUrl = `${githubUrl}/tree/${branch}`;
+                                }
+                                window.open(githubUrl, '_blank');
+                              }
+                            }}
+                          >
+                            Open in Git
+                          </Button>
+                        </FlexItem>
+                      )}
+                    </Flex>
                   </DescriptionListDescription>
                 </DescriptionListGroup>
                 {registry.spec.source.git?.branch && (
@@ -307,6 +426,32 @@ const McpRegistryDetailsPage: React.FC = () => {
               </DescriptionListDescription>
             </DescriptionListGroup>
 
+            {(() => {
+              const apiStatus =
+                registry?.status && 'apiStatus' in registry.status
+                  ? registry.status.apiStatus
+                  : null;
+
+              // Type guard for endpoint
+              const hasEndpoint = (status: unknown): status is { endpoint: string } => {
+                return typeof status === 'object' && status !== null && 'endpoint' in status;
+              };
+
+              if (apiStatus && hasEndpoint(apiStatus)) {
+                return (
+                  <DescriptionListGroup>
+                    <DescriptionListTerm>Registry API Endpoint</DescriptionListTerm>
+                    <DescriptionListDescription>
+                      <code className="pf-v6-u-font-family-monospace">
+                        {String(apiStatus.endpoint)}
+                      </code>
+                    </DescriptionListDescription>
+                  </DescriptionListGroup>
+                );
+              }
+              return null;
+            })()}
+
             <DescriptionListGroup>
               <DescriptionListTerm>Last Sync</DescriptionListTerm>
               <DescriptionListDescription>
@@ -326,29 +471,54 @@ const McpRegistryDetailsPage: React.FC = () => {
     </PageSection>
   );
 
-  const renderAvailableServersTab = () => (
-    <PageSection hasBodyWrapper={false} isFilled>
-      <EmptyState titleText="Available Servers" icon={ServerIcon} headingLevel="h4">
-        <EmptyStateBody>
-          Server discovery and listing will be implemented in a future phase.
-          <br />
-          This tab will show all MCP servers available from this registry with filtering, search,
-          and deployment capabilities.
-        </EmptyStateBody>
-      </EmptyState>
-    </PageSection>
-  );
+  const handleServerSelect = (server: McpServerMetadata) => {
+    // TODO: Open server details modal
+    console.log('Selected server:', server.name);
+  };
 
-  const renderDeployedServersTab = () => (
+  const handleServerDeploy = (server: McpServerMetadata) => {
+    // TODO: Open deployment modal/workflow
+    console.log('Deploy server:', server.name);
+  };
+
+  const renderServersTab = () => (
     <PageSection hasBodyWrapper={false} isFilled>
-      <EmptyState titleText="Deployed Servers" icon={ClusterIcon} headingLevel="h4">
-        <EmptyStateBody>
-          Deployed server monitoring will be implemented in a future phase.
-          <br />
-          This tab will show all MCP servers currently deployed from this registry with status
-          monitoring and management capabilities.
-        </EmptyStateBody>
-      </EmptyState>
+      <Stack hasGutter>
+        <StackItem>
+          <Alert
+            variant={AlertVariant.info}
+            title="View all deployed servers"
+            isInline
+            actionLinks={
+              <Button
+                variant="link"
+                onClick={() => {
+                  // Navigate to servers page with pre-filter
+                  if (registry?.metadata?.name && registry.metadata.namespace) {
+                    navigate(
+                      `/mcp/servers?registry=${registry.metadata.name}&namespace=${registry.metadata.namespace}`,
+                    );
+                  }
+                }}
+              >
+                Go to Servers page
+              </Button>
+            }
+          >
+            Visit the Servers page to see all deployed MCPServer instances from this registry,
+            including their status, endpoints, and transport protocols.
+          </Alert>
+        </StackItem>
+        <StackItem>
+          <McpServerBrowser
+            servers={discoveredServers}
+            loading={serversLoading}
+            error={serversError}
+            onServerSelect={handleServerSelect}
+            onServerDeploy={handleServerDeploy}
+          />
+        </StackItem>
+      </Stack>
     </PageSection>
   );
 
@@ -499,26 +669,15 @@ const McpRegistryDetailsPage: React.FC = () => {
             {renderOverviewTab()}
           </Tab>
           <Tab
-            eventKey={RegistryDetailsTab.AVAILABLE_SERVERS}
+            eventKey={RegistryDetailsTab.SERVERS}
             title={
               <TabTitleText>
-                Available Servers <Badge isRead>{getServerCount()}</Badge>
+                Servers <Badge isRead>{getServerCount()}</Badge>
               </TabTitleText>
             }
-            aria-label="Available servers tab"
+            aria-label="Servers tab"
           >
-            {renderAvailableServersTab()}
-          </Tab>
-          <Tab
-            eventKey={RegistryDetailsTab.DEPLOYED_SERVERS}
-            title={
-              <TabTitleText>
-                Deployed Servers <Badge isRead>{getDeployedServerCount()}</Badge>
-              </TabTitleText>
-            }
-            aria-label="Deployed servers tab"
-          >
-            {renderDeployedServersTab()}
+            {renderServersTab()}
           </Tab>
           <Tab
             eventKey={RegistryDetailsTab.CONFIGURATION}
