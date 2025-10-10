@@ -8,7 +8,6 @@ import {
   Flex,
   FlexItem,
   Truncate,
-  Label,
   Button,
   Dropdown,
   DropdownList,
@@ -16,17 +15,35 @@ import {
   MenuToggle,
   MenuToggleElement,
 } from '@patternfly/react-core';
-import {
-  CodeBranchIcon,
-  GlobeIcon,
-  FileAltIcon,
-  EllipsisVIcon,
-  SyncAltIcon,
-  CogIcon,
-  EyeIcon,
-} from '@patternfly/react-icons';
+import { EllipsisVIcon, SyncAltIcon, CogIcon, EyeIcon } from '@patternfly/react-icons';
 import { McpRegistryStatusLabel } from './McpRegistryStatusLabel';
 import { McpRegistry } from '../types/registry';
+
+const formatTimeAgo = (dateString: string): string => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffMins < 1) return 'now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 30) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
+};
+
+const formatSyncInterval = (interval?: string): string => {
+  if (!interval || interval === 'manual') return 'manual';
+
+  // Convert interval formats like "1h", "30m", "1d" to readable format
+  if (interval.includes('h')) return `auto ${interval}`;
+  if (interval.includes('m')) return `auto ${interval}`;
+  if (interval.includes('d')) return `auto ${interval}`;
+
+  return `auto ${interval}`;
+};
 
 interface McpRegistryCardProps {
   registry: McpRegistry;
@@ -35,35 +52,6 @@ interface McpRegistryCardProps {
   onSync?: (registry: McpRegistry) => void;
   onView?: (registry: McpRegistry) => void;
 }
-
-const getSourceTypeBadge = (sourceType?: string) => {
-  switch (sourceType) {
-    case 'git':
-      return (
-        <Label icon={<CodeBranchIcon />} color="blue" isCompact>
-          git
-        </Label>
-      );
-    case 'http':
-      return (
-        <Label icon={<GlobeIcon />} color="green" isCompact>
-          http
-        </Label>
-      );
-    case 'configmap':
-      return (
-        <Label icon={<FileAltIcon />} color="purple" isCompact>
-          configmap
-        </Label>
-      );
-    default:
-      return (
-        <Label color="grey" isCompact>
-          unknown
-        </Label>
-      );
-  }
-};
 
 export const McpRegistryCard: React.FC<McpRegistryCardProps> = ({
   registry,
@@ -78,6 +66,7 @@ export const McpRegistryCard: React.FC<McpRegistryCardProps> = ({
   const serverCount = status?.serverCount || 0;
   const lastSyncTime = status?.lastSyncTime;
   const sourceType = spec.source?.type;
+  const syncInterval = spec.syncPolicy?.interval;
 
   const handleViewRegistry = () => {
     const registryName = metadata?.name;
@@ -174,40 +163,35 @@ export const McpRegistryCard: React.FC<McpRegistryCardProps> = ({
       </CardHeader>
 
       <CardBody>
-        {/* Source type and server information */}
-        <Flex spaceItems={{ default: 'spaceItemsSm' }} className="pf-u-mb-md">
-          {getSourceTypeBadge(sourceType)}
-          <span className="pf-u-color-200">•</span>
+        {/* Main status line - matches reference: "git • 24 servers • auto 1h • 10/9/2025 ago" */}
+        <div className="pf-u-mb-md pf-u-font-size-sm pf-u-color-200">
+          <span className="pf-u-font-weight-bold">{sourceType || 'unknown'}</span>
+          <span className="pf-u-mx-sm">•</span>
           <span className="pf-u-font-weight-bold">{serverCount}</span>
-          <span className="pf-u-color-200">{serverCount === 1 ? 'server' : 'servers'}</span>
+          <span className="pf-u-ml-xs">{serverCount === 1 ? 'server' : 'servers'}</span>
+          <span className="pf-u-mx-sm">•</span>
+          <span>{formatSyncInterval(syncInterval)}</span>
           {lastSyncTime && (
             <>
-              <span className="pf-u-color-200">•</span>
-              <span className="pf-u-color-200 pf-u-font-size-sm">
-                {new Date(lastSyncTime).toLocaleString()}
-              </span>
+              <span className="pf-u-mx-sm">•</span>
+              <span>{formatTimeAgo(lastSyncTime)}</span>
             </>
           )}
-        </Flex>
+        </div>
 
         {/* Description */}
         {spec.description && (
-          <div className="pf-u-color-200 pf-u-font-size-sm">
+          <div className="pf-u-color-200 pf-u-font-size-sm pf-u-mb-md">
             <Truncate content={spec.description} />
           </div>
         )}
 
-        {/* Additional metadata */}
+        {/* Source URL */}
         {spec.source && (
-          <div className="pf-u-color-200 pf-u-font-size-sm pf-u-mt-md">
+          <div className="pf-u-color-200 pf-u-font-size-sm pf-u-font-family-monospace">
             {spec.source.git?.repository && <Truncate content={spec.source.git.repository} />}
             {spec.source.http?.url && <Truncate content={spec.source.http.url} />}
             {spec.source.configmap && <span>{spec.source.configmap.name}</span>}
-            {metadata?.creationTimestamp && (
-              <span className="pf-u-ml-md">
-                • Created {new Date(metadata.creationTimestamp).toLocaleDateString()}
-              </span>
-            )}
           </div>
         )}
       </CardBody>

@@ -2,6 +2,7 @@ import {
   k8sCreateResource,
   k8sDeleteResource,
   k8sGetResource,
+  k8sPatchResource,
   k8sUpdateResource,
   K8sResourceCommon,
 } from '@openshift/dynamic-plugin-sdk-utils';
@@ -92,4 +93,21 @@ export const deleteMcpServer = (name: string, namespace: string): Promise<K8sRes
   k8sDeleteResource({
     model: McpServerModel,
     queryOptions: { name, ns: namespace },
+  });
+
+export const patchMcpServer = (
+  name: string,
+  namespace: string,
+  patch: Partial<McpServer>,
+): Promise<K8sResourceCommon> =>
+  k8sPatchResource({
+    model: McpServerModel,
+    queryOptions: { name, ns: namespace },
+    patches: [
+      {
+        op: 'replace',
+        path: '/metadata/labels',
+        value: patch.metadata?.labels || {},
+      },
+    ],
   });
