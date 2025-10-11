@@ -10,6 +10,7 @@ import {
   Alert,
   AlertVariant,
 } from '@patternfly/react-core';
+import { FolderOpenIcon } from '@patternfly/react-icons';
 import { ProjectsContext } from '@odh-dashboard/internal/concepts/projects/ProjectsContext';
 import ProjectSelector from '@odh-dashboard/internal/concepts/projects/ProjectSelector';
 import useNotification from '@odh-dashboard/internal/utilities/useNotification';
@@ -143,7 +144,12 @@ const McpRegistriesPage: React.FC = () => {
       </PageSection>
 
       <PageSection>
-        <Flex>
+        <Flex spaceItems={{ default: 'spaceItemsSm' }} alignItems={{ default: 'alignItemsCenter' }}>
+          <FlexItem>
+            <strong>
+              <FolderOpenIcon /> Project:
+            </strong>
+          </FlexItem>
           <FlexItem>
             <ProjectSelector
               namespace={selectedNamespace}

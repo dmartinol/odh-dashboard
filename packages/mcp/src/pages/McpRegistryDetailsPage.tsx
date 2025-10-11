@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   PageSection,
   Title,
@@ -19,15 +19,19 @@ import {
   Label,
   Stack,
   StackItem,
-  EmptyState,
-  EmptyStateBody,
   Alert,
   AlertVariant,
   Spinner,
   Card,
   CardBody,
 } from '@patternfly/react-core';
-import { CodeBranchIcon, GlobeIcon, FileAltIcon, EditIcon, CogIcon } from '@patternfly/react-icons';
+import {
+  CodeBranchIcon,
+  GlobeIcon,
+  FileAltIcon,
+  EditIcon,
+  FolderOpenIcon,
+} from '@patternfly/react-icons';
 import { ConfigMapKind } from '@odh-dashboard/internal/k8sTypes';
 import { McpRegistryStatusLabel } from '../components/McpRegistryStatusLabel';
 import { McpRegistryCreateModal } from '../components/McpRegistryCreateModal';
@@ -45,7 +49,6 @@ import {
 enum RegistryDetailsTab {
   OVERVIEW = 'overview',
   SERVERS = 'servers',
-  CONFIGURATION = 'configuration',
 }
 
 const McpRegistryDetailsPage: React.FC = () => {
@@ -60,11 +63,25 @@ const McpRegistryDetailsPage: React.FC = () => {
   const [serversLoading, setServersLoading] = React.useState(false);
   const [serversError, setServersError] = React.useState<string>();
 
-  // Get the registry data
-  const [registries, loaded, error] = useMcpRegistries(preferredProject?.metadata.name || '');
+  // Get the registry data - fetch from all namespaces to find the registry by name
+  // This is needed because the URL only has the registry name, not the namespace
+  const [registries, loaded, error] = useMcpRegistries(''); // Empty string = all namespaces
   const registry = React.useMemo(() => {
     return registries.find((reg) => reg.metadata?.name === name);
   }, [registries, name]);
+
+  // Update preferred project to match the registry's namespace when found
+  React.useEffect(() => {
+    if (registry && registry.metadata?.namespace) {
+      const registryNamespace = registry.metadata.namespace;
+      if (preferredProject?.metadata.name !== registryNamespace) {
+        const targetProject = projects.find((p) => p.metadata.name === registryNamespace);
+        if (targetProject) {
+          updatePreferredProject(targetProject);
+        }
+      }
+    }
+  }, [registry, preferredProject, projects, updatePreferredProject]);
 
   // Load ConfigMaps for ConfigMap-based registries
   const [configMaps] = useConfigMaps(registry?.metadata?.namespace);
@@ -204,8 +221,88 @@ const McpRegistryDetailsPage: React.FC = () => {
     }
   };
 
+  const formatTimeAgo = (dateString?: string): string => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 30) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  };
+
+  const getSyncPolicyDisplay = (): string => {
+    // Support both nested syncStatus structure and flat structure for backward compatibility
+    const lastSyncTime =
+      registry?.status?.syncStatus?.lastSyncTime ?? registry?.status?.lastSyncTime;
+    const syncPhase = registry?.status?.syncStatus?.phase ?? registry?.status?.phase;
+    // Auto-sync is enabled if either:
+    // 1. enabled field is explicitly true, OR
+    // 2. enabled field is undefined AND interval is configured
+    const isAutoSync = registry?.spec.syncPolicy?.enabled ?? !!registry?.spec.syncPolicy?.interval;
+    const interval = registry?.spec.syncPolicy?.interval || '5m';
+
+    // Configuration part
+    const configPart = isAutoSync ? `Auto sync every ${interval}` : 'Manual sync';
+
+    // Status part
+    let statusPart = '';
+    if (lastSyncTime) {
+      const timeAgo = formatTimeAgo(lastSyncTime);
+      if (syncPhase === 'Ready' || syncPhase === 'Complete') {
+        statusPart = `last sync succeeded ${timeAgo}`;
+      } else if (syncPhase === 'Failed') {
+        statusPart = `last sync failed ${timeAgo}`;
+      } else {
+        statusPart = `last sync ${timeAgo}`;
+      }
+    } else {
+      statusPart = 'never synced';
+    }
+
+    return `${configPart} • ${statusPart}`;
+  };
+
+  const getSourceDisplay = (): string => {
+    const sourceType = registry?.spec.source?.type;
+
+    if (sourceType === 'git' && registry?.spec.source?.git) {
+      const { repository, branch, path } = registry.spec.source.git;
+      let display = repository || '';
+      if (branch && branch !== 'main') {
+        display += `/${branch}`;
+      }
+      if (path) {
+        display += `/${path}`;
+      }
+      return display;
+    }
+
+    if (sourceType === 'configmap' && registry?.spec.source?.configmap) {
+      const { name: cmName, key } = registry.spec.source.configmap;
+      return `${cmName} (${key})`;
+    }
+
+    if (sourceType === 'http' && registry?.spec.source?.http) {
+      return registry.spec.source.http.url || '';
+    }
+
+    return 'Not specified';
+  };
+
   const getServerCount = () => {
-    return (discoveredServers.length || registry?.status?.serverCount) ?? 0;
+    return (
+      discoveredServers.length ||
+      registry?.status?.syncStatus?.serverCount ||
+      registry?.status?.serverCount ||
+      0
+    );
   };
 
   const handleBackToRegistries = async () => {
@@ -234,242 +331,127 @@ const McpRegistryDetailsPage: React.FC = () => {
     setEditModalOpen(true);
   };
 
-  const handleRegistryActions = () => {
-    // TODO: Implement registry actions menu
-    console.log('Registry actions for:', registry?.metadata?.name);
+  const renderOverviewTab = () => {
+    const handleOpenSource = () => {
+      if (registry?.spec.source?.type === 'git' && registry.spec.source.git) {
+        const { repository, branch, path } = registry.spec.source.git;
+        let githubUrl = repository.replace(/\.git$/, '') || '';
+        if (path) {
+          githubUrl = `${githubUrl}/blob/${branch || 'main'}/${path}`;
+        } else {
+          githubUrl = `${githubUrl}/tree/${branch || 'main'}`;
+        }
+        window.open(githubUrl, '_blank');
+      } else if (registry?.spec.source?.type === 'configmap' && registry.spec.source.configmap) {
+        const namespace = registry.metadata?.namespace;
+        const configMapName = registry.spec.source.configmap.name;
+        if (namespace && configMapName) {
+          const consoleUrl = window.location.origin;
+          const configMapUrl = `${consoleUrl}/k8s/ns/${namespace}/configmaps/${configMapName}`;
+          window.open(configMapUrl, '_blank');
+        }
+      }
+    };
+
+    const hasSourceLink =
+      (registry?.spec.source?.type === 'git' && registry.spec.source.git?.repository) ||
+      (registry?.spec.source?.type === 'configmap' && registry.spec.source.configmap?.name);
+
+    return (
+      <PageSection hasBodyWrapper={false} isFilled>
+        <Stack hasGutter>
+          {/* Registry Information Card */}
+          <StackItem>
+            <Card>
+              <CardBody>
+                <Title headingLevel="h3" size="md" className="pf-v6-u-mb-md">
+                  Registry Information
+                </Title>
+                <DescriptionList isHorizontal horizontalTermWidthModifier={{ default: '200px' }}>
+                  {registry?.spec.description && (
+                    <DescriptionListGroup>
+                      <DescriptionListTerm>Description</DescriptionListTerm>
+                      <DescriptionListDescription>
+                        {registry.spec.description}
+                      </DescriptionListDescription>
+                    </DescriptionListGroup>
+                  )}
+
+                  <DescriptionListGroup>
+                    <DescriptionListTerm>
+                      <FolderOpenIcon /> Project
+                    </DescriptionListTerm>
+                    <DescriptionListDescription>
+                      {registry?.metadata?.namespace}
+                    </DescriptionListDescription>
+                  </DescriptionListGroup>
+
+                  <DescriptionListGroup>
+                    <DescriptionListTerm>Server Count</DescriptionListTerm>
+                    <DescriptionListDescription>
+                      <Badge isRead>{getServerCount()}</Badge>
+                    </DescriptionListDescription>
+                  </DescriptionListGroup>
+
+                  <DescriptionListGroup>
+                    <DescriptionListTerm>Created</DescriptionListTerm>
+                    <DescriptionListDescription>
+                      {formatDate(registry?.metadata?.creationTimestamp)}
+                    </DescriptionListDescription>
+                  </DescriptionListGroup>
+                </DescriptionList>
+              </CardBody>
+            </Card>
+          </StackItem>
+
+          {/* Source & Sync Configuration Card */}
+          <StackItem>
+            <Card>
+              <CardBody>
+                <Title headingLevel="h3" size="md" className="pf-v6-u-mb-md">
+                  Source & Sync Configuration
+                </Title>
+                <DescriptionList isHorizontal horizontalTermWidthModifier={{ default: '200px' }}>
+                  <DescriptionListGroup>
+                    <DescriptionListTerm>Source</DescriptionListTerm>
+                    <DescriptionListDescription>
+                      <Flex
+                        alignItems={{ default: 'alignItemsCenter' }}
+                        spaceItems={{ default: 'spaceItemsSm' }}
+                      >
+                        <FlexItem>{getSourceTypeBadge(registry?.spec.source?.type)}</FlexItem>
+                        <FlexItem>
+                          <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
+                            {getSourceDisplay()}
+                          </code>
+                        </FlexItem>
+                        {hasSourceLink && (
+                          <FlexItem>
+                            <Button variant="link" isInline onClick={handleOpenSource}>
+                              {registry.spec.source?.type === 'git'
+                                ? 'Open in Git'
+                                : 'View ConfigMap'}
+                            </Button>
+                          </FlexItem>
+                        )}
+                      </Flex>
+                    </DescriptionListDescription>
+                  </DescriptionListGroup>
+
+                  <DescriptionListGroup>
+                    <DescriptionListTerm>Sync Policy</DescriptionListTerm>
+                    <DescriptionListDescription>
+                      {getSyncPolicyDisplay()}
+                    </DescriptionListDescription>
+                  </DescriptionListGroup>
+                </DescriptionList>
+              </CardBody>
+            </Card>
+          </StackItem>
+        </Stack>
+      </PageSection>
+    );
   };
-
-  const renderOverviewTab = () => (
-    <PageSection hasBodyWrapper={false} isFilled>
-      <Stack hasGutter>
-        <StackItem>
-          <Title headingLevel="h3" size="lg">
-            Registry Information
-          </Title>
-        </StackItem>
-        <StackItem>
-          <DescriptionList>
-            <DescriptionListGroup>
-              <DescriptionListTerm>Name</DescriptionListTerm>
-              <DescriptionListDescription>
-                <Flex
-                  alignItems={{ default: 'alignItemsCenter' }}
-                  spaceItems={{ default: 'spaceItemsSm' }}
-                >
-                  <FlexItem>{registry?.metadata?.name}</FlexItem>
-                  <FlexItem>
-                    <McpRegistryStatusLabel status={registry?.status} />
-                  </FlexItem>
-                </Flex>
-              </DescriptionListDescription>
-            </DescriptionListGroup>
-
-            <DescriptionListGroup>
-              <DescriptionListTerm>Source Type</DescriptionListTerm>
-              <DescriptionListDescription>
-                {getSourceTypeBadge(registry?.spec.source?.type)}
-              </DescriptionListDescription>
-            </DescriptionListGroup>
-
-            {/* Source information - dynamic based on source type */}
-            {registry?.spec.source?.type === 'git' && (
-              <>
-                <DescriptionListGroup>
-                  <DescriptionListTerm>Repository URL</DescriptionListTerm>
-                  <DescriptionListDescription>
-                    <Flex
-                      alignItems={{ default: 'alignItemsCenter' }}
-                      spaceItems={{ default: 'spaceItemsSm' }}
-                    >
-                      <FlexItem>
-                        <code className="pf-v6-u-font-family-monospace">
-                          {registry.spec.source.git?.repository || 'Not specified'}
-                        </code>
-                      </FlexItem>
-                      {registry.spec.source.git?.repository && (
-                        <FlexItem>
-                          <Button
-                            variant="link"
-                            isInline
-                            onClick={() => {
-                              const repository = registry.spec.source?.git?.repository;
-                              const branch = registry.spec.source?.git?.branch || 'main';
-                              const path = registry.spec.source?.git?.path;
-                              if (repository) {
-                                // Construct GitHub URL to the specific file
-                                let githubUrl = repository.replace(/\.git$/, '');
-                                if (path) {
-                                  githubUrl = `${githubUrl}/blob/${branch}/${path}`;
-                                } else {
-                                  githubUrl = `${githubUrl}/tree/${branch}`;
-                                }
-                                window.open(githubUrl, '_blank');
-                              }
-                            }}
-                          >
-                            Open in Git
-                          </Button>
-                        </FlexItem>
-                      )}
-                    </Flex>
-                  </DescriptionListDescription>
-                </DescriptionListGroup>
-                {registry.spec.source.git?.branch && (
-                  <DescriptionListGroup>
-                    <DescriptionListTerm>Branch</DescriptionListTerm>
-                    <DescriptionListDescription>
-                      <code className="pf-v6-u-font-family-monospace">
-                        {registry.spec.source.git.branch}
-                      </code>
-                    </DescriptionListDescription>
-                  </DescriptionListGroup>
-                )}
-                {registry.spec.source.git?.path && (
-                  <DescriptionListGroup>
-                    <DescriptionListTerm>File Path</DescriptionListTerm>
-                    <DescriptionListDescription>
-                      <code className="pf-v6-u-font-family-monospace">
-                        {registry.spec.source.git.path}
-                      </code>
-                    </DescriptionListDescription>
-                  </DescriptionListGroup>
-                )}
-              </>
-            )}
-
-            {registry?.spec.source?.type === 'configmap' && (
-              <>
-                <DescriptionListGroup>
-                  <DescriptionListTerm>ConfigMap Name</DescriptionListTerm>
-                  <DescriptionListDescription>
-                    <Flex
-                      alignItems={{ default: 'alignItemsCenter' }}
-                      spaceItems={{ default: 'spaceItemsSm' }}
-                    >
-                      <FlexItem>
-                        <code className="pf-v6-u-font-family-monospace">
-                          {registry.spec.source.configmap?.name || 'Not specified'}
-                        </code>
-                      </FlexItem>
-                      {registry.spec.source.configmap?.name && (
-                        <FlexItem>
-                          <Button
-                            variant="link"
-                            isInline
-                            onClick={() => {
-                              const namespace = registry.metadata?.namespace;
-                              const configMapName = registry.spec.source?.configmap?.name;
-                              if (namespace && configMapName) {
-                                // Open ConfigMap in OpenShift console
-                                const consoleUrl = window.location.origin;
-                                const configMapUrl = `${consoleUrl}/k8s/ns/${namespace}/configmaps/${configMapName}`;
-                                window.open(configMapUrl, '_blank');
-                              }
-                            }}
-                          >
-                            View ConfigMap
-                          </Button>
-                        </FlexItem>
-                      )}
-                    </Flex>
-                  </DescriptionListDescription>
-                </DescriptionListGroup>
-                {registry.spec.source.configmap?.key && (
-                  <DescriptionListGroup>
-                    <DescriptionListTerm>ConfigMap Key</DescriptionListTerm>
-                    <DescriptionListDescription>
-                      <code className="pf-v6-u-font-family-monospace">
-                        {registry.spec.source.configmap.key}
-                      </code>
-                    </DescriptionListDescription>
-                  </DescriptionListGroup>
-                )}
-              </>
-            )}
-
-            {registry?.spec.source?.type === 'http' && (
-              <DescriptionListGroup>
-                <DescriptionListTerm>Source URL</DescriptionListTerm>
-                <DescriptionListDescription>
-                  <code className="pf-v6-u-font-family-monospace">
-                    {registry.spec.source.http?.url || 'Not specified'}
-                  </code>
-                </DescriptionListDescription>
-              </DescriptionListGroup>
-            )}
-
-            {!registry?.spec.source?.type && (
-              <DescriptionListGroup>
-                <DescriptionListTerm>Source</DescriptionListTerm>
-                <DescriptionListDescription>Not specified</DescriptionListDescription>
-              </DescriptionListGroup>
-            )}
-
-            {registry?.spec.description && (
-              <DescriptionListGroup>
-                <DescriptionListTerm>Description</DescriptionListTerm>
-                <DescriptionListDescription>{registry.spec.description}</DescriptionListDescription>
-              </DescriptionListGroup>
-            )}
-
-            <DescriptionListGroup>
-              <DescriptionListTerm>Namespace</DescriptionListTerm>
-              <DescriptionListDescription>
-                {registry?.metadata?.namespace}
-              </DescriptionListDescription>
-            </DescriptionListGroup>
-
-            <DescriptionListGroup>
-              <DescriptionListTerm>Server Count</DescriptionListTerm>
-              <DescriptionListDescription>
-                <Badge isRead>{getServerCount()}</Badge>
-              </DescriptionListDescription>
-            </DescriptionListGroup>
-
-            {(() => {
-              const apiStatus =
-                registry?.status && 'apiStatus' in registry.status
-                  ? registry.status.apiStatus
-                  : null;
-
-              // Type guard for endpoint
-              const hasEndpoint = (status: unknown): status is { endpoint: string } => {
-                return typeof status === 'object' && status !== null && 'endpoint' in status;
-              };
-
-              if (apiStatus && hasEndpoint(apiStatus)) {
-                return (
-                  <DescriptionListGroup>
-                    <DescriptionListTerm>Registry API Endpoint</DescriptionListTerm>
-                    <DescriptionListDescription>
-                      <code className="pf-v6-u-font-family-monospace">
-                        {String(apiStatus.endpoint)}
-                      </code>
-                    </DescriptionListDescription>
-                  </DescriptionListGroup>
-                );
-              }
-              return null;
-            })()}
-
-            <DescriptionListGroup>
-              <DescriptionListTerm>Last Sync</DescriptionListTerm>
-              <DescriptionListDescription>
-                {formatDate(registry?.status?.lastSyncTime)}
-              </DescriptionListDescription>
-            </DescriptionListGroup>
-
-            <DescriptionListGroup>
-              <DescriptionListTerm>Created</DescriptionListTerm>
-              <DescriptionListDescription>
-                {formatDate(registry?.metadata?.creationTimestamp)}
-              </DescriptionListDescription>
-            </DescriptionListGroup>
-          </DescriptionList>
-        </StackItem>
-      </Stack>
-    </PageSection>
-  );
 
   const handleServerSelect = (server: McpServerMetadata) => {
     // TODO: Open server details modal
@@ -485,29 +467,16 @@ const McpRegistryDetailsPage: React.FC = () => {
     <PageSection hasBodyWrapper={false} isFilled>
       <Stack hasGutter>
         <StackItem>
-          <Alert
-            variant={AlertVariant.info}
-            title="View all deployed servers"
-            isInline
-            actionLinks={
-              <Button
-                variant="link"
-                onClick={() => {
-                  // Navigate to servers page with pre-filter
-                  if (registry?.metadata?.name && registry.metadata.namespace) {
-                    navigate(
-                      `/mcp/servers?registry=${registry.metadata.name}&namespace=${registry.metadata.namespace}`,
-                    );
-                  }
-                }}
-              >
-                Go to Servers page
-              </Button>
-            }
-          >
-            Visit the Servers page to see all deployed MCPServer instances from this registry,
-            including their status, endpoints, and transport protocols.
-          </Alert>
+          <div className="pf-v6-u-mb-md">
+            To view deployed servers, go to{' '}
+            <Link
+              to={`/mcp/servers?registry=${registry?.metadata?.name ?? ''}&namespace=${
+                registry?.metadata?.namespace ?? ''
+              }`}
+            >
+              <b>Servers</b>
+            </Link>
+          </div>
         </StackItem>
         <StackItem>
           <McpServerBrowser
@@ -519,18 +488,6 @@ const McpRegistryDetailsPage: React.FC = () => {
           />
         </StackItem>
       </Stack>
-    </PageSection>
-  );
-
-  const renderConfigurationTab = () => (
-    <PageSection hasBodyWrapper={false} isFilled>
-      <EmptyState titleText="Registry Configuration" icon={CogIcon} headingLevel="h4">
-        <EmptyStateBody>
-          Configuration management will be implemented in a future phase.
-          <br />
-          This tab will show the registry&apos;s YAML configuration with editing capabilities.
-        </EmptyStateBody>
-      </EmptyState>
     </PageSection>
   );
 
@@ -588,7 +545,9 @@ const McpRegistryDetailsPage: React.FC = () => {
           >
             Registries
           </BreadcrumbItem>
-          <BreadcrumbItem isActive>{registry.metadata?.name}</BreadcrumbItem>
+          <BreadcrumbItem isActive>
+            {registry.spec.displayName || registry.metadata?.name}
+          </BreadcrumbItem>
         </Breadcrumb>
       </PageSection>
 
@@ -603,7 +562,7 @@ const McpRegistryDetailsPage: React.FC = () => {
               <FlexItem>{getSourceTypeIcon(registry.spec.source?.type)}</FlexItem>
               <FlexItem>
                 <Title headingLevel="h1" size="2xl">
-                  {registry.metadata?.name}
+                  {registry.spec.displayName || registry.metadata?.name}
                 </Title>
               </FlexItem>
               <FlexItem>
@@ -618,14 +577,6 @@ const McpRegistryDetailsPage: React.FC = () => {
                   Edit
                 </Button>
               </FlexItem>
-              <FlexItem>
-                <Button
-                  variant="plain"
-                  icon={<CogIcon />}
-                  onClick={handleRegistryActions}
-                  aria-label="Registry actions"
-                />
-              </FlexItem>
             </Flex>
           </FlexItem>
         </Flex>
@@ -636,14 +587,20 @@ const McpRegistryDetailsPage: React.FC = () => {
           <span className="pf-u-color-200">•</span>
           <span className="pf-u-font-weight-bold">{getServerCount()}</span>
           <span className="pf-u-color-200">{getServerCount() === 1 ? 'server' : 'servers'}</span>
-          {registry.status?.lastSyncTime && (
-            <>
-              <span className="pf-u-color-200">•</span>
-              <span className="pf-u-color-200 pf-u-font-size-sm">
-                Last sync: {formatDate(registry.status.lastSyncTime)}
-              </span>
-            </>
-          )}
+          {(() => {
+            const lastSync =
+              registry.status?.syncStatus?.lastSyncTime ?? registry.status?.lastSyncTime;
+            return (
+              lastSync && (
+                <>
+                  <span className="pf-u-color-200">•</span>
+                  <span className="pf-u-color-200 pf-u-font-size-sm">
+                    Last sync: {formatDate(lastSync)}
+                  </span>
+                </>
+              )
+            );
+          })()}
         </Flex>
 
         {registry.spec.description && (
@@ -678,13 +635,6 @@ const McpRegistryDetailsPage: React.FC = () => {
             aria-label="Servers tab"
           >
             {renderServersTab()}
-          </Tab>
-          <Tab
-            eventKey={RegistryDetailsTab.CONFIGURATION}
-            title={<TabTitleText>Configuration</TabTitleText>}
-            aria-label="Registry configuration tab"
-          >
-            {renderConfigurationTab()}
           </Tab>
         </Tabs>
       </PageSection>

@@ -63,8 +63,8 @@ export const McpRegistryCard: React.FC<McpRegistryCardProps> = ({
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
   const { metadata, spec, status } = registry;
-  const serverCount = status?.serverCount || 0;
-  const lastSyncTime = status?.lastSyncTime;
+  const serverCount = status?.syncStatus?.serverCount ?? status?.serverCount ?? 0;
+  const lastSyncTime = status?.syncStatus?.lastSyncTime ?? status?.lastSyncTime;
   const sourceType = spec.source?.type;
   const syncInterval = spec.syncPolicy?.interval;
 
@@ -85,7 +85,7 @@ export const McpRegistryCard: React.FC<McpRegistryCardProps> = ({
         <CardTitle>
           <Flex alignItems={{ default: 'alignItemsCenter' }}>
             <FlexItem flex={{ default: 'flex_1' }}>
-              <Truncate content={metadata?.name || 'Unknown'} />
+              <Truncate content={spec.displayName || metadata?.name || 'Unknown'} />
             </FlexItem>
             <FlexItem>
               <Flex

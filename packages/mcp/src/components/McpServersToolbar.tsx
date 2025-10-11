@@ -67,7 +67,7 @@ export const McpServersToolbar: React.FC<McpServersToolbarProps> = ({
       if (registry.metadata?.name) {
         options.push({
           value: registry.metadata.name,
-          label: registry.metadata.name,
+          label: registry.spec.displayName || registry.metadata.name,
         });
       }
     });

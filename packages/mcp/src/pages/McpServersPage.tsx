@@ -7,15 +7,12 @@ import {
   CardBody,
   Flex,
   FlexItem,
-  MenuToggle,
-  // eslint-disable-next-line no-restricted-imports
-  Select,
-  SelectList,
-  SelectOption,
   Spinner,
   Alert,
   AlertVariant,
 } from '@patternfly/react-core';
+import { FolderOpenIcon } from '@patternfly/react-icons';
+import ProjectSelector from '@odh-dashboard/internal/concepts/projects/ProjectSelector';
 import { ProjectsContext } from '../../../../frontend/src/concepts/projects/ProjectsContext';
 import { useMcpServers } from '../hooks/useMcpServers';
 import { useMcpRegistries } from '../hooks/useMcpRegistries';
@@ -36,7 +33,6 @@ const McpServersPage: React.FC = () => {
   const [selectedRegistry, setSelectedRegistry] = React.useState('all');
   const [selectedTransport, setSelectedTransport] = React.useState('all');
   const [selectedStatus, setSelectedStatus] = React.useState('all');
-  const [isNamespaceOpen, setIsNamespaceOpen] = React.useState(false);
 
   // State for modals and selected server
   const [selectedServer, setSelectedServer] = React.useState<McpServer | null>(null);
@@ -129,12 +125,10 @@ const McpServersPage: React.FC = () => {
     });
   };
 
-  const handleNamespaceSelect = (_event: unknown, value: string | number | undefined) => {
-    const namespace = String(value);
+  const handleProjectSelection = (namespace: string) => {
     const targetProject = projects.find((p) => p.metadata.name === namespace);
     if (targetProject) {
       updatePreferredProject(targetProject);
-      setIsNamespaceOpen(false);
     }
   };
 
@@ -275,41 +269,23 @@ const McpServersPage: React.FC = () => {
         <Card>
           <CardBody>
             <Flex direction={{ default: 'column' }} spaceItems={{ default: 'spaceItemsMd' }}>
-              {/* Namespace Selector */}
+              {/* Project Selector */}
               <FlexItem>
                 <Flex
                   spaceItems={{ default: 'spaceItemsSm' }}
                   alignItems={{ default: 'alignItemsCenter' }}
                 >
                   <FlexItem>
-                    <strong>Namespace:</strong>
+                    <strong>
+                      <FolderOpenIcon /> Project:
+                    </strong>
                   </FlexItem>
                   <FlexItem>
-                    <Select
-                      id="namespace-select"
-                      isOpen={isNamespaceOpen}
-                      selected={preferredProject?.metadata.name}
-                      onSelect={handleNamespaceSelect}
-                      onOpenChange={(isOpen) => setIsNamespaceOpen(isOpen)}
-                      toggle={(toggleRef) => (
-                        <MenuToggle
-                          ref={toggleRef}
-                          onClick={() => setIsNamespaceOpen(!isNamespaceOpen)}
-                          isExpanded={isNamespaceOpen}
-                          style={{ minWidth: '200px' }}
-                        >
-                          {preferredProject?.metadata.name || 'Select namespace'}
-                        </MenuToggle>
-                      )}
-                    >
-                      <SelectList>
-                        {projects.map((project) => (
-                          <SelectOption key={project.metadata.name} value={project.metadata.name}>
-                            {project.metadata.name}
-                          </SelectOption>
-                        ))}
-                      </SelectList>
-                    </Select>
+                    <ProjectSelector
+                      namespace={preferredProject?.metadata.name || ''}
+                      onSelection={handleProjectSelection}
+                      placeholder="Select a project"
+                    />
                   </FlexItem>
                 </Flex>
               </FlexItem>

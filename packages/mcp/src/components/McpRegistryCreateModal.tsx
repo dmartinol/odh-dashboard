@@ -176,14 +176,8 @@ export const McpRegistryCreateModal: React.FC<McpRegistryCreateModalProps> = ({
   const initialNameDesc = React.useMemo(() => {
     if (editRegistry) {
       return {
-        name:
-          editRegistry.metadata?.annotations?.['openshift.io/display-name'] ||
-          editRegistry.metadata?.name ||
-          '',
-        description:
-          editRegistry.metadata?.annotations?.['openshift.io/description'] ||
-          editRegistry.spec.description ||
-          '',
+        name: editRegistry.spec.displayName || editRegistry.metadata?.name || '',
+        description: editRegistry.spec.description || '',
         k8sName: editRegistry.metadata?.name || '',
       };
     }
@@ -200,22 +194,8 @@ export const McpRegistryCreateModal: React.FC<McpRegistryCreateModalProps> = ({
       const formDataToUse = editRegistry ? mapRegistryToFormData(editRegistry) : initialFormData;
       setFormData(formDataToUse);
 
-      if (editRegistry) {
-        // Pre-populate form fields for editing
-        const displayName =
-          editRegistry.metadata?.annotations?.['openshift.io/display-name'] ||
-          editRegistry.metadata?.name ||
-          '';
-        const description =
-          editRegistry.metadata?.annotations?.['openshift.io/description'] ||
-          editRegistry.spec.description ||
-          '';
-        const k8sName = editRegistry.metadata?.name || '';
-
-        setNameDesc('name', displayName);
-        setNameDesc('description', description);
-        setNameDesc('k8sName', k8sName);
-      } else {
+      // Name/description are handled by initialNameDesc in useK8sNameDescriptionFieldData
+      if (!editRegistry) {
         // Clear form for creating new registry
         setNameDesc('name', '');
         setNameDesc('description', '');
@@ -416,6 +396,7 @@ export const McpRegistryCreateModal: React.FC<McpRegistryCreateModalProps> = ({
             : {}),
         },
         spec: {
+          displayName: nameDesc.name.trim(),
           description: nameDesc.description,
           source: {
             type: formData.sourceType,
