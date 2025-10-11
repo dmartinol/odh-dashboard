@@ -8,6 +8,7 @@ export interface McpRegistry extends K8sResourceCommon {
       name: string;
       url?: string;
     }>;
+    displayName?: string;
     description?: string;
     source?: McpRegistrySource;
     syncPolicy?: McpRegistrySyncPolicy;
@@ -63,10 +64,18 @@ export interface McpRegistryFilter {
 }
 
 export interface McpRegistryStatus {
-  phase: 'Pending' | 'Syncing' | 'Ready' | 'Failed';
+  phase: 'Pending' | 'Syncing' | 'Ready' | 'Complete' | 'Failed';
   message?: string;
-  lastSyncTime?: string;
+  lastSyncTime?: string; // Deprecated: kept for backward compatibility
   serverCount?: number;
+  syncStatus?: {
+    lastAttempt?: string;
+    lastSyncHash?: string;
+    lastSyncTime?: string;
+    message?: string;
+    phase?: 'Pending' | 'Syncing' | 'Ready' | 'Complete' | 'Failed';
+    serverCount?: number;
+  };
   conditions?: Array<{
     type: string;
     status: 'True' | 'False' | 'Unknown';

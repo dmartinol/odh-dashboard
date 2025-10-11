@@ -32,7 +32,8 @@ export const McpRegistryStatusLabel: React.FC<McpRegistryStatusLabelProps> = ({ 
 
   switch (phase) {
     case 'Ready':
-      statusLabel = 'Ready';
+    case 'Complete':
+      statusLabel = phase === 'Ready' ? 'Ready' : 'Complete';
       icon = <CheckCircleIcon />;
       labelStatus = 'success';
       break;

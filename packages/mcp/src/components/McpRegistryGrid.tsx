@@ -46,6 +46,7 @@ export const McpRegistryGrid: React.FC<McpRegistryGridProps> = ({
     return registries.filter(
       (registry) =>
         registry.metadata?.name?.toLowerCase().includes(searchLower) ||
+        registry.spec.displayName?.toLowerCase().includes(searchLower) ||
         registry.spec.description?.toLowerCase().includes(searchLower),
     );
   }, [registries, searchValue]);

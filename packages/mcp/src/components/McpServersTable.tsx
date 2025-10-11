@@ -40,6 +40,10 @@ const getLinkedRegistry = (
   );
 };
 
+const getAssociatedServerName = (server: McpServer): string | undefined => {
+  return server.metadata?.labels?.['toolhive.stacklok.io/server-name'];
+};
+
 const getStatusIcon = (phase?: string) => {
   switch (phase) {
     case 'Running':
@@ -168,6 +172,7 @@ export const McpServersTable: React.FC<McpServersTableProps> = ({
           <Th {...getSortParams('name')}>Name</Th>
           <Th {...getSortParams('status')}>Status</Th>
           <Th {...getSortParams('registry')}>Linked Registry</Th>
+          <Th>Associated Server</Th>
           <Th>Endpoint</Th>
           <Th {...getSortParams('transport')}>Transport</Th>
           <Th>Actions</Th>
@@ -176,6 +181,7 @@ export const McpServersTable: React.FC<McpServersTableProps> = ({
       <Tbody>
         {sortedServers.map((server) => {
           const linkedRegistry = getLinkedRegistry(server, registries);
+          const associatedServerName = getAssociatedServerName(server);
           const endpoint = server.status?.url || server.status?.endpoint;
           const status = server.status?.phase || 'Unknown';
 
@@ -200,12 +206,21 @@ export const McpServersTable: React.FC<McpServersTableProps> = ({
                       navigate(`/mcp/registries/${linkedRegistry.metadata?.name || ''}`)
                     }
                   >
-                    {linkedRegistry.metadata.name}
+                    {linkedRegistry.spec.displayName || linkedRegistry.metadata.name}
                   </Button>
                 ) : (
                   <Label color="grey" isCompact>
                     Unregistered
                   </Label>
+                )}
+              </Td>
+              <Td dataLabel="Associated Server">
+                {associatedServerName ? (
+                  <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
+                    {associatedServerName}
+                  </code>
+                ) : (
+                  <span className="pf-v6-u-color-200">—</span>
                 )}
               </Td>
               <Td dataLabel="Endpoint">

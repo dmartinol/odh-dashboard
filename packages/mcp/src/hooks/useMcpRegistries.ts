@@ -5,15 +5,18 @@ import { McpRegistryModel } from '../api/models/mcp';
 import { groupVersionKind } from '../api/k8s/mcp';
 
 export const useMcpRegistries = (
-  namespace: string,
+  namespace?: string,
 ): [McpRegistry[], boolean, Error | undefined] => {
-  const watchConfig = namespace
-    ? {
-        groupVersionKind: groupVersionKind(McpRegistryModel),
-        namespace,
-        isList: true,
-      }
-    : null;
+  // If namespace is provided, watch that namespace
+  // If namespace is empty string or undefined, watch all namespaces
+  const watchConfig =
+    namespace === undefined
+      ? null
+      : {
+          groupVersionKind: groupVersionKind(McpRegistryModel),
+          ...(namespace ? { namespace } : {}), // Omit namespace to watch all
+          isList: true,
+        };
 
   const [data, loaded, error] = useK8sWatchResource<McpRegistry[]>(watchConfig, McpRegistryModel);
 
