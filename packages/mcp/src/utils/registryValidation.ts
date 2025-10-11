@@ -473,11 +473,6 @@ const parseMcpV0Format = async (
         license: detailedServer.license,
         tags: detailedServer.tags || [],
         logo: logoUrl,
-        image: detailedServer.image,
-        transport: detailedServer.transport,
-        // eslint-disable-next-line camelcase
-        target_port: detailedServer.target_port,
-        args: detailedServer.args,
         tools:
           detailedServer.tools?.map((tool, index) => {
             console.log(`🔍 [MCP-V0] Processing tool ${index}:`, tool);
@@ -886,43 +881,6 @@ export const discoverServersFromConfigMap = async (
 };
 
 /**
- * Construct raw URL for fetching file content from Git hosting services
- */
-const constructRawUrl = (
-  repositoryUrl: string,
-  filePath: string,
-  branch: string,
-): string | null => {
-  try {
-    // Remove .git suffix if present
-    const repoUrl = repositoryUrl.replace(/\.git$/, '');
-    const parsedUrl = new URL(repoUrl);
-
-    // Handle different Git hosting providers
-    if (parsedUrl.hostname.includes('github.com')) {
-      // GitHub raw URL format: https://raw.githubusercontent.com/owner/repo/branch/path
-      const pathParts = parsedUrl.pathname.split('/').filter((p) => p.length > 0);
-      if (pathParts.length >= 2) {
-        const [owner, repo] = pathParts;
-        return `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`;
-      }
-    } else if (parsedUrl.hostname.includes('gitlab.com')) {
-      // GitLab raw URL format: https://gitlab.com/owner/repo/-/raw/branch/path
-      return `https://gitlab.com${parsedUrl.pathname}/-/raw/${branch}/${filePath}`;
-    } else if (parsedUrl.hostname.includes('bitbucket.org')) {
-      // Bitbucket raw URL format: https://bitbucket.org/owner/repo/raw/branch/path
-      return `https://bitbucket.org${parsedUrl.pathname}/raw/${branch}/${filePath}`;
-    }
-
-    console.warn(`Unsupported Git hosting service: ${parsedUrl.hostname}`);
-    return null;
-  } catch (error) {
-    console.error('Error constructing raw URL:', error);
-    return null;
-  }
-};
-
-/**
  * Get project logo URL from a Git repository following GitValidationService pattern
  */
 export const getProjectLogoUrl = async (
@@ -936,126 +894,28 @@ export const getProjectLogoUrl = async (
     console.log(`🔍 [LOGO] Parsed URL hostname: ${parsedUrl.hostname}`);
 
     // For GitHub repositories, get the organization/user avatar
+    // GitHub avatars are always available, so we don't need to check
     if (parsedUrl.hostname.includes('github.com')) {
       const pathParts = parsedUrl.pathname.split('/').filter((p) => p.length > 0);
       if (pathParts.length >= 2) {
         const owner = pathParts[0];
         // GitHub avatar URL format: https://avatars.githubusercontent.com/USERNAME?v=4
         const avatarUrl = `https://avatars.githubusercontent.com/${owner}?v=4`;
-
-        console.log(`🔍 [LOGO] Checking GitHub avatar for ${owner}: ${avatarUrl}`);
-
-        try {
-          // Create abort controller for timeout
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-          // Verify the avatar exists
-          const response = await fetch(avatarUrl, {
-            method: 'HEAD',
-            signal: controller.signal,
-          });
-
-          clearTimeout(timeoutId);
-
-          console.log(`🔍 [LOGO] Response status for ${owner}: ${response.status}`);
-
-          if (response.ok) {
-            console.log(`✅ [LOGO] Found logo for ${owner}: ${avatarUrl}`);
-            return avatarUrl;
-          }
-          console.log(
-            `❌ [LOGO] Non-OK response for ${owner}: ${response.status} ${response.statusText}`,
-          );
-        } catch (error) {
-          console.error(`❌ [LOGO] Error fetching avatar for ${owner}:`, error);
-        }
+        console.log(`✅ [LOGO] Using GitHub avatar for ${owner}: ${avatarUrl}`);
+        return avatarUrl;
       }
     }
 
-    // For GitLab repositories, try to get the user/group avatar
-    else if (parsedUrl.hostname.includes('gitlab.com')) {
+    // For GitLab repositories, get the user/group avatar
+    // GitLab provides avatar images that are always available
+    if (parsedUrl.hostname.includes('gitlab.com')) {
       const pathParts = parsedUrl.pathname.split('/').filter((p) => p.length > 0);
       if (pathParts.length >= 2) {
         const owner = pathParts[0];
-        // GitLab avatar URL format fallback
+        // GitLab avatar URL format
         const avatarUrl = `https://gitlab.com/${owner}.png`;
-
-        try {
-          // Create abort controller for timeout
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-          const response = await fetch(avatarUrl, {
-            method: 'HEAD',
-            signal: controller.signal,
-          });
-
-          clearTimeout(timeoutId);
-
-          if (response.ok) {
-            console.log(`✅ [LOGO] Found GitLab logo for ${owner}: ${avatarUrl}`);
-            return avatarUrl;
-          }
-        } catch (error) {
-          // Continue to file-based approach for GitLab
-        }
-      }
-    }
-
-    // Fallback: Look for common logo files in the repository
-    const logoFiles = [
-      'logo.png',
-      'logo.svg',
-      'logo.jpg',
-      'logo.jpeg',
-      'icon.png',
-      'icon.svg',
-      'icon.jpg',
-      'icon.jpeg',
-      'assets/logo.png',
-      'assets/logo.svg',
-      'assets/icon.png',
-      'assets/icon.svg',
-      'docs/logo.png',
-      'docs/logo.svg',
-      'docs/icon.png',
-      'docs/icon.svg',
-      '.github/logo.png',
-      '.github/logo.svg',
-      '.github/icon.png',
-      '.github/icon.svg',
-      'images/logo.png',
-      'images/logo.svg',
-      'images/icon.png',
-      'images/icon.svg',
-    ];
-
-    for (const logoFile of logoFiles) {
-      try {
-        const rawUrl = constructRawUrl(repositoryUrl, logoFile, branch);
-        if (!rawUrl) {
-          continue;
-        }
-
-        // Create abort controller for timeout
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-        const response = await fetch(rawUrl, {
-          method: 'HEAD', // Just check if file exists
-          signal: controller.signal,
-        });
-
-        clearTimeout(timeoutId);
-
-        if (response.ok) {
-          console.log(`✅ [LOGO] Found repository logo at: ${rawUrl}`);
-          return rawUrl;
-        }
-      } catch (error) {
-        // Continue to next logo file
-        continue;
+        console.log(`✅ [LOGO] Using GitLab avatar for ${owner}: ${avatarUrl}`);
+        return avatarUrl;
       }
     }
   } catch (error) {

@@ -145,9 +145,9 @@ export const McpServerRegisterModal: React.FC<McpServerRegisterModalProps> = ({
               aria-label="Select registry"
             >
               <SelectList>
-                  {registries.map((registry) => (
-                    <SelectOption key={registry.metadata?.name} value={registry.metadata?.name}>
-                    {registry.metadata?.name}
+                {registries.map((registry) => (
+                  <SelectOption key={registry.metadata?.name} value={registry.metadata?.name}>
+                    {registry.spec.displayName || registry.metadata?.name}
                     {registry.metadata?.namespace &&
                       registry.metadata.namespace !== server.metadata?.namespace && (
                         <span className="pf-v6-u-color-200 pf-v6-u-ml-sm">

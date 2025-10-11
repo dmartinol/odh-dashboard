@@ -172,7 +172,7 @@ export const McpDeployedServerDetailsModal: React.FC<McpDeployedServerDetailsMod
       <DescriptionListGroup>
         <DescriptionListTerm>Tier</DescriptionListTerm>
         <DescriptionListDescription>
-          <Label color="blue" isCompact>
+          <Label color="teal" isCompact>
             {server.spec.tier}
           </Label>
         </DescriptionListDescription>
@@ -428,9 +428,7 @@ export const McpDeployedServerDetailsModal: React.FC<McpDeployedServerDetailsMod
             <DescriptionListTerm>
               <strong>Annotations</strong>
             </DescriptionListTerm>
-            <DescriptionListDescription>
-              <div />
-            </DescriptionListDescription>
+            <DescriptionListDescription> </DescriptionListDescription>
           </DescriptionListGroup>
           {Object.entries(server.metadata.annotations).map(([key, value]) => (
             <DescriptionListGroup key={key}>
@@ -449,11 +447,10 @@ export const McpDeployedServerDetailsModal: React.FC<McpDeployedServerDetailsMod
 
   return (
     <Modal onClose={onClose} variant="medium" aria-labelledby="server-details-modal-title">
-      <ModalHeader title={`Server: ${server.metadata?.name ?? 'Unknown'}`}>
-        <div className="pf-v6-u-color-200 pf-v6-u-font-size-sm">
-          Namespace: {server.metadata?.namespace ?? 'Unknown'}
-        </div>
-      </ModalHeader>
+      <ModalHeader
+        title={`Server: ${server.metadata?.name ?? 'Unknown'}`}
+        description={`Namespace: ${server.metadata?.namespace ?? 'Unknown'}`}
+      />
       <ModalBody>
         <Tabs
           activeKey={activeTabKey}

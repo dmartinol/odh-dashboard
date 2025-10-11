@@ -82,6 +82,7 @@ const McpRegistryDetailsPage: React.FC = () => {
       }
     }
   }, [registry, preferredProject, projects, updatePreferredProject]);
+
   // Load ConfigMaps for ConfigMap-based registries
   const [configMaps] = useConfigMaps(registry?.metadata?.namespace);
 
@@ -484,6 +485,7 @@ const McpRegistryDetailsPage: React.FC = () => {
       </Stack>
     </PageSection>
   );
+
   // Show loading state
   if (!loaded) {
     return (

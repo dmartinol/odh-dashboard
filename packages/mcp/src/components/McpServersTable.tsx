@@ -44,7 +44,7 @@ const getLinkedRegistry = (
 };
 
 const getAssociatedServerName = (server: McpServer): string | undefined => {
-  return server.metadata?.labels?.['toolhive.stacklok.io/server-registry-name'];
+  return server.metadata?.labels?.['toolhive.stacklok.io/server-name'];
 };
 
 const getStatusIcon = (phase?: string) => {
@@ -152,8 +152,8 @@ export const McpServersTable: React.FC<McpServersTableProps> = ({
           bValue = getLinkedRegistry(b, registries)?.metadata?.name || '';
           break;
         case 'transport':
-          aValue = a.spec.transport;
-          bValue = b.spec.transport;
+          aValue = a.spec.transport || '';
+          bValue = b.spec.transport || '';
           break;
         default:
           aValue = a.metadata?.name || '';
@@ -195,16 +195,8 @@ export const McpServersTable: React.FC<McpServersTableProps> = ({
         <Tr>
           <Th {...getSortParams('name')}>Name</Th>
           <Th {...getSortParams('status')}>Status</Th>
-          <Th {...getSortParams('registry')}>
-            <Tooltip content="Linked Registry">
-              <span>Registry</span>
-            </Tooltip>
-          </Th>
-          <Th>
-            <Tooltip content="Associated Server">
-              <span>Server</span>
-            </Tooltip>
-          </Th>
+          <Th {...getSortParams('registry')}>Linked Registry</Th>
+          <Th>Associated Server</Th>
           <Th>Endpoint</Th>
           <Th {...getSortParams('transport')}>Transport</Th>
           <Th>Actions</Th>
@@ -246,27 +238,11 @@ export const McpServersTable: React.FC<McpServersTableProps> = ({
                   </Label>
                 )}
               </Td>
-              <Td dataLabel="Server">
-                {associatedServerName && linkedRegistry ? (
-                  <Button
-                    variant="link"
-                    isInline
-                    onClick={() => onRegisteredServerClick?.(associatedServerName, linkedRegistry)}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {getServerLogo(server)}
-                      <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
-                        {associatedServerName}
-                      </code>
-                    </div>
-                  </Button>
-                ) : associatedServerName ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {getServerLogo(server)}
-                    <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
-                      {associatedServerName}
-                    </code>
-                  </div>
+              <Td dataLabel="Associated Server">
+                {associatedServerName ? (
+                  <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
+                    {associatedServerName}
+                  </code>
                 ) : (
                   <span className="pf-v6-u-color-200">—</span>
                 )}
@@ -291,9 +267,13 @@ export const McpServersTable: React.FC<McpServersTableProps> = ({
                 )}
               </Td>
               <Td dataLabel="Transport">
-                <Label color={getTransportColor(server.spec.transport)} isCompact>
-                  {server.spec.transport}
-                </Label>
+                {server.spec.transport ? (
+                  <Label color={getTransportColor(server.spec.transport)} isCompact>
+                    {server.spec.transport}
+                  </Label>
+                ) : (
+                  <span className="pf-v6-u-color-200">—</span>
+                )}
               </Td>
               <Td dataLabel="Actions" isActionCell>
                 <ActionsColumn

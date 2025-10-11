@@ -76,18 +76,6 @@ export interface McpRegistryStatus {
     phase?: 'Pending' | 'Syncing' | 'Ready' | 'Complete' | 'Failed';
     serverCount?: number;
   };
-  apiStatus?: {
-    endpoint?: string;
-    phase?: 'Ready' | 'NotReady';
-    message?: string;
-    readySince?: string;
-  };
-  storageRef?: {
-    type?: string;
-    configMapRef?: {
-      name?: string;
-    };
-  };
   conditions?: Array<{
     type: string;
     status: 'True' | 'False' | 'Unknown';
