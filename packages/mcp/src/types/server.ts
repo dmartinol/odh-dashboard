@@ -87,6 +87,7 @@ export interface McpServerMetadata {
   license?: string;
   tags?: string[];
   logo?: string;
+  image?: string;
   tools?: McpToolMetadata[];
   prompts?: McpPromptMetadata[];
   resources?: McpResourceMetadata[];

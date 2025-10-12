@@ -36,6 +36,7 @@ import { ConfigMapKind } from '@odh-dashboard/internal/k8sTypes';
 import { McpRegistryStatusLabel } from '../components/McpRegistryStatusLabel';
 import { McpRegistryCreateModal } from '../components/McpRegistryCreateModal';
 import { McpServerBrowser } from '../components/McpServerBrowser';
+import { McpServerDeployModal } from '../components/McpServerDeployModal';
 import { useMcpRegistries } from '../hooks/useMcpRegistries';
 import useConfigMaps from '../hooks/useConfigMaps';
 import { ProjectsContext } from '../../../../frontend/src/concepts/projects/ProjectsContext';
@@ -57,6 +58,8 @@ const McpRegistryDetailsPage: React.FC = () => {
   const { projects, preferredProject, updatePreferredProject } = React.useContext(ProjectsContext);
   const [activeTabKey, setActiveTabKey] = React.useState<string>(RegistryDetailsTab.OVERVIEW);
   const [editModalOpen, setEditModalOpen] = React.useState(false);
+  const [deployModalOpen, setDeployModalOpen] = React.useState(false);
+  const [serverToDeploy, setServerToDeploy] = React.useState<McpServerMetadata | null>(null);
 
   // Server discovery state
   const [discoveredServers, setDiscoveredServers] = React.useState<McpServerMetadata[]>([]);
@@ -459,8 +462,8 @@ const McpRegistryDetailsPage: React.FC = () => {
   };
 
   const handleServerDeploy = (server: McpServerMetadata) => {
-    // TODO: Open deployment modal/workflow
-    console.log('Deploy server:', server.name);
+    setServerToDeploy(server);
+    setDeployModalOpen(true);
   };
 
   const renderServersTab = () => (
@@ -649,6 +652,26 @@ const McpRegistryDetailsPage: React.FC = () => {
             // Registry data will be refreshed automatically via the hook
           }}
           editRegistry={registry}
+        />
+      )}
+
+      {/* Deploy Modal */}
+      {serverToDeploy && deployModalOpen && (
+        <McpServerDeployModal
+          isOpen
+          onClose={() => {
+            setDeployModalOpen(false);
+            setServerToDeploy(null);
+          }}
+          onSuccess={() => {
+            setDeployModalOpen(false);
+            setServerToDeploy(null);
+          }}
+          server={serverToDeploy}
+          registryContext={{
+            registry,
+            serverName: serverToDeploy.name,
+          }}
         />
       )}
     </>

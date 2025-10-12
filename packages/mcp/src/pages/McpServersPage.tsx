@@ -18,10 +18,12 @@ import { useMcpServers } from '../hooks/useMcpServers';
 import { useMcpRegistries } from '../hooks/useMcpRegistries';
 import { McpServersTable } from '../components/McpServersTable';
 import { McpServersToolbar } from '../components/McpServersToolbar';
-import { McpDeployedServerDetailsModal } from '../components/McpDeployedServerDetailsModal';
+import { McpServerDeployModal } from '../components/McpServerDeployModal';
+import { McpRegistryServerDetailsModal } from '../components/McpRegistryServerDetailsModal';
 import { McpServerRegisterModal } from '../components/McpServerRegisterModal';
 import { McpServerDeleteModal } from '../components/McpServerDeleteModal';
 import { McpServer } from '../types/server';
+import { McpRegistry } from '../types/registry';
 import { patchMcpServer, deleteMcpServer } from '../api/k8s/mcp';
 
 const McpServersPage: React.FC = () => {
@@ -36,7 +38,11 @@ const McpServersPage: React.FC = () => {
 
   // State for modals and selected server
   const [selectedServer, setSelectedServer] = React.useState<McpServer | null>(null);
-  const [detailsModalOpen, setDetailsModalOpen] = React.useState(false);
+  const [selectedRegistryForServer, setSelectedRegistryForServer] = React.useState<{
+    registry: McpRegistry;
+    serverName: string;
+  } | null>(null);
+  const [deployModalOpen, setDeployModalOpen] = React.useState(false);
   const [registerModalOpen, setRegisterModalOpen] = React.useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = React.useState(false);
 
@@ -53,17 +59,19 @@ const McpServersPage: React.FC = () => {
     const registryParam = searchParams.get('registry');
     const namespaceParam = searchParams.get('namespace');
 
-    if (registryParam) {
-      setSelectedRegistry(registryParam);
-    }
-
+    // First, update the project/namespace if needed
     if (namespaceParam && namespaceParam !== preferredProject?.metadata.name) {
       const targetProject = projects.find((p) => p.metadata.name === namespaceParam);
       if (targetProject) {
         updatePreferredProject(targetProject);
       }
     }
-  }, [searchParams, preferredProject, projects, updatePreferredProject]);
+
+    // Then set the registry filter once registries are loaded
+    if (registryParam && registriesLoaded) {
+      setSelectedRegistry(registryParam);
+    }
+  }, [searchParams, preferredProject, projects, updatePreferredProject, registriesLoaded]);
 
   // Helper function to get linked registry for a server
   const getLinkedRegistry = (server: McpServer) => {
@@ -117,7 +125,7 @@ const McpServersPage: React.FC = () => {
 
       return true;
     });
-  }, [servers, searchValue, selectedRegistry, selectedTransport, selectedStatus]);
+  }, [servers, searchValue, selectedRegistry, selectedTransport, selectedStatus, registries]);
 
   const handleCopyEndpoint = (endpoint: string) => {
     navigator.clipboard.writeText(endpoint).catch((err) => {
@@ -135,7 +143,11 @@ const McpServersPage: React.FC = () => {
   // Server action handlers
   const handleServerClick = (server: McpServer) => {
     setSelectedServer(server);
-    setDetailsModalOpen(true);
+    setDeployModalOpen(true);
+  };
+
+  const handleRegisteredServerClick = (serverName: string, linkedRegistry: McpRegistry) => {
+    setSelectedRegistryForServer({ registry: linkedRegistry, serverName });
   };
 
   const handleServerRegister = (server: McpServer) => {
@@ -206,23 +218,6 @@ const McpServersPage: React.FC = () => {
       console.error('Failed to delete server:', err);
       throw err;
     }
-  };
-
-  // Get linked registry for selected server
-  const getLinkedRegistryForServer = (server: McpServer | null) => {
-    if (!server) {
-      return undefined;
-    }
-    const registryName = server.metadata?.labels?.['toolhive.stacklok.io/registry-name'];
-    const registryNamespace = server.metadata?.labels?.['toolhive.stacklok.io/registry-namespace'];
-
-    if (!registryName || !registryNamespace) {
-      return undefined;
-    }
-
-    return registries.find(
-      (r) => r.metadata?.name === registryName && r.metadata.namespace === registryNamespace,
-    );
   };
 
   // Show loading state
@@ -315,6 +310,7 @@ const McpServersPage: React.FC = () => {
                   onServerRegister={handleServerRegister}
                   onServerUnregister={handleServerUnregister}
                   onServerDelete={handleServerDelete}
+                  onRegisteredServerClick={handleRegisteredServerClick}
                 />
               </FlexItem>
             </Flex>
@@ -323,11 +319,53 @@ const McpServersPage: React.FC = () => {
       </PageSection>
 
       {/* Modals */}
-      {selectedServer && detailsModalOpen && (
-        <McpDeployedServerDetailsModal
-          onClose={() => setDetailsModalOpen(false)}
-          server={selectedServer}
-          linkedRegistry={getLinkedRegistryForServer(selectedServer)}
+      {selectedServer && deployModalOpen && (
+        <McpServerDeployModal
+          isOpen
+          onClose={() => {
+            setDeployModalOpen(false);
+            setSelectedServer(null);
+          }}
+          onSuccess={() => {
+            setDeployModalOpen(false);
+            setSelectedServer(null);
+          }}
+          server={{
+            name:
+              selectedServer.metadata?.labels?.['mcp.toolhive.stacklok.dev/server-type'] ||
+              selectedServer.metadata?.name ||
+              '',
+            displayName:
+              selectedServer.metadata?.annotations?.[
+                'mcp.toolhive.stacklok.dev/server-display-name'
+              ] ||
+              selectedServer.metadata?.name ||
+              '',
+            description:
+              selectedServer.metadata?.annotations?.[
+                'mcp.toolhive.stacklok.dev/server-description'
+              ] || '',
+            version:
+              selectedServer.metadata?.annotations?.['mcp.toolhive.stacklok.dev/server-version'] ||
+              '',
+            logo:
+              selectedServer.metadata?.annotations?.['mcp.toolhive.stacklok.dev/server-logo'] ||
+              undefined,
+            author: '',
+            homepage: '',
+            repository: '',
+            license: '',
+            tags: [],
+          }}
+          existingServer={selectedServer}
+        />
+      )}
+
+      {selectedRegistryForServer && (
+        <McpRegistryServerDetailsModal
+          onClose={() => setSelectedRegistryForServer(null)}
+          registry={selectedRegistryForServer.registry}
+          serverName={selectedRegistryForServer.serverName}
         />
       )}
 

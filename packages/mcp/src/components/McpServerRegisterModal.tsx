@@ -94,7 +94,12 @@ export const McpServerRegisterModal: React.FC<McpServerRegisterModalProps> = ({
   const selectedRegistryObj = registries.find((r) => r.metadata?.name === selectedRegistry);
 
   return (
-    <Modal onClose={handleClose} variant="medium" aria-labelledby="register-server-modal-title">
+    <Modal
+      isOpen
+      onClose={handleClose}
+      variant="medium"
+      aria-labelledby="register-server-modal-title"
+    >
       <ModalHeader
         title="Register Server to Registry"
         description="Connect this server to a registry by adding the required registry labels"
