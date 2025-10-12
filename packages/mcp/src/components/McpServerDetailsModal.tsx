@@ -125,46 +125,9 @@ export const McpServerDetailsModal: React.FC<McpServerDetailsModalProps> = ({
   };
 
   const renderOverviewTab = () => {
-    const transport = getTransportFromTags();
-    const tier = getTierFromTags();
-
     return (
       <div>
-        <Title headingLevel="h3" size="lg" className="pf-u-mb-md">
-          Server Information
-        </Title>
-        <DescriptionList>
-          <DescriptionListGroup>
-            <DescriptionListTerm>Name</DescriptionListTerm>
-            <DescriptionListDescription>
-              <Flex
-                alignItems={{ default: 'alignItemsCenter' }}
-                spaceItems={{ default: 'spaceItemsSm' }}
-              >
-                <FlexItem>{getServerIcon()}</FlexItem>
-                <FlexItem>
-                  <strong>{server.displayName || server.name}</strong>
-                </FlexItem>
-              </Flex>
-            </DescriptionListDescription>
-          </DescriptionListGroup>
-
-          {server.description && (
-            <DescriptionListGroup>
-              <DescriptionListTerm>Description</DescriptionListTerm>
-              <DescriptionListDescription>{server.description}</DescriptionListDescription>
-            </DescriptionListGroup>
-          )}
-
-          <DescriptionListGroup>
-            <DescriptionListTerm>Version</DescriptionListTerm>
-            <DescriptionListDescription>
-              <Label color="grey" isCompact>
-                {formatVersion()}
-              </Label>
-            </DescriptionListDescription>
-          </DescriptionListGroup>
-
+        <DescriptionList isHorizontal isCompact>
           {server.image && (
             <DescriptionListGroup>
               <DescriptionListTerm>Container Image</DescriptionListTerm>
@@ -172,31 +135,6 @@ export const McpServerDetailsModal: React.FC<McpServerDetailsModalProps> = ({
                 <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
                   {server.image}
                 </code>
-              </DescriptionListDescription>
-            </DescriptionListGroup>
-          )}
-
-          {transport && (
-            <DescriptionListGroup>
-              <DescriptionListTerm>Transport</DescriptionListTerm>
-              <DescriptionListDescription>
-                <Label color="blue" isCompact>
-                  {transport}
-                </Label>
-              </DescriptionListDescription>
-            </DescriptionListGroup>
-          )}
-
-          {tier && (
-            <DescriptionListGroup>
-              <DescriptionListTerm>Tier</DescriptionListTerm>
-              <DescriptionListDescription>
-                <Label
-                  color={tier === 'official' ? 'green' : tier === 'community' ? 'blue' : 'orange'}
-                  isCompact
-                >
-                  {tier}
-                </Label>
               </DescriptionListDescription>
             </DescriptionListGroup>
           )}
@@ -212,6 +150,38 @@ export const McpServerDetailsModal: React.FC<McpServerDetailsModalProps> = ({
             <DescriptionListGroup>
               <DescriptionListTerm>License</DescriptionListTerm>
               <DescriptionListDescription>{server.license}</DescriptionListDescription>
+            </DescriptionListGroup>
+          )}
+
+          {server.homepage && (
+            <DescriptionListGroup>
+              <DescriptionListTerm>Homepage</DescriptionListTerm>
+              <DescriptionListDescription>
+                <Button
+                  variant="link"
+                  isInline
+                  icon={<ExternalLinkAltIcon />}
+                  onClick={() => window.open(server.homepage, '_blank')}
+                >
+                  {server.homepage}
+                </Button>
+              </DescriptionListDescription>
+            </DescriptionListGroup>
+          )}
+
+          {server.repository && (
+            <DescriptionListGroup>
+              <DescriptionListTerm>Repository</DescriptionListTerm>
+              <DescriptionListDescription>
+                <Button
+                  variant="link"
+                  isInline
+                  icon={<ExternalLinkAltIcon />}
+                  onClick={() => window.open(server.repository, '_blank')}
+                >
+                  {server.repository}
+                </Button>
+              </DescriptionListDescription>
             </DescriptionListGroup>
           )}
 
@@ -231,35 +201,6 @@ export const McpServerDetailsModal: React.FC<McpServerDetailsModalProps> = ({
               </DescriptionListDescription>
             </DescriptionListGroup>
           )}
-
-          <DescriptionListGroup>
-            <DescriptionListTerm>Capabilities</DescriptionListTerm>
-            <DescriptionListDescription>
-              <Flex spaceItems={{ default: 'spaceItemsXs' }}>
-                {server.tools && server.tools.length > 0 && (
-                  <FlexItem>
-                    <Badge isRead>
-                      {server.tools.length} tool{server.tools.length !== 1 ? 's' : ''}
-                    </Badge>
-                  </FlexItem>
-                )}
-                {server.prompts && server.prompts.length > 0 && (
-                  <FlexItem>
-                    <Badge isRead>
-                      {server.prompts.length} prompt{server.prompts.length !== 1 ? 's' : ''}
-                    </Badge>
-                  </FlexItem>
-                )}
-                {server.resources && server.resources.length > 0 && (
-                  <FlexItem>
-                    <Badge isRead>
-                      {server.resources.length} resource{server.resources.length !== 1 ? 's' : ''}
-                    </Badge>
-                  </FlexItem>
-                )}
-              </Flex>
-            </DescriptionListDescription>
-          </DescriptionListGroup>
         </DescriptionList>
       </div>
     );
@@ -275,52 +216,61 @@ export const McpServerDetailsModal: React.FC<McpServerDetailsModalProps> = ({
     }
 
     return (
-      <div>
-        <Title headingLevel="h3" size="lg" className="pf-u-mb-md">
-          Available Tools ({server.tools.length})
-        </Title>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {server.tools.map((tool, index) => (
-            <Card key={index} isCompact>
-              <CardTitle>
-                <Flex
-                  alignItems={{ default: 'alignItemsCenter' }}
-                  spaceItems={{ default: 'spaceItemsSm' }}
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        {server.tools.map((tool, index) => (
+          <div
+            key={index}
+            className="pf-u-py-sm pf-u-px-md"
+            style={{
+              backgroundColor:
+                index % 2 === 0
+                  ? 'transparent'
+                  : 'var(--pf-t--global--background--color--secondary--default)',
+            }}
+          >
+            <Flex
+              alignItems={{ default: 'alignItemsCenter' }}
+              spaceItems={{ default: 'spaceItemsXs' }}
+            >
+              <FlexItem>
+                <CogIcon />
+              </FlexItem>
+              <FlexItem>
+                <strong>{tool.name || 'Unnamed Tool'}</strong>
+              </FlexItem>
+              {tool.description && (
+                <FlexItem className="pf-u-color-200">— {tool.description}</FlexItem>
+              )}
+            </Flex>
+            {tool.inputSchema && (
+              <details className="pf-u-mt-xs pf-u-ml-lg">
+                <summary
+                  style={{
+                    cursor: 'pointer',
+                    color: 'var(--pf-t--global--color--brand--default)',
+                  }}
                 >
-                  <FlexItem>
-                    <CogIcon />
-                  </FlexItem>
-                  <FlexItem>
-                    <strong>{tool.name || 'Unnamed Tool'}</strong>
-                  </FlexItem>
-                </Flex>
-              </CardTitle>
-              <CardBody>
-                {tool.description && <div className="pf-u-mb-sm">{tool.description}</div>}
-                {tool.inputSchema && (
-                  <div>
-                    <strong>Input Schema:</strong>
-                    <div
-                      style={{
-                        backgroundColor: '#f5f5f5',
-                        padding: '8px',
-                        borderRadius: '4px',
-                        fontFamily: 'monospace',
-                        fontSize: '12px',
-                        marginTop: '4px',
-                        border: '1px solid #d2d2d2',
-                        maxHeight: '200px',
-                        overflow: 'auto',
-                      }}
-                    >
-                      <pre>{JSON.stringify(tool.inputSchema, null, 2)}</pre>
-                    </div>
-                  </div>
-                )}
-              </CardBody>
-            </Card>
-          ))}
-        </div>
+                  View input schema
+                </summary>
+                <div
+                  style={{
+                    backgroundColor: '#f5f5f5',
+                    padding: '8px',
+                    borderRadius: '4px',
+                    fontFamily: 'monospace',
+                    fontSize: '12px',
+                    marginTop: '4px',
+                    border: '1px solid #d2d2d2',
+                    maxHeight: '200px',
+                    overflow: 'auto',
+                  }}
+                >
+                  <pre style={{ margin: 0 }}>{JSON.stringify(tool.inputSchema, null, 2)}</pre>
+                </div>
+              </details>
+            )}
+          </div>
+        ))}
       </div>
     );
   };
@@ -344,45 +294,51 @@ export const McpServerDetailsModal: React.FC<McpServerDetailsModalProps> = ({
     return (
       <div>
         {hasEnvVars && (
-          <div className="pf-u-mb-lg">
-            <Title headingLevel="h3" size="lg" className="pf-u-mb-md">
-              Environment Variables ({server.env_vars?.length || 0})
-            </Title>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {server.env_vars?.map((envVar, index) => (
-                <Card key={index} isCompact style={{ backgroundColor: '#f5f5f5' }}>
-                  <CardBody style={{ padding: '12px' }}>
-                    <Flex
-                      alignItems={{ default: 'alignItemsCenter' }}
-                      spaceItems={{ default: 'spaceItemsSm' }}
-                      style={{ marginBottom: '4px', flexWrap: 'wrap' }}
-                    >
-                      <FlexItem>
-                        <strong>{envVar.name}</strong>
-                      </FlexItem>
-                      {envVar.required && (
-                        <FlexItem>
-                          <Label color="red" isCompact>
-                            Required
-                          </Label>
-                        </FlexItem>
-                      )}
-                      {envVar.secret && (
-                        <FlexItem>
-                          <Label color="orange" isCompact>
-                            Secret
-                          </Label>
-                        </FlexItem>
-                      )}
-                    </Flex>
-                    <div className="pf-u-color-200">
-                      {envVar.description || 'No description available'}
+          <div className="pf-u-mb-lg" style={{ display: 'flex', flexDirection: 'column' }}>
+            {server.env_vars?.map((envVar, index) => (
+              <div
+                key={index}
+                className="pf-u-py-sm pf-u-px-md"
+                style={{
+                  backgroundColor:
+                    index % 2 === 0
+                      ? 'transparent'
+                      : 'var(--pf-t--global--background--color--secondary--default)',
+                }}
+              >
+                <Flex
+                  alignItems={{ default: 'alignItemsCenter' }}
+                  spaceItems={{ default: 'spaceItemsXs' }}
+                >
+                  <FlexItem>
+                    <strong>{envVar.name}</strong>
+                  </FlexItem>
+                  {envVar.required && (
+                    <FlexItem>
+                      <Label color="red" isCompact>
+                        Required
+                      </Label>
+                    </FlexItem>
+                  )}
+                  {envVar.secret && (
+                    <FlexItem>
+                      <Label color="orange" isCompact>
+                        Secret
+                      </Label>
+                    </FlexItem>
+                  )}
+                  {envVar.description && (
+                    <FlexItem className="pf-u-color-200">
+                      — {envVar.description}
                       {envVar.default && ` (Default: ${envVar.default})`}
-                    </div>
-                  </CardBody>
-                </Card>
-              ))}
-            </div>
+                    </FlexItem>
+                  )}
+                  {!envVar.description && envVar.default && (
+                    <FlexItem className="pf-u-color-200">(Default: {envVar.default})</FlexItem>
+                  )}
+                </Flex>
+              </div>
+            ))}
           </div>
         )}
 
@@ -497,109 +453,62 @@ export const McpServerDetailsModal: React.FC<McpServerDetailsModalProps> = ({
   };
 
   const renderManualInstallationTab = () => {
-    const dockerCommand = `docker run -p 8080:8080 ${server.name}${
+    const dockerCommand = `docker run -p 8080:8080 ${server.image || server.name}${
       server.version ? `:${server.version}` : ''
     }`;
 
     return (
       <div>
-        <Title headingLevel="h3" size="lg" className="pf-u-mb-md">
-          Manual Installation
-        </Title>
         <div className="pf-u-color-200 pf-u-font-size-sm pf-u-mb-md">
-          Use these commands to manually install and run this server:
+          Use this command to manually install and run this server:
         </div>
 
-        <Card isCompact className="pf-u-mb-md">
-          <CardTitle>
-            <Flex
-              alignItems={{ default: 'alignItemsCenter' }}
-              spaceItems={{ default: 'spaceItemsSm' }}
-            >
-              <FlexItem>
-                <CodeIcon />
-              </FlexItem>
-              <FlexItem>
-                <strong>Docker Command</strong>
-              </FlexItem>
-            </Flex>
-          </CardTitle>
-          <CardBody>
-            <div
+        <div
+          className="pf-u-py-sm pf-u-px-md"
+          style={{
+            backgroundColor: 'var(--pf-t--global--background--color--secondary--default)',
+          }}
+        >
+          <Flex
+            alignItems={{ default: 'alignItemsCenter' }}
+            spaceItems={{ default: 'spaceItemsXs' }}
+          >
+            <FlexItem>
+              <CodeIcon />
+            </FlexItem>
+            <FlexItem>
+              <strong>Docker Command</strong>
+            </FlexItem>
+          </Flex>
+          <div
+            className="pf-u-mt-sm"
+            style={{
+              backgroundColor: '#f5f5f5',
+              padding: '12px',
+              borderRadius: '4px',
+              fontFamily: 'monospace',
+              fontSize: '14px',
+              border: '1px solid #d2d2d2',
+              position: 'relative',
+            }}
+          >
+            <code>{dockerCommand}</code>
+            <Button
+              variant="plain"
+              size="sm"
               style={{
-                backgroundColor: '#f5f5f5',
-                padding: '12px',
-                borderRadius: '4px',
-                fontFamily: 'monospace',
-                fontSize: '14px',
-                border: '1px solid #d2d2d2',
-                position: 'relative',
+                position: 'absolute',
+                top: '8px',
+                right: '8px',
+                padding: '4px',
               }}
+              onClick={() => navigator.clipboard.writeText(dockerCommand)}
+              title="Copy command"
             >
-              <code>{dockerCommand}</code>
-              <Button
-                variant="plain"
-                size="sm"
-                style={{
-                  position: 'absolute',
-                  top: '8px',
-                  right: '8px',
-                  padding: '4px',
-                }}
-                onClick={() => navigator.clipboard.writeText(dockerCommand)}
-                title="Copy command"
-              >
-                📋
-              </Button>
-            </div>
-          </CardBody>
-        </Card>
-
-        {(server.repository || server.homepage) && (
-          <Card isCompact>
-            <CardTitle>
-              <Flex
-                alignItems={{ default: 'alignItemsCenter' }}
-                spaceItems={{ default: 'spaceItemsSm' }}
-              >
-                <FlexItem>
-                  <ExternalLinkAltIcon />
-                </FlexItem>
-                <FlexItem>
-                  <strong>Source Repository</strong>
-                </FlexItem>
-              </Flex>
-            </CardTitle>
-            <CardBody>
-              <Flex spaceItems={{ default: 'spaceItemsSm' }}>
-                {server.repository && (
-                  <FlexItem>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      icon={<ExternalLinkAltIcon />}
-                      onClick={() => window.open(server.repository, '_blank')}
-                    >
-                      View Source Code
-                    </Button>
-                  </FlexItem>
-                )}
-                {server.homepage && (
-                  <FlexItem>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      icon={<ExternalLinkAltIcon />}
-                      onClick={() => window.open(server.homepage, '_blank')}
-                    >
-                      Documentation
-                    </Button>
-                  </FlexItem>
-                )}
-              </Flex>
-            </CardBody>
-          </Card>
-        )}
+              📋
+            </Button>
+          </div>
+        </div>
       </div>
     );
   };
@@ -607,6 +516,13 @@ export const McpServerDetailsModal: React.FC<McpServerDetailsModalProps> = ({
   if (!isOpen) {
     return null;
   }
+
+  const transport = getTransportFromTags();
+  const tier = getTierFromTags();
+  const toolsCount = server.tools?.length || 0;
+  const promptsCount = server.prompts?.length || 0;
+  const resourcesCount = server.resources?.length || 0;
+  const envVarsCount = server.env_vars?.length || 0;
 
   return (
     <Modal isOpen onClose={onClose} variant="large" data-testid="mcp-server-details-modal">
@@ -622,6 +538,53 @@ export const McpServerDetailsModal: React.FC<McpServerDetailsModalProps> = ({
         {server.description && (
           <div className="pf-u-color-200 pf-u-mt-sm">{server.description}</div>
         )}
+        <Flex spaceItems={{ default: 'spaceItemsXs' }} className="pf-u-mt-sm">
+          {tier && (
+            <FlexItem>
+              <Label
+                color={tier === 'official' ? 'green' : tier === 'community' ? 'blue' : 'orange'}
+                isCompact
+              >
+                {tier}
+              </Label>
+            </FlexItem>
+          )}
+          {transport && (
+            <FlexItem>
+              <Label color="blue" isCompact>
+                {transport}
+              </Label>
+            </FlexItem>
+          )}
+          {server.version && (
+            <FlexItem>
+              <Label color="grey" isCompact>
+                {formatVersion()}
+              </Label>
+            </FlexItem>
+          )}
+          {toolsCount > 0 && (
+            <FlexItem>
+              <Badge isRead>
+                {toolsCount} tool{toolsCount !== 1 ? 's' : ''}
+              </Badge>
+            </FlexItem>
+          )}
+          {promptsCount > 0 && (
+            <FlexItem>
+              <Badge isRead>
+                {promptsCount} prompt{promptsCount !== 1 ? 's' : ''}
+              </Badge>
+            </FlexItem>
+          )}
+          {resourcesCount > 0 && (
+            <FlexItem>
+              <Badge isRead>
+                {resourcesCount} resource{resourcesCount !== 1 ? 's' : ''}
+              </Badge>
+            </FlexItem>
+          )}
+        </Flex>
       </ModalHeader>
       <ModalBody style={{ minHeight: '400px' }}>
         <Tabs
@@ -653,7 +616,11 @@ export const McpServerDetailsModal: React.FC<McpServerDetailsModalProps> = ({
           </Tab>
           <Tab
             eventKey={ServerDetailsTab.CONFIG}
-            title={<TabTitleText>Config</TabTitleText>}
+            title={
+              <TabTitleText>
+                Config {envVarsCount > 0 && <Badge isRead>{envVarsCount}</Badge>}
+              </TabTitleText>
+            }
             aria-label="Server config tab"
           >
             <div className="pf-u-p-md">{renderConfigTab()}</div>
