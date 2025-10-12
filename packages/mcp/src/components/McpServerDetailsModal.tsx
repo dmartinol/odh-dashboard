@@ -29,8 +29,6 @@ import {
   CodeIcon,
   CogIcon,
   InfoCircleIcon,
-  StarIcon,
-  DownloadIcon,
 } from '@patternfly/react-icons';
 import { McpServerMetadata, McpTransport, McpServerTier } from '../types';
 
@@ -127,9 +125,6 @@ export const McpServerDetailsModal: React.FC<McpServerDetailsModalProps> = ({
   };
 
   const renderOverviewTab = () => {
-    const transport = getTransportFromTags();
-    const tier = getTierFromTags();
-
     return (
       <div>
         <DescriptionList isHorizontal isCompact>
@@ -140,58 +135,6 @@ export const McpServerDetailsModal: React.FC<McpServerDetailsModalProps> = ({
                 <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
                   {server.image}
                 </code>
-              </DescriptionListDescription>
-            </DescriptionListGroup>
-          )}
-
-          {server.description && (
-            <DescriptionListGroup>
-              <DescriptionListTerm>Description</DescriptionListTerm>
-              <DescriptionListDescription>{server.description}</DescriptionListDescription>
-            </DescriptionListGroup>
-          )}
-
-          <DescriptionListGroup>
-            <DescriptionListTerm>Version</DescriptionListTerm>
-            <DescriptionListDescription>
-              <Label color="grey" isCompact>
-                {formatVersion()}
-              </Label>
-            </DescriptionListDescription>
-          </DescriptionListGroup>
-
-          {server.image && (
-            <DescriptionListGroup>
-              <DescriptionListTerm>Container Image</DescriptionListTerm>
-              <DescriptionListDescription>
-                <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
-                  {server.image}
-                </code>
-              </DescriptionListDescription>
-            </DescriptionListGroup>
-          )}
-
-          {transport && (
-            <DescriptionListGroup>
-              <DescriptionListTerm>Transport</DescriptionListTerm>
-              <DescriptionListDescription>
-                <Label color="blue" isCompact>
-                  {transport}
-                </Label>
-              </DescriptionListDescription>
-            </DescriptionListGroup>
-          )}
-
-          {tier && (
-            <DescriptionListGroup>
-              <DescriptionListTerm>Tier</DescriptionListTerm>
-              <DescriptionListDescription>
-                <Label
-                  color={tier === 'official' ? 'green' : tier === 'community' ? 'blue' : 'orange'}
-                  isCompact
-                >
-                  {tier}
-                </Label>
               </DescriptionListDescription>
             </DescriptionListGroup>
           )}
@@ -241,40 +184,6 @@ export const McpServerDetailsModal: React.FC<McpServerDetailsModalProps> = ({
               </DescriptionListDescription>
             </DescriptionListGroup>
           )}
-
-          {server.metadata &&
-            (server.metadata.stars !== undefined ||
-              server.metadata.pulls !== undefined ||
-              server.metadata.last_updated) && (
-              <DescriptionListGroup>
-                <DescriptionListTerm>Repository Statistics</DescriptionListTerm>
-                <DescriptionListDescription>
-                  <Flex spaceItems={{ default: 'spaceItemsSm' }}>
-                    {server.metadata.stars !== undefined && server.metadata.stars > 0 && (
-                      <FlexItem>
-                        <Label variant="outline" icon={<StarIcon />} isCompact>
-                          {server.metadata.stars} stars
-                        </Label>
-                      </FlexItem>
-                    )}
-                    {server.metadata.pulls !== undefined && server.metadata.pulls > 0 && (
-                      <FlexItem>
-                        <Label variant="outline" icon={<DownloadIcon />} isCompact>
-                          {server.metadata.pulls} pulls
-                        </Label>
-                      </FlexItem>
-                    )}
-                    {server.metadata.last_updated && (
-                      <FlexItem>
-                        <Label variant="outline" isCompact>
-                          Updated: {new Date(server.metadata.last_updated).toLocaleDateString()}
-                        </Label>
-                      </FlexItem>
-                    )}
-                  </Flex>
-                </DescriptionListDescription>
-              </DescriptionListGroup>
-            )}
 
           {server.tags && server.tags.length > 0 && (
             <DescriptionListGroup>
@@ -600,52 +509,6 @@ export const McpServerDetailsModal: React.FC<McpServerDetailsModalProps> = ({
             </Button>
           </div>
         </div>
-
-        {(server.repository || server.homepage) && (
-          <Card isCompact className="pf-u-mt-md">
-            <CardTitle>
-              <Flex
-                alignItems={{ default: 'alignItemsCenter' }}
-                spaceItems={{ default: 'spaceItemsSm' }}
-              >
-                <FlexItem>
-                  <ExternalLinkAltIcon />
-                </FlexItem>
-                <FlexItem>
-                  <strong>Source Repository</strong>
-                </FlexItem>
-              </Flex>
-            </CardTitle>
-            <CardBody>
-              <Flex spaceItems={{ default: 'spaceItemsSm' }}>
-                {server.repository && (
-                  <FlexItem>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      icon={<ExternalLinkAltIcon />}
-                      onClick={() => window.open(server.repository, '_blank')}
-                    >
-                      View Source Code
-                    </Button>
-                  </FlexItem>
-                )}
-                {server.homepage && (
-                  <FlexItem>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      icon={<ExternalLinkAltIcon />}
-                      onClick={() => window.open(server.homepage, '_blank')}
-                    >
-                      Documentation
-                    </Button>
-                  </FlexItem>
-                )}
-              </Flex>
-            </CardBody>
-          </Card>
-        )}
       </div>
     );
   };
