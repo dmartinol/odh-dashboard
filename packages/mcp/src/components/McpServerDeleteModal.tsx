@@ -52,7 +52,7 @@ export const McpServerDeleteModal: React.FC<McpServerDeleteModalProps> = ({
   };
 
   return (
-    <Modal onClose={handleClose} variant="small" aria-labelledby="delete-server-modal-title">
+    <Modal isOpen onClose={handleClose} variant="small" aria-labelledby="delete-server-modal-title">
       <ModalHeader title="Delete Server?" titleIconVariant="warning" />
       <ModalBody>
         {error && (

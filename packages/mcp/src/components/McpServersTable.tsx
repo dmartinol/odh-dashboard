@@ -8,6 +8,7 @@ import {
   InProgressIcon,
   QuestionCircleIcon,
   CopyIcon,
+  ServerIcon,
 } from '@patternfly/react-icons';
 import { McpServer, McpTransport } from '../types/server';
 import { McpRegistry } from '../types/registry';
@@ -20,6 +21,7 @@ interface McpServersTableProps {
   onServerRegister: (server: McpServer) => void;
   onServerUnregister: (server: McpServer) => void;
   onServerDelete: (server: McpServer) => void;
+  onRegisteredServerClick?: (serverName: string, linkedRegistry: McpRegistry) => void;
 }
 
 type SortableColumn = 'name' | 'status' | 'registry' | 'transport';
@@ -41,7 +43,7 @@ const getLinkedRegistry = (
 };
 
 const getAssociatedServerName = (server: McpServer): string | undefined => {
-  return server.metadata?.labels?.['toolhive.stacklok.io/server-name'];
+  return server.metadata?.labels?.['toolhive.stacklok.io/server-registry-name'];
 };
 
 const getStatusIcon = (phase?: string) => {
@@ -87,6 +89,25 @@ const getTransportColor = (transport: McpTransport): 'blue' | 'purple' | 'green'
   }
 };
 
+const getServerLogo = (server: McpServer): React.ReactNode => {
+  const logoUrl = server.metadata?.annotations?.['mcp.toolhive.stacklok.dev/server-logo'];
+
+  if (logoUrl) {
+    return (
+      <img
+        src={logoUrl}
+        alt="Server logo"
+        style={{ width: '24px', height: '24px', objectFit: 'contain' }}
+        onError={(e) => {
+          e.currentTarget.style.display = 'none';
+        }}
+      />
+    );
+  }
+
+  return <ServerIcon />;
+};
+
 export const McpServersTable: React.FC<McpServersTableProps> = ({
   servers,
   registries,
@@ -95,6 +116,7 @@ export const McpServersTable: React.FC<McpServersTableProps> = ({
   onServerRegister,
   onServerUnregister,
   onServerDelete,
+  onRegisteredServerClick,
 }) => {
   const navigate = useNavigate();
   const [sortColumn, setSortColumn] = React.useState<SortableColumn>('name');
@@ -171,8 +193,16 @@ export const McpServersTable: React.FC<McpServersTableProps> = ({
         <Tr>
           <Th {...getSortParams('name')}>Name</Th>
           <Th {...getSortParams('status')}>Status</Th>
-          <Th {...getSortParams('registry')}>Linked Registry</Th>
-          <Th>Associated Server</Th>
+          <Th {...getSortParams('registry')}>
+            <Tooltip content="Linked Registry">
+              <span>Registry</span>
+            </Tooltip>
+          </Th>
+          <Th>
+            <Tooltip content="Associated Server">
+              <span>Server</span>
+            </Tooltip>
+          </Th>
           <Th>Endpoint</Th>
           <Th {...getSortParams('transport')}>Transport</Th>
           <Th>Actions</Th>
@@ -197,7 +227,7 @@ export const McpServersTable: React.FC<McpServersTableProps> = ({
                   {status}
                 </Label>
               </Td>
-              <Td dataLabel="Linked Registry">
+              <Td dataLabel="Registry">
                 {linkedRegistry && linkedRegistry.metadata?.name ? (
                   <Button
                     variant="link"
@@ -214,11 +244,27 @@ export const McpServersTable: React.FC<McpServersTableProps> = ({
                   </Label>
                 )}
               </Td>
-              <Td dataLabel="Associated Server">
-                {associatedServerName ? (
-                  <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
-                    {associatedServerName}
-                  </code>
+              <Td dataLabel="Server">
+                {associatedServerName && linkedRegistry ? (
+                  <Button
+                    variant="link"
+                    isInline
+                    onClick={() => onRegisteredServerClick?.(associatedServerName, linkedRegistry)}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {getServerLogo(server)}
+                      <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
+                        {associatedServerName}
+                      </code>
+                    </div>
+                  </Button>
+                ) : associatedServerName ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {getServerLogo(server)}
+                    <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
+                      {associatedServerName}
+                    </code>
+                  </div>
                 ) : (
                   <span className="pf-v6-u-color-200">—</span>
                 )}

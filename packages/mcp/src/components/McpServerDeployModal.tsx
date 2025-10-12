@@ -24,6 +24,7 @@ import {
 import { InfoCircleIcon } from '@patternfly/react-icons';
 import DashboardModalFooter from '@odh-dashboard/internal/concepts/dashboard/DashboardModalFooter';
 import { McpServerMetadata, McpServer } from '../types';
+import { McpRegistry } from '../types/registry';
 import { deployMcpServer } from '../api/servers';
 import { ProjectsContext } from '../../../../frontend/src/concepts/projects/ProjectsContext';
 
@@ -32,6 +33,11 @@ interface McpServerDeployModalProps {
   onClose: () => void;
   onSuccess: () => void;
   server: McpServerMetadata;
+  existingServer?: McpServer;
+  registryContext?: {
+    registry: McpRegistry;
+    serverName: string;
+  };
 }
 
 enum DeployDialogTab {
@@ -67,6 +73,8 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
   onClose,
   onSuccess,
   server,
+  existingServer,
+  registryContext,
 }) => {
   const { preferredProject } = React.useContext(ProjectsContext);
   const [config, setConfig] = React.useState<DeploymentConfig>(initialConfig);
@@ -77,15 +85,34 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
   // Reset form when modal opens
   React.useEffect(() => {
     if (isOpen) {
-      const defaultName = server.name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
-      setConfig({
-        ...initialConfig,
-        name: defaultName,
-      });
+      if (existingServer) {
+        // Initialize from existing server
+        setConfig({
+          name: existingServer.metadata?.name || '',
+          replicas: existingServer.spec.deployment?.replicas || 1,
+          cpuRequest: existingServer.spec.deployment?.resources?.requests?.cpu || '100m',
+          memoryRequest: existingServer.spec.deployment?.resources?.requests?.memory || '128Mi',
+          cpuLimit: existingServer.spec.deployment?.resources?.limits?.cpu || '500m',
+          memoryLimit: existingServer.spec.deployment?.resources?.limits?.memory || '512Mi',
+          enableAutoRestart: true,
+          environmentVariables:
+            existingServer.spec.config?.env?.map((e) => ({
+              name: e.name,
+              value: e.value || '',
+            })) || [],
+        });
+      } else {
+        // Initialize from server metadata for new deployment
+        const defaultName = server.name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+        setConfig({
+          ...initialConfig,
+          name: defaultName,
+        });
+      }
       setError(undefined);
       setActiveTabKey(DeployDialogTab.SERVER);
     }
-  }, [isOpen, server.name]);
+  }, [isOpen, server.name, existingServer]);
 
   const updateConfig = (updates: Partial<DeploymentConfig>) => {
     setConfig((prev) => ({ ...prev, ...updates }));
@@ -155,6 +182,23 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
     setError(undefined);
 
     try {
+      // Build base labels
+      const baseLabels: Record<string, string> = {
+        'mcp.toolhive.stacklok.dev/server-type': server.name,
+        'app.kubernetes.io/name': config.name,
+        'app.kubernetes.io/component': 'mcp-server',
+        'app.kubernetes.io/part-of': 'mcp-registry',
+      };
+
+      // Add registry labels if deploying from a registry
+      if (registryContext) {
+        baseLabels['toolhive.stacklok.io/registry-name'] =
+          registryContext.registry.metadata?.name || '';
+        baseLabels['toolhive.stacklok.io/registry-namespace'] =
+          registryContext.registry.metadata?.namespace || '';
+        baseLabels['toolhive.stacklok.io/server-registry-name'] = registryContext.serverName;
+      }
+
       // Build the MCP server resource
       const mcpServer: McpServer = {
         apiVersion: 'toolhive.stacklok.dev/v1alpha1',
@@ -162,20 +206,16 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
         metadata: {
           name: config.name,
           namespace: preferredProject.metadata.name,
-          labels: {
-            'mcp.toolhive.stacklok.dev/server-type': server.name,
-            'app.kubernetes.io/name': config.name,
-            'app.kubernetes.io/component': 'mcp-server',
-            'app.kubernetes.io/part-of': 'mcp-registry',
-          },
+          labels: baseLabels,
           annotations: {
             'mcp.toolhive.stacklok.dev/server-display-name': server.displayName || server.name,
             'mcp.toolhive.stacklok.dev/server-description': server.description || '',
             'mcp.toolhive.stacklok.dev/server-version': server.version || '',
+            'mcp.toolhive.stacklok.dev/server-logo': server.logo || '',
           },
         },
         spec: {
-          image: `mcp-server-${server.name}:latest`, // TODO: Get actual image from server metadata
+          image: server.image || `mcp-server-${server.name}:latest`,
           transport: 'stdio', // TODO: Determine transport from server metadata
           tier: 'community', // TODO: Determine tier from server metadata
           config: {

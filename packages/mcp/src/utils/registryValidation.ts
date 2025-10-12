@@ -368,6 +368,7 @@ interface McpV0DetailedServer {
   license?: string;
   tags?: string[];
   logo?: string;
+  image?: string;
   tools?: (
     | string
     | { name: string; description?: string; inputSchema?: Record<string, unknown> }
@@ -467,6 +468,7 @@ const parseMcpV0Format = async (
         license: detailedServer.license,
         tags: detailedServer.tags || [],
         logo: logoUrl,
+        image: detailedServer.image,
         tools:
           detailedServer.tools?.map((tool, index) => {
             console.log(`🔍 [MCP-V0] Processing tool ${index}:`, tool);
@@ -644,6 +646,7 @@ export const parseRegistryForServers = async (
                 license: serverData.license,
                 tags: Array.from(allTags),
                 logo: logoUrl,
+                image: serverData.image,
                 tools:
                   serverData.tools?.map((tool, index) => {
                     console.log(`🔍 [TOOLHIVE] Processing tool ${index} for ${serverName}:`, tool);
