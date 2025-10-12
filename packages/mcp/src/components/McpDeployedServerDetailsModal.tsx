@@ -446,7 +446,7 @@ export const McpDeployedServerDetailsModal: React.FC<McpDeployedServerDetailsMod
   );
 
   return (
-    <Modal onClose={onClose} variant="medium" aria-labelledby="server-details-modal-title">
+    <Modal isOpen onClose={onClose} variant="medium" aria-labelledby="server-details-modal-title">
       <ModalHeader
         title={`Server: ${server.metadata?.name ?? 'Unknown'}`}
         description={`Namespace: ${server.metadata?.namespace ?? 'Unknown'}`}

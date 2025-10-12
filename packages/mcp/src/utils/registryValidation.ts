@@ -78,6 +78,16 @@ interface ToolHiveServerData {
     secret?: boolean;
     default?: string;
   }>;
+  metadata?: {
+    stars?: number;
+    pulls?: number;
+    // eslint-disable-next-line camelcase
+    last_updated?: string;
+    // eslint-disable-next-line camelcase
+    docker_tags?: string[] | null;
+    // eslint-disable-next-line camelcase
+    target_port?: number;
+  };
   [key: string]: unknown;
 }
 
@@ -473,6 +483,7 @@ const parseMcpV0Format = async (
         license: detailedServer.license,
         tags: detailedServer.tags || [],
         logo: logoUrl,
+        image: detailedServer.image,
         tools:
           detailedServer.tools?.map((tool, index) => {
             console.log(`🔍 [MCP-V0] Processing tool ${index}:`, tool);

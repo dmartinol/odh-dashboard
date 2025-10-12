@@ -160,6 +160,17 @@ export const McpServerDetailsModal: React.FC<McpServerDetailsModalProps> = ({
             </DescriptionListDescription>
           </DescriptionListGroup>
 
+          {server.image && (
+            <DescriptionListGroup>
+              <DescriptionListTerm>Container Image</DescriptionListTerm>
+              <DescriptionListDescription>
+                <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
+                  {server.image}
+                </code>
+              </DescriptionListDescription>
+            </DescriptionListGroup>
+          )}
+
           {transport && (
             <DescriptionListGroup>
               <DescriptionListTerm>Transport</DescriptionListTerm>
