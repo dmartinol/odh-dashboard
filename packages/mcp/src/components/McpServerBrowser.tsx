@@ -28,6 +28,7 @@ import { ServerIcon, ExternalLinkAltIcon, CubesIcon, EyeIcon } from '@patternfly
 import { McpServerDetailsModal } from './McpServerDetailsModal';
 import { McpServerDeployModal } from './McpServerDeployModal';
 import { McpServerMetadata, McpTransport, McpServerTier } from '../types';
+import { McpRegistry } from '../types/registry';
 
 const isValidTransport = (value: string): value is McpTransport | 'all' => {
   return ['all', 'stdio', 'sse', 'streamable-http'].includes(value);
@@ -43,6 +44,7 @@ interface McpServerBrowserProps {
   error?: string;
   onServerSelect?: (server: McpServerMetadata) => void;
   onServerDeploy?: (server: McpServerMetadata) => void;
+  registry?: McpRegistry; // Optional registry context for deployment labels
 }
 
 interface ServerFilters {
@@ -65,6 +67,7 @@ export const McpServerBrowser: React.FC<McpServerBrowserProps> = ({
   error,
   onServerSelect,
   onServerDeploy,
+  registry,
 }) => {
   const [filters, setFilters] = React.useState<ServerFilters>(initialFilters);
   const [selectedServer, setSelectedServer] = React.useState<McpServerMetadata | null>(null);
@@ -413,6 +416,14 @@ export const McpServerBrowser: React.FC<McpServerBrowserProps> = ({
             // TODO: Refresh deployed servers list
           }}
           server={serverToDeploy}
+          registryContext={
+            registry
+              ? {
+                  registry,
+                  serverName: serverToDeploy.name,
+                }
+              : undefined
+          }
         />
       )}
     </PageSection>

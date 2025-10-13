@@ -603,6 +603,28 @@ const extensions: NavExtension[] = [
 - **K8s API integration**: Full CRUD operations for server management
 - Foundation ready for Phase 5 production features
 
+#### Phase 4 UI Refinements ✅ **COMPLETED**
+- ✅ **Registry Card Visual Improvements**:
+  - Enhanced metadata display with proper icons (CodeBranchIcon for git, CubeIcon for configmap)
+  - Improved layout using Flex components for better spacing
+  - Format: `<icon> <type> • <# servers> • <sync policy> • <last sync>`
+  - Removed cluttered text aggregation in favor of clean, icon-based presentation
+- ✅ **Deploy Dialog Form Layout**:
+  - Grouped related fields on same row for stdio transport: Proxy Mode + Port
+  - Grouped Port + Target Port for non-stdio transports (SSE, streamable-http)
+  - Updated default proxy mode from SSE to Streamable HTTP (SSE is legacy)
+  - Moved placeholder examples to HelperText to avoid confusion with actual values
+  - Added password visibility toggle for secret environment variables
+  - Fixed validation to only check required environment variables
+- ✅ **Transport Filtering**:
+  - Fixed transport filter to match only `server.transport` field
+  - Resolved issue where "sse" filter was incorrectly matching servers with "sse" in tags/description
+  - Applied fix to both registry browser and deployed servers page
+- ✅ **Modal Rendering Issues**:
+  - Fixed double modal rendering in McpRegistryDetailsPage
+  - Removed duplicate McpServerDeployModal that was conflicting with McpServerBrowser's modal
+  - Resolved issue requiring clicking "Cancel" twice to close deploy dialog
+
 ### Phase 5: Advanced Features (Week 9-10)
 **Goal: Production-ready features and polish**
 
