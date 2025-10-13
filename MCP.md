@@ -11,6 +11,7 @@ This document outlines the design and implementation plan for integrating Model 
 **Recommendation: Create a standalone "Model Context Protocol" section (group `4_mcp`)**
 
 **Rationale:**
+
 - MCP serves developers and tools management, distinct from AI model serving
 - Provides dedicated space for MCP-specific workflows
 - Maintains logical separation from AI Hub (which focuses on models)
@@ -18,6 +19,7 @@ This document outlines the design and implementation plan for integrating Model 
 - Follows ODH pattern of functional grouping
 
 **Navigation Structure:**
+
 ```
 📍 Current ODH Menu Structure:
 ├── 🏠 Home (1_home)
@@ -43,12 +45,14 @@ This document outlines the design and implementation plan for integrating Model 
 The MCP integration will follow ODH's design system while incorporating modern UX patterns from the registry_ui analysis:
 
 #### Core Design Principles
+
 1. **Information Hierarchy**: Critical → Secondary → Tertiary data prioritization
 2. **Progressive Disclosure**: Show essential info first, details on demand
 3. **Consistent Actions**: Standardized button patterns and placements
 4. **Mobile-First**: Responsive layouts for all screen sizes
 
 #### Visual Design Language
+
 - **PatternFly Components**: Leverage ODH's existing component library
 - **Card-Based Layout**: Registry and server cards with optimized density
 - **Status Indicators**: Clear visual health/connectivity status
@@ -57,6 +61,7 @@ The MCP integration will follow ODH's design system while incorporating modern U
 ### Page Layout Designs
 
 #### 1. Registries Page (`/mcp/registries`)
+
 ```
 ┌─────────────────────────────────────────────────────────┐
 │ 📋 MCP Registries                           [+ Create]  │
@@ -77,6 +82,7 @@ The MCP integration will follow ODH's design system while incorporating modern U
 ```
 
 #### 2. Registry Details Page (`/mcp/registries/{name}`)
+
 ```
 ┌─────────────────────────────────────────────────────────┐
 │ 🏠 MCP > Registries > Production Registry              │
@@ -96,6 +102,7 @@ The MCP integration will follow ODH's design system while incorporating modern U
 ```
 
 #### 3. Servers Page (`/mcp/servers`)
+
 ```
 ┌─────────────────────────────────────────────────────────┐
 │ 🔧 MCP Servers                                          │
@@ -117,12 +124,14 @@ The MCP integration will follow ODH's design system while incorporating modern U
 ## Feature Requirements
 
 ### Registry Management
+
 - **Registry Dashboard**: List all MCP registries with status, server counts, and health
 - **Registry Creation**: Multi-step form supporting Git, HTTP, and ConfigMap sources
 - **Registry Details**: Comprehensive view with server listings and sync status
 - **Sync Operations**: Manual/automatic synchronization with source repositories
 
 ### Server Discovery & Deployment
+
 - **Server Browsing**: Filterable card interface (transport, tier, tags, search)
 - **Server Details**: Popup/modal with overview, tools, configuration tabs
 - **Quick Deploy**: One-click deployment with sensible defaults
@@ -130,6 +139,7 @@ The MCP integration will follow ODH's design system while incorporating modern U
 - **Manifest Preview**: YAML/JSON preview before deployment
 
 ### Instance Management
+
 - **Instance Monitoring**: Real-time status of deployed MCP servers
 - **Lifecycle Operations**: Start, stop, restart, delete with confirmations
 - **Resource Metrics**: CPU, memory, network usage visualization
@@ -137,6 +147,7 @@ The MCP integration will follow ODH's design system while incorporating modern U
 - **Orphan Detection**: Identify unmanaged instances
 
 ### Integration Features
+
 - **Project Context**: Filter by current ODH project/namespace
 - **RBAC Integration**: Respect ODH user permissions and roles
 - **Resource Quotas**: Validate deployments against namespace limits
@@ -145,6 +156,7 @@ The MCP integration will follow ODH's design system while incorporating modern U
 ## Technical Architecture
 
 ### Package Structure
+
 ```
 packages/mcp/
 ├── package.json                    # Package definition
@@ -186,11 +198,13 @@ packages/mcp/
 The MCP integration follows ODH Dashboard's established pattern for real-time data management:
 
 #### **Kubernetes Watch API Integration**
+
 - **Direct K8s Connection**: Uses `useK8sWatchResource` for real-time updates
 - **WebSocket Communication**: Efficient event-driven updates via Kubernetes Watch API
 - **No Polling Required**: Eliminates REST API polling overhead
 
 #### **Architecture Components**
+
 ```typescript
 // K8s Models for MCP CRDs
 export const McpRegistryModel: K8sModelCommon = {
@@ -206,12 +220,14 @@ const [servers, loaded, error] = useMcpServers(namespace);
 ```
 
 #### **Benefits**
+
 - ⚡ **Instant Updates**: Changes appear immediately in UI
 - 🏗️ **Consistent Patterns**: Same approach as Projects, ImageStreams, etc.
 - 📱 **Better UX**: No manual refresh needed
 - 🔧 **Performance**: Eliminates REST API overhead for basic operations
 
 ### Extension Configuration
+
 ```typescript
 // packages/mcp/extensions/navigation.ts
 const extensions: NavExtension[] = [
@@ -266,6 +282,7 @@ const extensions: NavExtension[] = [
 **🎯 Overall Progress: Phases 1-4 Complete, Ready for Phase 5**
 
 **✅ Completed:**
+
 - ✅ **Full Phase 1**: Package structure, navigation, and API foundation
 - ✅ MCP package integrated into ODH Dashboard build system
 - ✅ Navigation menu items appearing correctly
@@ -294,6 +311,7 @@ const extensions: NavExtension[] = [
 - ✅ **Registry Details Updates**: Removed Deployed Servers tab, renamed Available Servers to Servers, added link to Servers page
 
 **⏳ Next Steps:**
+
 - Phase 5: Advanced features and production polish
 - Performance optimization and caching strategies
 - Accessibility improvements and keyboard navigation
@@ -302,22 +320,27 @@ const extensions: NavExtension[] = [
 ---
 
 ### Phase 1: Foundation (Week 1-2) ✅ **COMPLETED**
+
 **Goal: Basic package structure and navigation**
 
 #### Tasks:
+
 1. **Package Setup** ✅ **COMPLETED**
+
    - ✅ Create `packages/mcp/` directory structure
    - ✅ Configure package.json with proper exports
    - ✅ Set up build and development scripts
    - ✅ Add to turbo.json workspace configuration
 
 2. **Navigation Integration** ✅ **COMPLETED**
+
    - ✅ Add MCP navigation extensions
    - ✅ Create MCP navigation icon (placeholder)
    - ✅ Add SupportedArea flags for MCP features
    - ✅ Implement basic routing structure
 
 3. **Base Components** ✅ **COMPLETED**
+
    - ✅ Create placeholder page components (McpRegistriesPage, McpServersPage)
    - ✅ Set up basic layout with ODH styling
    - ✅ Implement responsive navigation patterns
@@ -329,22 +352,26 @@ const extensions: NavExtension[] = [
    - ✅ Implement authentication/authorization patterns
    - ✅ Set up mock data for development
 
-**Deliverables:** ✅ **ALL COMPLETED** *(Completed: January 2025)*
+**Deliverables:** ✅ **ALL COMPLETED** _(Completed: January 2025)_
+
 - ✅ Working navigation to MCP sections
 - ✅ Basic page layouts with ODH design system
 - ✅ TypeScript types and API structure
 - ✅ Development environment setup
 
 **🎉 Phase 1 Summary:**
+
 - MCP package successfully integrated into ODH Dashboard
 - Navigation appears correctly with "Model Context Protocol" section
 - Zero build, lint, or type-check errors
 - Foundation ready for Phase 2 development
 
 ### Phase 2: Registry Management (Week 3-4) ✅ **COMPLETED**
+
 **Goal: Complete registry CRUD operations**
 
 #### Status Update:
+
 - ✅ **Basic UI Structure**: Registry page layout with PatternFly components
 - ✅ **API Foundation**: Registry API client structure and TypeScript types
 - ✅ **Registry Dashboard**: Enhanced registry cards with status indicators, badges, and action buttons
@@ -356,13 +383,16 @@ const extensions: NavExtension[] = [
 - ✅ **Registry Operations**: Complete CRUD operations with sync, update, and delete functionality
 
 #### Tasks:
+
 1. **Registry Dashboard** ✅ **COMPLETED**
+
    - ✅ Registry list component with cards
    - ✅ Status indicators and health monitoring
    - ✅ Search and filtering capabilities
    - ✅ Responsive grid layout implementation
 
 2. **Registry Details Page** ✅ **COMPLETED: Modal → Dedicated Page**
+
    - ✅ **Dedicated page route**: `/mcp/registries/{registry-name}`
    - ✅ **Breadcrumb navigation**: MCP > Registries > {registry-name}
    - ✅ **Tabbed interface**: Overview, Available Servers, Deployed Servers, Configuration
@@ -373,6 +403,7 @@ const extensions: NavExtension[] = [
    - ⏳ **Sync operations**: Manual sync triggers and status monitoring (Future)
 
 3. **Registry Creation** ✅ **COMPLETED**
+
    - ✅ Multi-step creation wizard (4 tabs: General, Data Sources, Sync Policy, Filter)
    - ✅ Form validation and error handling
    - ✅ Support for Git and ConfigMap sources
@@ -381,6 +412,7 @@ const extensions: NavExtension[] = [
    - ✅ Sync policy configuration with automatic sync intervals
 
 4. **Registry Operations** ✅ **COMPLETED**
+
    - ✅ Manual sync functionality (per registry)
    - ✅ Registry update (reuse creation modal in edit mode)
    - ✅ Registry deletion with confirmation dialog
@@ -405,7 +437,8 @@ const extensions: NavExtension[] = [
    - ✅ Tag discovery from actual ToolHive registry format parsing (servers object structure)
    - ✅ Simplified tag selection UX (removed redundant text inputs, kept only clickable interface)
 
-**Deliverables:** ✅ **ALL COMPLETED** *(Completed: January 2025)*
+**Deliverables:** ✅ **ALL COMPLETED** _(Completed: January 2025)_
+
 - ✅ Functional registry management UI with professional UX
 - ✅ Complete CRUD operations for registries with real-time updates
 - ✅ Enhanced registry creation with source validation and tag discovery
@@ -417,6 +450,7 @@ const extensions: NavExtension[] = [
 - ✅ Responsive design implementation following ODH patterns
 
 **🎉 Phase 2 Summary:**
+
 - Complete registry management system with professional UX and enterprise-grade features
 - All CRUD operations (Create, Read, Update, Delete) fully functional with real-time updates
 - Enhanced registry creation with comprehensive source validation and tag discovery
@@ -432,34 +466,41 @@ const extensions: NavExtension[] = [
 - Foundation ready for Phase 3 server discovery development
 
 ### Phase 3: Server Discovery (Week 5-6) ✅ **COMPLETED**
+
 **Goal: Server browsing and deployment**
 
 #### Status Update:
+
 - ✅ **Basic UI Structure**: Server page layout with search and filter placeholders
 - ✅ **API Foundation**: Server API client structure and TypeScript types
 - ✅ **Server Browser**: Complete server browsing components with filtering logic
 - ✅ **Deployment Workflows**: Full deployment workflows and configuration management
 
 #### Tasks:
+
 1. **Server Browser** ✅ **COMPLETED**
+
    - ✅ Card-based server listing with professional layout
    - ✅ Advanced filtering (transport, tier, tags)
    - ✅ Search functionality with real-time filtering
    - ✅ Server categorization and grouping with badges
 
 2. **Server Details** ✅ **COMPLETED**
+
    - ✅ Comprehensive server information modal
    - ✅ Tabbed interface (Overview, Tools, Prompts, Resources)
    - ✅ Logo integration from server metadata
    - ✅ Technical specifications display with complete metadata
 
 3. **Server Deployment** ✅ **COMPLETED**
+
    - ✅ Advanced deployment functionality (replaced quick deploy with full configuration)
    - ✅ Complete deployment configuration dialog
    - ✅ Namespace/project integration with ProjectsContext
    - ✅ Resource validation and form validation
 
 4. **Advanced Deployment** ✅ **COMPLETED**
+
    - ✅ Full deployment configuration dialog with expandable advanced settings
    - ✅ Environment variables management with add/remove functionality
    - ✅ Resource limits and requests configuration
@@ -495,13 +536,15 @@ const extensions: NavExtension[] = [
    - ✅ **Tools Tab Fixes**: Fixed tool name display and removed unnecessary fallback message for tools without descriptions - **COMPLETED**
    - ✅ **MCP v0 API Tools Parsing**: Fixed tools parsing to handle string arrays from MCP v0 API instead of object arrays - **COMPLETED**
 
-**Deliverables:** ✅ **ALL COMPLETED** *(Completed: January 2025)*
+**Deliverables:** ✅ **ALL COMPLETED** _(Completed: January 2025)_
+
 - ✅ Server discovery and browsing UI with real-time filtering
 - ✅ Server deployment workflows with MCPServer CRD generation
 - ✅ Configuration management system with advanced settings
 - ✅ Server details modal with comprehensive information display
 
 **🎉 Phase 3 Summary:**
+
 - Complete server discovery system with ToolHive registry format parsing
 - Professional server browser with advanced filtering (transport, tier, tags, search)
 - Comprehensive server details modal with tabbed interface showing tools, prompts, and resources
@@ -513,9 +556,11 @@ const extensions: NavExtension[] = [
 - Foundation ready for Phase 4 instance management development
 
 ### Phase 4: Servers Management (Week 7-8) ✅ **COMPLETED**
+
 **Goal: Monitor and manage deployed MCPServer instances**
 
 #### Status Update:
+
 - ✅ **Servers Page Implementation**: Complete servers table with namespace selector and filtering
 - ✅ **Server-Registry Matching**: Implemented label-based matching logic for linking servers to registries
 - ✅ **Sortable Table**: All columns sortable (name, status, registry, transport)
@@ -525,7 +570,9 @@ const extensions: NavExtension[] = [
 - ✅ **Interactive Server Management**: Clickable server names, row action menus, and modals
 
 #### Tasks:
+
 1. **Servers Table** ✅ **COMPLETED**
+
    - Sortable columns: Name (default), Status, Linked Registry, Endpoint, Transport
    - Status indicators from Deployment phase (Running/Pending/Failed/Unknown)
    - Linked registry display with clickable links to registry details
@@ -536,6 +583,7 @@ const extensions: NavExtension[] = [
    - Row action menus (hamburger) with View details, Register/Unregister, and Delete options
 
 2. **Servers Toolbar** ✅ **COMPLETED**
+
    - Namespace selector with project context integration
    - Search by name with partial matching
    - Filter by linked registry (including "Unregistered" option)
@@ -544,6 +592,7 @@ const extensions: NavExtension[] = [
    - URL query parameter support for pre-filtering
 
 3. **Server-Registry Matching** ✅ **COMPLETED**
+
    - Label-based matching using:
      - `toolhive.stacklok.io/registry-name`
      - `toolhive.stacklok.io/registry-namespace`
@@ -552,6 +601,7 @@ const extensions: NavExtension[] = [
    - Display "Unregistered" label for servers without valid registry links
 
 4. **Registry Details Integration** ✅ **COMPLETED**
+
    - Removed "Deployed Servers" tab (functionality moved to Servers page)
    - Renamed "Available Servers" tab to "Servers"
    - Added prominent link/button to navigate to Servers page with pre-filter
@@ -577,6 +627,7 @@ const extensions: NavExtension[] = [
    - **K8s API Functions**: Added patchMcpServer for label updates
 
 **Deliverables:** ✅ **ALL COMPLETED**
+
 - Comprehensive servers table with sorting and filtering
 - Namespace-aware server management
 - Server-registry relationship visualization
@@ -587,6 +638,7 @@ const extensions: NavExtension[] = [
 - Server deletion with confirmation
 
 **🎉 Phase 4 Summary:**
+
 - Complete servers management system with table-based UI
 - Namespace selector for multi-project server viewing
 - Advanced filtering by name, registry, transport (stdio/sse/streamable-http), and status
@@ -604,6 +656,7 @@ const extensions: NavExtension[] = [
 - Foundation ready for Phase 5 production features
 
 #### Phase 4 UI Refinements ✅ **COMPLETED**
+
 - ✅ **Registry Card Visual Improvements**:
   - Enhanced metadata display with proper icons (CodeBranchIcon for git, CubeIcon for configmap)
   - Improved layout using Flex components for better spacing
@@ -625,23 +678,119 @@ const extensions: NavExtension[] = [
   - Removed duplicate McpServerDeployModal that was conflicting with McpServerBrowser's modal
   - Resolved issue requiring clicking "Cancel" twice to close deploy dialog
 
+#### Phase 4 Advanced Deployment Configuration ✅ **COMPLETED**
+
+**Problem Statement**: MCP servers fail to deploy when pulling images from authenticated container registries (e.g., quay.io, private registries). Users need advanced pod configuration options without understanding Kubernetes CRD internals.
+
+**Solution**: New **Advanced** tab in deployment dialog with user-friendly abstractions for `podTemplateSpec` configuration.
+
+##### Implementation Details
+
+**New Components & Hooks**:
+
+- [`useSecrets.ts`](packages/mcp/src/hooks/useSecrets.ts) - K8s secrets discovery hook
+- [`useServiceAccounts.ts`](packages/mcp/src/hooks/useServiceAccounts.ts) - Service accounts discovery hook
+- Enhanced [`McpServerDeployModal.tsx`](packages/mcp/src/components/McpServerDeployModal.tsx) with Advanced tab
+- Updated [`server.ts`](packages/mcp/src/types/server.ts) types with `podTemplateSpec` support
+
+**Advanced Tab Features**:
+
+1. **Image Pull Secrets** 🔐
+
+   - Multi-select dropdown populated from namespace secrets
+   - Add/remove secrets with visual labels
+   - Solves authenticated registry access (quay.io, DockerHub, etc.)
+   - Maps to `podTemplateSpec.spec.imagePullSecrets`
+
+2. **Service Account** 👤
+
+   - Optional service account selector
+   - Auto-populated from namespace service accounts
+   - Enables custom RBAC and authentication
+   - Maps to `podTemplateSpec.spec.serviceAccountName`
+
+3. **Node Selector** 🎯
+
+   - Dynamic key-value pair editor
+   - Schedule pods on specific nodes (e.g., GPU nodes)
+   - Add/remove label selectors
+   - Maps to `podTemplateSpec.spec.nodeSelector`
+
+4. **Security Context** 🔒
+   - Run as non-root user checkbox
+   - User ID and Group ID configuration
+   - Enhanced security posture
+   - Maps to `podTemplateSpec.spec.securityContext`
+
+**Technical Implementation**:
+
+- **Container Name**: Uses `mcp` as per MCPServer CRD specification
+- **Pod Template Merging**: Provides minimal container spec that operator merges with generated configuration
+- **Registry Context**: Automatically adds ToolHive registry tracking labels:
+  - `toolhive.stacklok.io/registry-name`
+  - `toolhive.stacklok.io/registry-namespace`
+  - `toolhive.stacklok.io/server-registry-name`
+- **K8s Watch API**: Real-time secret and service account discovery via `useK8sWatchResource`
+- **Conditional Rendering**: Only includes `podTemplateSpec` when advanced options are configured
+
+**User Experience**:
+
+- Clean, abstracted interface - no CRD knowledge required
+- Helper text for all configuration options
+- Real-time resource discovery from selected namespace
+- Optional fields - only applied when actually configured
+- Preserves settings when editing existing servers
+
+**Example podTemplateSpec Generated**:
+
+```yaml
+spec:
+  podTemplateSpec:
+    spec:
+      containers:
+        - name: mcp
+      imagePullSecrets:
+        - name: quay-pull-secret
+      serviceAccountName: mcp-server-sa
+      nodeSelector:
+        kubernetes.io/hostname: gpu-node-1
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+```
+
+**Files Modified**:
+
+- [McpServerDeployModal.tsx](packages/mcp/src/components/McpServerDeployModal.tsx#L773-L1011) - Advanced tab UI (238 lines)
+- [McpServerBrowser.tsx](packages/mcp/src/components/McpServerBrowser.tsx#L419-L426) - Registry context passing
+- [McpRegistryDetailsPage.tsx](packages/mcp/src/pages/McpRegistryDetailsPage.tsx#L482) - Registry prop added
+- [server.ts](packages/mcp/src/types/server.ts#L47-L64) - `podTemplateSpec` types
+- [useSecrets.ts](packages/mcp/src/hooks/useSecrets.ts) - New hook (48 lines)
+- [useServiceAccounts.ts](packages/mcp/src/hooks/useServiceAccounts.ts) - New hook (53 lines)
+
 ### Phase 5: Advanced Features (Week 9-10)
+
 **Goal: Production-ready features and polish**
 
 #### Tasks:
+
 1. **Integration Features**
+
    - Project/namespace context switching
    - RBAC permission integration
    - Resource quota validation
    - Multi-cluster support preparation
 
 2. **User Experience**
+
    - Keyboard navigation shortcuts
    - Accessibility improvements (WCAG 2.1 AA)
    - Loading states and skeleton screens
    - Error recovery mechanisms
 
 3. **Performance Optimization**
+
    - Virtual scrolling for large lists
    - Lazy loading of server details
    - Caching strategies implementation
@@ -654,6 +803,7 @@ const extensions: NavExtension[] = [
    - User documentation
 
 **Deliverables:**
+
 - Production-ready MCP integration
 - Comprehensive testing suite
 - Performance optimizations
@@ -662,6 +812,7 @@ const extensions: NavExtension[] = [
 ## Success Criteria
 
 ### Functional Requirements
+
 - ✅ Users can manage MCP registries (create, view, sync, delete) - **COMPLETED**
 - ✅ Users can browse and search available MCP servers - **COMPLETED**
 - ✅ Users can deploy MCP servers with custom configurations - **COMPLETED**
@@ -669,12 +820,14 @@ const extensions: NavExtension[] = [
 - ✅ Integration respects ODH permissions and project context
 
 ### Performance Requirements
+
 - ✅ Registry list loads in <2 seconds with 100+ registries
 - ✅ Server search results appear in <500ms
 - ✅ Instance status updates refresh every 30 seconds
 - ✅ UI remains responsive on mobile devices
 
 ### User Experience Requirements
+
 - ✅ Consistent design language with ODH Dashboard
 - ✅ Intuitive navigation and task flows
 - ✅ Comprehensive error handling and recovery
@@ -682,6 +835,7 @@ const extensions: NavExtension[] = [
 - ✅ Mobile-first responsive design
 
 ### Technical Requirements
+
 - ✅ Package-based integration following ODH patterns
 - ✅ TypeScript strict mode compliance
 - ⏳ >90% test coverage (unit + integration) - **Pending**
@@ -690,18 +844,21 @@ const extensions: NavExtension[] = [
 ## Dependencies & Prerequisites
 
 ### Technical Dependencies
+
 - OpenShift AI Dashboard framework
 - ToolHive operator deployed in cluster
 - Kubernetes RBAC configured for MCP resources
 - PatternFly React components v6+
 
 ### Operator Integration
+
 - MCP operator integration into ODH operator (in progress)
 - MCPRegistry and MCPServer CRDs available
 - Proper RBAC roles and bindings configured
 - Namespace isolation and resource quotas
 
 ### Development Dependencies
+
 - Node.js 20+ and npm 10+
 - TypeScript 5.8+
 - React 18+ with hooks
@@ -710,6 +867,7 @@ const extensions: NavExtension[] = [
 ## Risk Mitigation
 
 ### Technical Risks
+
 - **Risk**: MCP operator API changes during development
   - **Mitigation**: Implement API abstraction layer, mock data for development
 - **Risk**: Performance issues with large server counts
@@ -718,6 +876,7 @@ const extensions: NavExtension[] = [
   - **Mitigation**: Progressive disclosure, sensible defaults, validation
 
 ### Integration Risks
+
 - **Risk**: ODH design system breaking changes
   - **Mitigation**: Pin PatternFly versions, component isolation
 - **Risk**: Navigation conflicts with other features
@@ -728,18 +887,21 @@ const extensions: NavExtension[] = [
 ## Future Considerations
 
 ### Extensibility
+
 - Support for custom MCP server types
 - Plugin system for additional server sources
 - Integration with external CI/CD pipelines
 - Multi-cluster federation support
 
 ### Advanced Features
+
 - Server template library
 - Automated deployment pipelines
 - Cost optimization recommendations
 - Security scanning integration
 
 ### Analytics & Insights
+
 - Usage analytics and reporting
 - Performance monitoring and alerting
 - Deployment success metrics
@@ -747,4 +909,4 @@ const extensions: NavExtension[] = [
 
 ---
 
-*This design document will be updated as implementation progresses and requirements evolve.*
+_This design document will be updated as implementation progresses and requirements evolve._

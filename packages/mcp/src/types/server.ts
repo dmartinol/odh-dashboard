@@ -44,6 +44,11 @@ export interface McpServerSpec {
     mountPath: string;
     [key: string]: unknown;
   }>;
+  secrets?: Array<{
+    name: string;
+    key: string;
+    targetEnvName?: string;
+  }>;
   podTemplateSpec?: {
     metadata?: {
       labels?: Record<string, string>;
