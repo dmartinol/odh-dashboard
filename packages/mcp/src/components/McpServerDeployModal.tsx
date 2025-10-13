@@ -26,6 +26,8 @@ import {
   Tab,
   Tabs,
   TabTitleText,
+  ToggleGroup,
+  ToggleGroupItem,
 } from '@patternfly/react-core';
 import { InfoCircleIcon, EyeIcon, EyeSlashIcon } from '@patternfly/react-icons';
 import DashboardModalFooter from '@odh-dashboard/internal/concepts/dashboard/DashboardModalFooter';
@@ -34,7 +36,7 @@ import { McpServerMetadata, McpServer, McpTransport, McpServerTier, McpProxyMode
 import { McpRegistry } from '../types/registry';
 import { createMcpServer, updateMcpServer } from '../api/k8s/mcp';
 import { ProjectsContext } from '../../../../frontend/src/concepts/projects/ProjectsContext';
-import { useSecrets } from '../hooks/useSecrets';
+import { useSecrets, getSecretKeys } from '../hooks/useSecrets';
 import { useServiceAccounts } from '../hooks/useServiceAccounts';
 
 interface McpServerDeployModalProps {
@@ -55,6 +57,19 @@ enum DeployDialogTab {
   ADVANCED = 'advanced',
 }
 
+interface EnvironmentVariable {
+  name: string;
+  value: string;
+  required?: boolean;
+  secret?: boolean;
+  // Secret reference support
+  sourceType: 'value' | 'secretRef';
+  secretRef?: {
+    secretName: string;
+    secretKey: string;
+  };
+}
+
 interface DeploymentConfig {
   name: string;
   transport: McpTransport;
@@ -66,12 +81,7 @@ interface DeploymentConfig {
   memoryRequest: string;
   cpuLimit: string;
   memoryLimit: string;
-  environmentVariables: Array<{
-    name: string;
-    value: string;
-    required?: boolean;
-    secret?: boolean;
-  }>;
+  environmentVariables: EnvironmentVariable[];
   // Advanced pod configuration
   imagePullSecrets: string[];
   serviceAccount: string;
@@ -161,11 +171,25 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
         memoryRequest: existingServer.spec.resources?.requests?.memory || '128Mi',
         cpuLimit: existingServer.spec.resources?.limits?.cpu || '500m',
         memoryLimit: existingServer.spec.resources?.limits?.memory || '512Mi',
-        environmentVariables:
-          existingServer.spec.env?.map((e) => ({
+        environmentVariables: [
+          // Load plain value env vars
+          ...(existingServer.spec.env?.map((e) => ({
             name: e.name,
             value: e.value || '',
-          })) || [],
+            sourceType: 'value' as const,
+            secretRef: undefined,
+          })) || []),
+          // Load secret reference env vars from the secrets array
+          ...(existingServer.spec.secrets?.map((s) => ({
+            name: s.targetEnvName || s.key,
+            value: '',
+            sourceType: 'secretRef' as const,
+            secretRef: {
+              secretName: s.name,
+              secretKey: s.key,
+            },
+          })) || []),
+        ],
         imagePullSecrets:
           existingServer.spec.podTemplateSpec?.spec?.imagePullSecrets?.map((s) => s.name) || [],
         serviceAccount: existingServer.spec.podTemplateSpec?.spec?.serviceAccountName || '',
@@ -195,12 +219,15 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
         'stdio';
 
       // Initialize environment variables from server metadata
-      const envVars =
+      // Always default to 'value' mode - users can switch to 'secretRef' if needed
+      const envVars: EnvironmentVariable[] =
         server.env_vars?.map((env) => ({
           name: env.name,
           value: env.default || '',
           required: env.required,
           secret: env.secret,
+          sourceType: 'value' as const,
+          secretRef: undefined,
         })) || [];
 
       setConfig({
@@ -236,10 +263,18 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
       return 'Deployment name must be a valid Kubernetes name (lowercase letters, numbers, and hyphens)';
     }
 
-    // Validate required environment variables have values
+    // Validate required environment variables have values or secret references
     for (const env of config.environmentVariables) {
-      if (env.required && !env.value.trim()) {
-        return `Required environment variable "${env.name}" must have a value`;
+      if (env.required) {
+        if (env.sourceType === 'value' && !env.value.trim()) {
+          return `Required environment variable "${env.name}" must have a value`;
+        }
+        if (
+          env.sourceType === 'secretRef' &&
+          (!env.secretRef?.secretName || !env.secretRef.secretKey)
+        ) {
+          return `Required environment variable "${env.name}" must have a secret reference`;
+        }
       }
     }
 
@@ -302,6 +337,35 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
         .map((arg) => arg.trim())
         .filter((arg) => arg.length > 0);
 
+      // Build environment variables array (plain values only)
+      // Secret references go in the separate `secrets` array per MCPServer CRD spec
+      console.log('All environment variables before filtering:', config.environmentVariables);
+
+      const envArray = config.environmentVariables
+        .filter((env) => env.sourceType === 'value' && env.name && env.value && env.value.trim())
+        .map((env) => ({
+          name: env.name,
+          value: env.value,
+        }));
+
+      // Build secrets array for secret references using MCPServer SecretRef structure
+      const secretsArray = config.environmentVariables
+        .filter(
+          (env) =>
+            env.sourceType === 'secretRef' &&
+            env.name &&
+            env.secretRef?.secretName &&
+            env.secretRef.secretKey,
+        )
+        .map((env) => ({
+          name: env.secretRef?.secretName || '',
+          key: env.secretRef?.secretKey || '',
+          targetEnvName: env.name, // Map to the environment variable name
+        }));
+
+      console.log('Final env array (plain values):', JSON.stringify(envArray, null, 2));
+      console.log('Final secrets array (secret refs):', JSON.stringify(secretsArray, null, 2));
+
       // Build podTemplateSpec if advanced config is provided
       // Note: We include a minimal container spec with the 'mcp' container name
       // The operator will merge this with its generated container configuration
@@ -361,12 +425,8 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
           port: config.port,
           targetPort: config.targetPort,
           args: argsArray.length > 0 ? argsArray : undefined,
-          env: config.environmentVariables
-            .filter((env) => env.name && env.value && env.value.trim())
-            .map((env) => ({
-              name: env.name,
-              value: env.value,
-            })),
+          env: envArray.length > 0 ? envArray : undefined,
+          secrets: secretsArray.length > 0 ? secretsArray : undefined,
           resources: {
             requests: {
               cpu: config.cpuRequest,
@@ -644,26 +704,37 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
                   This server does not require any environment variables.
                 </Alert>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  {config.environmentVariables.map((env, index) => (
-                    <div
-                      key={index}
-                      className="pf-u-py-md pf-u-px-md"
-                      style={{
-                        backgroundColor:
-                          index % 2 === 0
-                            ? 'transparent'
-                            : 'var(--pf-t--global--background--color--secondary--default)',
-                      }}
-                    >
-                      <Flex
-                        direction={{ default: 'column' }}
-                        spaceItems={{ default: 'spaceItemsSm' }}
-                      >
-                        <FlexItem>
+                <>
+                  <Alert
+                    variant="warning"
+                    isInline
+                    isPlain
+                    title="Security recommendation"
+                    className="pf-u-mb-md"
+                  >
+                    For sensitive values, use &quot;Secret&quot; mode to reference Kubernetes
+                    secrets instead of storing plain text in the MCPServer spec.
+                  </Alert>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {config.environmentVariables.map((env, index) => {
+                      const envMetadata = server.env_vars?.find((e) => e.name === env.name);
+                      return (
+                        <div
+                          key={index}
+                          className="pf-u-p-md"
+                          style={{
+                            backgroundColor:
+                              index % 2 === 0
+                                ? 'transparent'
+                                : 'var(--pf-t--global--background--color--secondary--default)',
+                            borderRadius: '4px',
+                          }}
+                        >
+                          {/* Compact header: name, badges, description on one line */}
                           <Flex
                             alignItems={{ default: 'alignItemsCenter' }}
                             spaceItems={{ default: 'spaceItemsSm' }}
+                            className="pf-u-mb-sm"
                           >
                             <FlexItem>
                               <strong>{env.name}</strong>
@@ -682,70 +753,233 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
                                 </Label>
                               </FlexItem>
                             )}
-                            {server.env_vars?.find((e) => e.name === env.name)?.description && (
+                            {envMetadata?.description && (
                               <FlexItem className="pf-u-color-200 pf-u-font-size-sm">
-                                {server.env_vars.find((e) => e.name === env.name)?.description}
-                                {server.env_vars.find((e) => e.name === env.name)?.default && (
-                                  <span className="pf-u-ml-sm">
-                                    (Default:{' '}
-                                    {server.env_vars.find((e) => e.name === env.name)?.default})
-                                  </span>
-                                )}
+                                {envMetadata.description}
                               </FlexItem>
                             )}
-                            {!server.env_vars?.find((e) => e.name === env.name)?.description &&
-                              server.env_vars?.find((e) => e.name === env.name)?.default && (
-                                <FlexItem className="pf-u-color-200 pf-u-font-size-sm">
-                                  Default:{' '}
-                                  {server.env_vars.find((e) => e.name === env.name)?.default}
-                                </FlexItem>
-                              )}
                           </Flex>
-                        </FlexItem>
-                        <FlexItem>
-                          {env.secret ? (
+
+                          {/* Input field with inline toggle on the right */}
+                          {env.sourceType === 'value' ? (
                             <InputGroup>
                               <InputGroupItem isFill>
                                 <TextInput
-                                  type={visibleSecrets.has(index) ? 'text' : 'password'}
+                                  type={
+                                    env.secret
+                                      ? visibleSecrets.has(index)
+                                        ? 'text'
+                                        : 'password'
+                                      : 'text'
+                                  }
                                   value={env.value}
                                   onChange={(_, value) =>
                                     updateEnvironmentVariable(index, 'value', value)
                                   }
                                   validated={env.required && !env.value ? 'error' : 'default'}
                                   isRequired={env.required}
+                                  placeholder={
+                                    env.required && !env.value
+                                      ? 'Required - please fill out this field'
+                                      : envMetadata?.default
+                                      ? `Default: ${envMetadata.default}`
+                                      : undefined
+                                  }
                                   aria-label={`Value for ${env.name}`}
                                 />
                               </InputGroupItem>
+                              {env.secret && (
+                                <InputGroupItem>
+                                  <Button
+                                    variant="control"
+                                    onClick={() => toggleSecretVisibility(index)}
+                                    aria-label={
+                                      visibleSecrets.has(index) ? 'Hide password' : 'Show password'
+                                    }
+                                  >
+                                    {visibleSecrets.has(index) ? <EyeSlashIcon /> : <EyeIcon />}
+                                  </Button>
+                                </InputGroupItem>
+                              )}
                               <InputGroupItem>
-                                <Button
-                                  variant="control"
-                                  onClick={() => toggleSecretVisibility(index)}
-                                  aria-label={
-                                    visibleSecrets.has(index) ? 'Hide password' : 'Show password'
-                                  }
-                                >
-                                  {visibleSecrets.has(index) ? <EyeSlashIcon /> : <EyeIcon />}
-                                </Button>
+                                <ToggleGroup aria-label="Value source type">
+                                  <ToggleGroupItem
+                                    text="Value"
+                                    buttonId={`${env.name}-toggle-value-${index}`}
+                                    isSelected={
+                                      config.environmentVariables[index].sourceType === 'value'
+                                    }
+                                    onChange={() => {
+                                      const updated = [...config.environmentVariables];
+                                      updated[index] = {
+                                        ...updated[index],
+                                        sourceType: 'value',
+                                        secretRef: undefined,
+                                      };
+                                      updateConfig({ environmentVariables: updated });
+                                    }}
+                                  />
+                                  <ToggleGroupItem
+                                    text="Secret"
+                                    buttonId={`${env.name}-toggle-secret-${index}`}
+                                    isSelected={
+                                      config.environmentVariables[index].sourceType === 'secretRef'
+                                    }
+                                    onChange={() => {
+                                      const updated = [...config.environmentVariables];
+                                      updated[index] = {
+                                        ...updated[index],
+                                        sourceType: 'secretRef',
+                                        secretRef: {
+                                          secretName: '',
+                                          secretKey: '',
+                                        },
+                                      };
+                                      updateConfig({ environmentVariables: updated });
+                                    }}
+                                  />
+                                </ToggleGroup>
                               </InputGroupItem>
                             </InputGroup>
                           ) : (
-                            <TextInput
-                              type="text"
-                              value={env.value}
-                              onChange={(_, value) =>
-                                updateEnvironmentVariable(index, 'value', value)
-                              }
-                              validated={env.required && !env.value ? 'error' : 'default'}
-                              isRequired={env.required}
-                              aria-label={`Value for ${env.name}`}
-                            />
+                            <>
+                              {/* Secret Reference mode with dropdowns */}
+                              <InputGroup>
+                                <InputGroupItem isFill>
+                                  <FormSelect
+                                    value={env.secretRef?.secretName || ''}
+                                    onChange={(_, value) => {
+                                      const updated = [...config.environmentVariables];
+                                      updated[index] = {
+                                        ...updated[index],
+                                        secretRef: {
+                                          secretName: value,
+                                          secretKey: '',
+                                        },
+                                      };
+                                      updateConfig({ environmentVariables: updated });
+                                    }}
+                                    validated={
+                                      env.required && !env.secretRef?.secretName
+                                        ? 'error'
+                                        : 'default'
+                                    }
+                                    aria-label="Select secret"
+                                  >
+                                    <FormSelectOption
+                                      key="placeholder"
+                                      value=""
+                                      label="Select a secret..."
+                                      isDisabled
+                                    />
+                                    {secretsLoaded &&
+                                      secrets.map((secret) => (
+                                        <FormSelectOption
+                                          key={secret.metadata?.name}
+                                          value={secret.metadata?.name || ''}
+                                          label={secret.metadata?.name || ''}
+                                        />
+                                      ))}
+                                  </FormSelect>
+                                </InputGroupItem>
+                                <InputGroupItem>
+                                  <FormSelect
+                                    value={env.secretRef?.secretKey || ''}
+                                    onChange={(_, value) => {
+                                      const updated = [...config.environmentVariables];
+                                      const currentSecretRef = updated[index].secretRef || {
+                                        secretName: '',
+                                        secretKey: '',
+                                      };
+                                      updated[index] = {
+                                        ...updated[index],
+                                        secretRef: {
+                                          ...currentSecretRef,
+                                          secretKey: value,
+                                        },
+                                      };
+                                      updateConfig({ environmentVariables: updated });
+                                    }}
+                                    isDisabled={!env.secretRef?.secretName}
+                                    validated={
+                                      env.required && !env.secretRef?.secretKey
+                                        ? 'error'
+                                        : 'default'
+                                    }
+                                    aria-label="Select key"
+                                  >
+                                    <FormSelectOption
+                                      key="placeholder"
+                                      value=""
+                                      label="Select a key..."
+                                      isDisabled
+                                    />
+                                    {env.secretRef?.secretName &&
+                                      (() => {
+                                        const secret = secrets.find(
+                                          (s) => s.metadata?.name === env.secretRef?.secretName,
+                                        );
+                                        return secret
+                                          ? getSecretKeys(secret).map((key) => (
+                                              <FormSelectOption key={key} value={key} label={key} />
+                                            ))
+                                          : null;
+                                      })()}
+                                  </FormSelect>
+                                </InputGroupItem>
+                                <InputGroupItem>
+                                  <ToggleGroup aria-label="Value source type">
+                                    <ToggleGroupItem
+                                      text="Value"
+                                      buttonId={`${env.name}-toggle-value-${index}`}
+                                      isSelected={
+                                        config.environmentVariables[index].sourceType === 'value'
+                                      }
+                                      onChange={() => {
+                                        const updated = [...config.environmentVariables];
+                                        updated[index] = {
+                                          ...updated[index],
+                                          sourceType: 'value',
+                                          secretRef: undefined,
+                                        };
+                                        updateConfig({ environmentVariables: updated });
+                                      }}
+                                    />
+                                    <ToggleGroupItem
+                                      text="Secret"
+                                      buttonId={`${env.name}-toggle-secret-${index}`}
+                                      isSelected={
+                                        config.environmentVariables[index].sourceType ===
+                                        'secretRef'
+                                      }
+                                      onChange={() => {
+                                        const updated = [...config.environmentVariables];
+                                        updated[index] = {
+                                          ...updated[index],
+                                          sourceType: 'secretRef',
+                                          secretRef: {
+                                            secretName: '',
+                                            secretKey: '',
+                                          },
+                                        };
+                                        updateConfig({ environmentVariables: updated });
+                                      }}
+                                    />
+                                  </ToggleGroup>
+                                </InputGroupItem>
+                              </InputGroup>
+                              <HelperText>
+                                <HelperTextItem>
+                                  Reference an existing Kubernetes secret in this project
+                                </HelperTextItem>
+                              </HelperText>
+                            </>
                           )}
-                        </FlexItem>
-                      </Flex>
-                    </div>
-                  ))}
-                </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
               )}
             </div>
           </Tab>
