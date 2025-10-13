@@ -637,7 +637,6 @@ const extensions: NavExtension[] = [
 - Foundation ready for Phase 5 production features
 
 #### Phase 4 UI Refinements ✅ **COMPLETED**
-
 - ✅ **Registry Card Visual Improvements**:
   - Enhanced metadata display with proper icons (CodeBranchIcon for git, CubeIcon for configmap)
   - Improved layout using Flex components for better spacing
