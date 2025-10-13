@@ -27,15 +27,13 @@ import {
   ExternalLinkAltIcon,
 } from '@patternfly/react-icons';
 import { useNavigate } from 'react-router-dom';
-import { McpServer, McpServerMetadata } from '../types/server';
+import { McpServer } from '../types/server';
 import { McpRegistry } from '../types/registry';
 
 interface McpDeployedServerDetailsModalProps {
   onClose: () => void;
   server: McpServer;
   linkedRegistry?: McpRegistry;
-  serverMetadata?: McpServerMetadata;
-  onEdit?: (server: McpServer) => void;
 }
 
 enum ServerDetailsTab {
@@ -79,8 +77,6 @@ export const McpDeployedServerDetailsModal: React.FC<McpDeployedServerDetailsMod
   onClose,
   server,
   linkedRegistry,
-  serverMetadata,
-  onEdit,
 }) => {
   const navigate = useNavigate();
   const [activeTabKey, setActiveTabKey] = React.useState<string>(ServerDetailsTab.OVERVIEW);
@@ -249,9 +245,40 @@ export const McpDeployedServerDetailsModal: React.FC<McpDeployedServerDetailsMod
         <DescriptionListDescription>{server.spec.tier}</DescriptionListDescription>
       </DescriptionListGroup>
 
+      {server.spec.transport === 'stdio' && server.spec.proxyMode && (
+        <DescriptionListGroup>
+          <DescriptionListTerm>Proxy Mode</DescriptionListTerm>
+          <DescriptionListDescription>{server.spec.proxyMode}</DescriptionListDescription>
+        </DescriptionListGroup>
+      )}
+
+      {server.spec.transport === 'stdio' && server.spec.port && (
+        <DescriptionListGroup>
+          <DescriptionListTerm>Port</DescriptionListTerm>
+          <DescriptionListDescription>{server.spec.port}</DescriptionListDescription>
+        </DescriptionListGroup>
+      )}
+
+      {server.spec.transport !== 'stdio' && (
+        <>
+          {server.spec.port && (
+            <DescriptionListGroup>
+              <DescriptionListTerm>Port</DescriptionListTerm>
+              <DescriptionListDescription>{server.spec.port}</DescriptionListDescription>
+            </DescriptionListGroup>
+          )}
+          {server.spec.targetPort && (
+            <DescriptionListGroup>
+              <DescriptionListTerm>Target Port</DescriptionListTerm>
+              <DescriptionListDescription>{server.spec.targetPort}</DescriptionListDescription>
+            </DescriptionListGroup>
+          )}
+        </>
+      )}
+
       {server.spec.args && server.spec.args.length > 0 && (
         <DescriptionListGroup>
-          <DescriptionListTerm>Args</DescriptionListTerm>
+          <DescriptionListTerm>Arguments</DescriptionListTerm>
           <DescriptionListDescription>
             <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
               {server.spec.args.join(' ')}
@@ -281,21 +308,68 @@ export const McpDeployedServerDetailsModal: React.FC<McpDeployedServerDetailsMod
           <DescriptionListDescription>
             {server.spec.resources.requests && (
               <div>
-                <strong>Requests:</strong> CPU:{' '}
-                {server.spec.resources.requests.cpu || '—'}, Memory:{' '}
+                <strong>Requests:</strong> CPU: {server.spec.resources.requests.cpu || '—'}, Memory:{' '}
                 {server.spec.resources.requests.memory || '—'}
               </div>
             )}
             {server.spec.resources.limits && (
               <div>
-                <strong>Limits:</strong> CPU:{' '}
-                {server.spec.resources.limits.cpu || '—'}, Memory:{' '}
+                <strong>Limits:</strong> CPU: {server.spec.resources.limits.cpu || '—'}, Memory:{' '}
                 {server.spec.resources.limits.memory || '—'}
               </div>
             )}
           </DescriptionListDescription>
         </DescriptionListGroup>
       )}
+
+      {(() => {
+        const config = (server.spec as { config?: { command?: string[]; args?: string[]; env?: Array<{ name: string; value?: string }> } }).config;
+        if (!config) return null;
+        return (
+          <>
+            <DescriptionListGroup>
+              <DescriptionListTerm>Command</DescriptionListTerm>
+              <DescriptionListDescription>
+                {config.command ? (
+                  <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
+                    {config.command.join(' ')}
+                  </code>
+                ) : (
+                  '—'
+                )}
+              </DescriptionListDescription>
+            </DescriptionListGroup>
+
+            <DescriptionListGroup>
+              <DescriptionListTerm>Args</DescriptionListTerm>
+              <DescriptionListDescription>
+                {config.args ? (
+                  <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
+                    {config.args.join(' ')}
+                  </code>
+                ) : (
+                  '—'
+                )}
+              </DescriptionListDescription>
+            </DescriptionListGroup>
+
+            {config.env && config.env.length > 0 && (
+              <DescriptionListGroup>
+                <DescriptionListTerm>Environment Variables</DescriptionListTerm>
+                <DescriptionListDescription>
+                  {config.env.map((envVar: { name: string; value?: string }) => (
+                    <div key={envVar.name}>
+                      <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
+                        {envVar.name}={envVar.value || '***'}
+                      </code>
+                    </div>
+                  ))}
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+            )}
+          </>
+        );
+      })()}
 
       {server.status?.replicas !== undefined && (
         <DescriptionListGroup>
@@ -488,11 +562,6 @@ export const McpDeployedServerDetailsModal: React.FC<McpDeployedServerDetailsMod
         </Tabs>
       </ModalBody>
       <ModalFooter>
-        {onEdit && (
-          <Button variant="secondary" onClick={() => onEdit(server)} className="pf-v6-u-mr-sm">
-            Edit
-          </Button>
-        )}
         <Button variant="primary" onClick={onClose}>
           Close
         </Button>

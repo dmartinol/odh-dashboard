@@ -484,6 +484,10 @@ const parseMcpV0Format = async (
         tags: detailedServer.tags || [],
         logo: logoUrl,
         image: detailedServer.image,
+        transport: detailedServer.transport,
+        // eslint-disable-next-line camelcase
+        target_port: detailedServer.target_port,
+        args: detailedServer.args,
         tools:
           detailedServer.tools?.map((tool, index) => {
             console.log(`🔍 [MCP-V0] Processing tool ${index}:`, tool);

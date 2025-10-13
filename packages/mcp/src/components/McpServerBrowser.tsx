@@ -430,6 +430,8 @@ export const McpServerBrowser: React.FC<McpServerBrowserProps> = ({
           }}
           server={selectedServer}
           onDeploy={(server) => {
+            setDetailsModalOpen(false);
+            setSelectedServer(null);
             setServerToDeploy(server);
             setDeployModalOpen(true);
             onServerDeploy?.(server);
@@ -440,7 +442,6 @@ export const McpServerBrowser: React.FC<McpServerBrowserProps> = ({
       {/* Server Deploy Modal */}
       {serverToDeploy && deployModalOpen && (
         <McpServerDeployModal
-          isOpen
           onClose={() => {
             setDeployModalOpen(false);
             setServerToDeploy(null);
