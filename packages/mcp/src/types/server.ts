@@ -44,6 +44,24 @@ export interface McpServerSpec {
     mountPath: string;
     [key: string]: unknown;
   }>;
+  podTemplateSpec?: {
+    metadata?: {
+      labels?: Record<string, string>;
+      annotations?: Record<string, string>;
+    };
+    spec?: {
+      imagePullSecrets?: Array<{ name: string }>;
+      serviceAccountName?: string;
+      nodeSelector?: Record<string, string>;
+      securityContext?: {
+        runAsNonRoot?: boolean;
+        runAsUser?: number;
+        runAsGroup?: number;
+        fsGroup?: number;
+      };
+    };
+  };
+  [key: string]: unknown; // Index signature for K8sResourceCommon compatibility
 }
 
 export type McpTransport = 'stdio' | 'streamable-http' | 'sse';

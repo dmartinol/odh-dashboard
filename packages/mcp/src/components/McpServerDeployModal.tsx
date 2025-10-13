@@ -3,6 +3,7 @@ import {
   Alert,
   AlertVariant,
   Button,
+  Checkbox,
   Form,
   FormGroup,
   FormSection,
@@ -33,6 +34,8 @@ import { McpServerMetadata, McpServer, McpTransport, McpServerTier, McpProxyMode
 import { McpRegistry } from '../types/registry';
 import { deployMcpServer } from '../api/servers';
 import { ProjectsContext } from '../../../../frontend/src/concepts/projects/ProjectsContext';
+import { useSecrets } from '../hooks/useSecrets';
+import { useServiceAccounts } from '../hooks/useServiceAccounts';
 
 interface McpServerDeployModalProps {
   onClose: () => void;
@@ -49,6 +52,7 @@ enum DeployDialogTab {
   SERVER = 'server',
   CONFIG = 'config',
   RESOURCES = 'resources',
+  ADVANCED = 'advanced',
 }
 
 interface DeploymentConfig {
@@ -68,6 +72,13 @@ interface DeploymentConfig {
     required?: boolean;
     secret?: boolean;
   }>;
+  // Advanced pod configuration
+  imagePullSecrets: string[];
+  serviceAccount: string;
+  nodeSelector: Record<string, string>;
+  runAsNonRoot: boolean;
+  runAsUser: string;
+  runAsGroup: string;
 }
 
 const initialConfig: DeploymentConfig = {
@@ -82,6 +93,12 @@ const initialConfig: DeploymentConfig = {
   cpuLimit: '500m',
   memoryLimit: '512Mi',
   environmentVariables: [],
+  imagePullSecrets: [],
+  serviceAccount: '',
+  nodeSelector: {},
+  runAsNonRoot: false,
+  runAsUser: '',
+  runAsGroup: '',
 };
 
 export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
@@ -98,6 +115,23 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
   const [error, setError] = React.useState<Error>();
   const [activeTabKey, setActiveTabKey] = React.useState<string>(DeployDialogTab.SERVER);
   const [visibleSecrets, setVisibleSecrets] = React.useState<Set<number>>(new Set());
+
+  // Fetch secrets and service accounts for advanced configuration
+  const namespace = preferredProject?.metadata.name;
+  const [secrets, secretsLoaded] = useSecrets(namespace);
+  const [serviceAccounts, serviceAccountsLoaded] = useServiceAccounts(namespace);
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('Advanced tab - namespace:', namespace);
+    console.log('Advanced tab - secrets:', secrets.length, 'loaded:', secretsLoaded);
+    console.log(
+      'Advanced tab - serviceAccounts:',
+      serviceAccounts.length,
+      'loaded:',
+      serviceAccountsLoaded,
+    );
+  }, [namespace, secrets, secretsLoaded, serviceAccounts, serviceAccountsLoaded]);
 
   const toggleSecretVisibility = (index: number) => {
     setVisibleSecrets((prev) => {
@@ -132,6 +166,16 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
             name: e.name,
             value: e.value || '',
           })) || [],
+        imagePullSecrets:
+          existingServer.spec.podTemplateSpec?.spec?.imagePullSecrets?.map((s) => s.name) || [],
+        serviceAccount: existingServer.spec.podTemplateSpec?.spec?.serviceAccountName || '',
+        nodeSelector: existingServer.spec.podTemplateSpec?.spec?.nodeSelector || {},
+        runAsNonRoot:
+          existingServer.spec.podTemplateSpec?.spec?.securityContext?.runAsNonRoot || false,
+        runAsUser:
+          existingServer.spec.podTemplateSpec?.spec?.securityContext?.runAsUser?.toString() || '',
+        runAsGroup:
+          existingServer.spec.podTemplateSpec?.spec?.securityContext?.runAsGroup?.toString() || '',
       });
     } else {
       // Initialize from server metadata for new deployment
@@ -258,6 +302,42 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
         .map((arg) => arg.trim())
         .filter((arg) => arg.length > 0);
 
+      // Build podTemplateSpec if advanced config is provided
+      // Note: We include a minimal container spec with the 'mcp' container name
+      // The operator will merge this with its generated container configuration
+      const podTemplateSpec =
+        config.imagePullSecrets.length > 0 ||
+        config.serviceAccount ||
+        Object.keys(config.nodeSelector).length > 0 ||
+        config.runAsNonRoot
+          ? {
+              spec: {
+                // Include minimal container spec that operator will merge with
+                containers: [
+                  {
+                    name: 'mcp',
+                  },
+                ],
+                ...(config.imagePullSecrets.length > 0 && {
+                  imagePullSecrets: config.imagePullSecrets.map((name) => ({ name })),
+                }),
+                ...(config.serviceAccount && {
+                  serviceAccountName: config.serviceAccount,
+                }),
+                ...(Object.keys(config.nodeSelector).length > 0 && {
+                  nodeSelector: config.nodeSelector,
+                }),
+                ...(config.runAsNonRoot && {
+                  securityContext: {
+                    runAsNonRoot: true,
+                    ...(config.runAsUser && { runAsUser: parseInt(config.runAsUser, 10) }),
+                    ...(config.runAsGroup && { runAsGroup: parseInt(config.runAsGroup, 10) }),
+                  },
+                }),
+              },
+            }
+          : undefined;
+
       // Build the MCP server resource
       const mcpServer: McpServer = {
         apiVersion: 'toolhive.stacklok.dev/v1alpha1',
@@ -297,6 +377,7 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
               memory: config.memoryLimit,
             },
           },
+          ...(podTemplateSpec && { podTemplateSpec }),
         },
       };
 
@@ -743,6 +824,249 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
                       </FormGroup>
                     </FlexItem>
                   </Flex>
+                </FormSection>
+              </Form>
+            </div>
+          </Tab>
+
+          <Tab
+            eventKey={DeployDialogTab.ADVANCED}
+            title={<TabTitleText>Advanced</TabTitleText>}
+            aria-label="Advanced pod configuration tab"
+          >
+            <div className="pf-u-pt-md">
+              <Form>
+                <FormSection title="Advanced Pod Configuration" titleElement="h3">
+                  <Alert
+                    variant="info"
+                    isInline
+                    title="Optional advanced settings for pod customization"
+                    className="pf-u-mb-md"
+                  >
+                    Configure additional pod settings like image pull secrets for private
+                    registries, service accounts, node scheduling, and security context.
+                  </Alert>
+
+                  {/* Image Pull Secrets */}
+                  <FormGroup label="Image Pull Secrets" fieldId="image-pull-secrets">
+                    <FormSelect
+                      value=""
+                      onChange={(_, value) => {
+                        if (value && !config.imagePullSecrets.includes(value)) {
+                          updateConfig({
+                            imagePullSecrets: [...config.imagePullSecrets, value],
+                          });
+                        }
+                      }}
+                      id="image-pull-secrets"
+                      name="image-pull-secrets"
+                      aria-label="Select image pull secret"
+                    >
+                      <FormSelectOption
+                        key="placeholder"
+                        value=""
+                        label="Select a secret to add..."
+                        isDisabled
+                      />
+                      {secretsLoaded &&
+                        secrets
+                          .filter((s) => !config.imagePullSecrets.includes(s.metadata?.name || ''))
+                          .map((secret) => (
+                            <FormSelectOption
+                              key={secret.metadata?.name}
+                              value={secret.metadata?.name || ''}
+                              label={secret.metadata?.name || ''}
+                            />
+                          ))}
+                    </FormSelect>
+                    <HelperText>
+                      <HelperTextItem>
+                        Select secrets to authenticate with private container registries
+                      </HelperTextItem>
+                    </HelperText>
+
+                    {config.imagePullSecrets.length > 0 && (
+                      <div className="pf-u-mt-sm">
+                        <Title headingLevel="h5" className="pf-u-mb-xs">
+                          Selected secrets:
+                        </Title>
+                        <Flex
+                          direction={{ default: 'column' }}
+                          spaceItems={{ default: 'spaceItemsXs' }}
+                        >
+                          {config.imagePullSecrets.map((secretName, index) => (
+                            <FlexItem key={index}>
+                              <Flex alignItems={{ default: 'alignItemsCenter' }}>
+                                <FlexItem>
+                                  <Label color="blue">{secretName}</Label>
+                                </FlexItem>
+                                <FlexItem>
+                                  <Button
+                                    variant="link"
+                                    isDanger
+                                    onClick={() => {
+                                      updateConfig({
+                                        imagePullSecrets: config.imagePullSecrets.filter(
+                                          (_, i) => i !== index,
+                                        ),
+                                      });
+                                    }}
+                                  >
+                                    Remove
+                                  </Button>
+                                </FlexItem>
+                              </Flex>
+                            </FlexItem>
+                          ))}
+                        </Flex>
+                      </div>
+                    )}
+                  </FormGroup>
+
+                  {/* Service Account */}
+                  <FormGroup label="Service Account" fieldId="service-account">
+                    <FormSelect
+                      value={config.serviceAccount}
+                      onChange={(_, value) => updateConfig({ serviceAccount: value })}
+                      id="service-account"
+                      name="service-account"
+                      aria-label="Select service account"
+                    >
+                      <FormSelectOption key="none" value="" label="None (use default)" />
+                      {serviceAccountsLoaded &&
+                        serviceAccounts.map((sa) => (
+                          <FormSelectOption
+                            key={sa.metadata?.name}
+                            value={sa.metadata?.name || ''}
+                            label={sa.metadata?.name || ''}
+                          />
+                        ))}
+                    </FormSelect>
+                    <HelperText>
+                      <HelperTextItem>
+                        Optional service account for pod authentication
+                      </HelperTextItem>
+                    </HelperText>
+                  </FormGroup>
+
+                  {/* Node Selector */}
+                  <FormGroup label="Node Selector" fieldId="node-selector">
+                    {Object.entries(config.nodeSelector).map(([key, value], index) => (
+                      <Flex
+                        key={index}
+                        spaceItems={{ default: 'spaceItemsSm' }}
+                        className="pf-u-mb-sm"
+                      >
+                        <FlexItem flex={{ default: 'flex_1' }}>
+                          <TextInput
+                            type="text"
+                            value={key}
+                            onChange={(_, newKey) => {
+                              const newNodeSelector = { ...config.nodeSelector };
+                              delete newNodeSelector[key];
+                              if (newKey) {
+                                newNodeSelector[newKey] = value;
+                              }
+                              updateConfig({ nodeSelector: newNodeSelector });
+                            }}
+                            placeholder="Key (e.g., kubernetes.io/hostname)"
+                            aria-label="Node selector key"
+                          />
+                        </FlexItem>
+                        <FlexItem flex={{ default: 'flex_1' }}>
+                          <TextInput
+                            type="text"
+                            value={value}
+                            onChange={(_, newValue) => {
+                              updateConfig({
+                                nodeSelector: { ...config.nodeSelector, [key]: newValue },
+                              });
+                            }}
+                            placeholder="Value (e.g., node-1)"
+                            aria-label="Node selector value"
+                          />
+                        </FlexItem>
+                        <FlexItem>
+                          <Button
+                            variant="link"
+                            isDanger
+                            onClick={() => {
+                              const newNodeSelector = { ...config.nodeSelector };
+                              delete newNodeSelector[key];
+                              updateConfig({ nodeSelector: newNodeSelector });
+                            }}
+                          >
+                            Remove
+                          </Button>
+                        </FlexItem>
+                      </Flex>
+                    ))}
+                    <Button
+                      variant="link"
+                      onClick={() => {
+                        const newKey = `label-${Object.keys(config.nodeSelector).length + 1}`;
+                        updateConfig({
+                          nodeSelector: { ...config.nodeSelector, [newKey]: '' },
+                        });
+                      }}
+                    >
+                      + Add Label
+                    </Button>
+                    <HelperText>
+                      <HelperTextItem>
+                        Schedule pods on nodes with matching labels (key=value pairs)
+                      </HelperTextItem>
+                    </HelperText>
+                  </FormGroup>
+
+                  {/* Security Context */}
+                  <FormSection title="Security Context" titleElement="h4">
+                    <Checkbox
+                      id="run-as-non-root"
+                      label="Run as non-root user"
+                      isChecked={config.runAsNonRoot}
+                      onChange={(_, checked) => updateConfig({ runAsNonRoot: checked })}
+                    />
+
+                    {config.runAsNonRoot && (
+                      <Flex spaceItems={{ default: 'spaceItemsMd' }} className="pf-u-mt-md">
+                        <FlexItem flex={{ default: 'flex_1' }}>
+                          <FormGroup label="User ID" fieldId="run-as-user">
+                            <TextInput
+                              type="text"
+                              id="run-as-user"
+                              name="run-as-user"
+                              value={config.runAsUser}
+                              onChange={(_, value) => updateConfig({ runAsUser: value })}
+                              placeholder="1000"
+                            />
+                            <HelperText>
+                              <HelperTextItem>
+                                Numeric user ID to run the container (e.g., 1000)
+                              </HelperTextItem>
+                            </HelperText>
+                          </FormGroup>
+                        </FlexItem>
+                        <FlexItem flex={{ default: 'flex_1' }}>
+                          <FormGroup label="Group ID" fieldId="run-as-group">
+                            <TextInput
+                              type="text"
+                              id="run-as-group"
+                              name="run-as-group"
+                              value={config.runAsGroup}
+                              onChange={(_, value) => updateConfig({ runAsGroup: value })}
+                              placeholder="1000"
+                            />
+                            <HelperText>
+                              <HelperTextItem>
+                                Numeric group ID to run the container (e.g., 1000)
+                              </HelperTextItem>
+                            </HelperText>
+                          </FormGroup>
+                        </FlexItem>
+                      </Flex>
+                    )}
+                  </FormSection>
                 </FormSection>
               </Form>
             </div>

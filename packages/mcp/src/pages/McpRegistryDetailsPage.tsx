@@ -458,11 +458,6 @@ const McpRegistryDetailsPage: React.FC = () => {
     console.log('Selected server:', server.name);
   };
 
-  const handleServerDeploy = (server: McpServerMetadata) => {
-    setServerToDeploy(server);
-    setDeployModalOpen(true);
-  };
-
   const renderServersTab = () => (
     <PageSection hasBodyWrapper={false} isFilled>
       <Stack hasGutter>
@@ -484,7 +479,7 @@ const McpRegistryDetailsPage: React.FC = () => {
             loading={serversLoading}
             error={serversError}
             onServerSelect={handleServerSelect}
-            onServerDeploy={handleServerDeploy}
+            registry={registry}
           />
         </StackItem>
       </Stack>
