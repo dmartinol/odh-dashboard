@@ -36,6 +36,8 @@ interface ToolHiveServerData {
   image?: string;
   transport?: McpTransport;
   tier?: McpServerTier;
+  target_port?: number;
+  args?: string[];
   displayName?: string;
   description?: string;
   version?: string;
@@ -369,6 +371,9 @@ interface McpV0DetailedServer {
   tags?: string[];
   logo?: string;
   image?: string;
+  transport?: McpTransport;
+  target_port?: number;
+  args?: string[];
   tools?: (
     | string
     | { name: string; description?: string; inputSchema?: Record<string, unknown> }
@@ -469,6 +474,10 @@ const parseMcpV0Format = async (
         tags: detailedServer.tags || [],
         logo: logoUrl,
         image: detailedServer.image,
+        transport: detailedServer.transport,
+        // eslint-disable-next-line camelcase
+        target_port: detailedServer.target_port,
+        args: detailedServer.args,
         tools:
           detailedServer.tools?.map((tool, index) => {
             console.log(`🔍 [MCP-V0] Processing tool ${index}:`, tool);
@@ -647,6 +656,10 @@ export const parseRegistryForServers = async (
                 tags: Array.from(allTags),
                 logo: logoUrl,
                 image: serverData.image,
+                transport: serverData.transport,
+                // eslint-disable-next-line camelcase
+                target_port: serverData.target_port,
+                args: serverData.args,
                 tools:
                   serverData.tools?.map((tool, index) => {
                     console.log(`🔍 [TOOLHIVE] Processing tool ${index} for ${serverName}:`, tool);

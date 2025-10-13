@@ -110,9 +110,11 @@ const McpServersPage: React.FC = () => {
         }
       }
 
-      // Transport filter
-      if (selectedTransport !== 'all' && server.spec.transport !== selectedTransport) {
-        return false;
+      // Transport filter - only matches spec.transport field
+      if (selectedTransport !== 'all') {
+        if (server.spec.transport !== selectedTransport) {
+          return false;
+        }
       }
 
       // Status filter
@@ -321,7 +323,6 @@ const McpServersPage: React.FC = () => {
       {/* Modals */}
       {selectedServer && deployModalOpen && (
         <McpServerDeployModal
-          isOpen
           onClose={() => {
             setDeployModalOpen(false);
             setSelectedServer(null);
