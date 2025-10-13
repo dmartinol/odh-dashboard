@@ -245,6 +245,83 @@ export const McpDeployedServerDetailsModal: React.FC<McpDeployedServerDetailsMod
         <DescriptionListDescription>{server.spec.tier}</DescriptionListDescription>
       </DescriptionListGroup>
 
+      {server.spec.transport === 'stdio' && server.spec.proxyMode && (
+        <DescriptionListGroup>
+          <DescriptionListTerm>Proxy Mode</DescriptionListTerm>
+          <DescriptionListDescription>{server.spec.proxyMode}</DescriptionListDescription>
+        </DescriptionListGroup>
+      )}
+
+      {server.spec.transport === 'stdio' && server.spec.port && (
+        <DescriptionListGroup>
+          <DescriptionListTerm>Port</DescriptionListTerm>
+          <DescriptionListDescription>{server.spec.port}</DescriptionListDescription>
+        </DescriptionListGroup>
+      )}
+
+      {server.spec.transport !== 'stdio' && (
+        <>
+          {server.spec.port && (
+            <DescriptionListGroup>
+              <DescriptionListTerm>Port</DescriptionListTerm>
+              <DescriptionListDescription>{server.spec.port}</DescriptionListDescription>
+            </DescriptionListGroup>
+          )}
+          {server.spec.targetPort && (
+            <DescriptionListGroup>
+              <DescriptionListTerm>Target Port</DescriptionListTerm>
+              <DescriptionListDescription>{server.spec.targetPort}</DescriptionListDescription>
+            </DescriptionListGroup>
+          )}
+        </>
+      )}
+
+      {server.spec.args && server.spec.args.length > 0 && (
+        <DescriptionListGroup>
+          <DescriptionListTerm>Arguments</DescriptionListTerm>
+          <DescriptionListDescription>
+            <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
+              {server.spec.args.join(' ')}
+            </code>
+          </DescriptionListDescription>
+        </DescriptionListGroup>
+      )}
+
+      {server.spec.env && server.spec.env.length > 0 && (
+        <DescriptionListGroup>
+          <DescriptionListTerm>Environment Variables</DescriptionListTerm>
+          <DescriptionListDescription>
+            {server.spec.env.map((envVar) => (
+              <div key={envVar.name}>
+                <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
+                  {envVar.name}={envVar.value || '***'}
+                </code>
+              </div>
+            ))}
+          </DescriptionListDescription>
+        </DescriptionListGroup>
+      )}
+
+      {server.spec.resources && (
+        <DescriptionListGroup>
+          <DescriptionListTerm>Resources</DescriptionListTerm>
+          <DescriptionListDescription>
+            {server.spec.resources.requests && (
+              <div>
+                <strong>Requests:</strong> CPU: {server.spec.resources.requests.cpu || '—'}, Memory:{' '}
+                {server.spec.resources.requests.memory || '—'}
+              </div>
+            )}
+            {server.spec.resources.limits && (
+              <div>
+                <strong>Limits:</strong> CPU: {server.spec.resources.limits.cpu || '—'}, Memory:{' '}
+                {server.spec.resources.limits.memory || '—'}
+              </div>
+            )}
+          </DescriptionListDescription>
+        </DescriptionListGroup>
+      )}
+
       {server.spec.config && (
         <>
           <DescriptionListGroup>

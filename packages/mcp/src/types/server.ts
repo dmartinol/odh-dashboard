@@ -3,21 +3,18 @@ import { K8sResourceCommon } from '@openshift/dynamic-plugin-sdk-utils';
 export interface McpServer extends K8sResourceCommon {
   apiVersion: 'toolhive.stacklok.dev/v1alpha1';
   kind: 'MCPServer';
-  spec: {
-    image: string;
-    transport: McpTransport;
-    tier: McpServerTier;
-    config?: McpServerConfig;
-    deployment?: McpServerDeployment;
-  };
+  spec: McpServerSpec;
   status?: McpServerStatus;
 }
 
-export type McpTransport = 'stdio' | 'streamable-http' | 'sse';
-
-export type McpServerTier = 'official' | 'community' | 'experimental';
-
-export interface McpServerConfig {
+export interface McpServerSpec {
+  image: string;
+  transport?: McpTransport;
+  tier?: McpServerTier;
+  proxyMode?: McpProxyMode;
+  port?: number;
+  targetPort?: number;
+  args?: string[];
   env?: Array<{
     name: string;
     value?: string;
@@ -32,13 +29,6 @@ export interface McpServerConfig {
       };
     };
   }>;
-  args?: string[];
-  command?: string[];
-  workingDir?: string;
-}
-
-export interface McpServerDeployment {
-  replicas?: number;
   resources?: {
     requests?: {
       cpu?: string;
@@ -49,14 +39,18 @@ export interface McpServerDeployment {
       memory?: string;
     };
   };
-  nodeSelector?: Record<string, string>;
-  tolerations?: Array<{
-    key?: string;
-    operator?: 'Exists' | 'Equal';
-    value?: string;
-    effect?: 'NoSchedule' | 'PreferNoSchedule' | 'NoExecute';
+  volumes?: Array<{
+    name: string;
+    mountPath: string;
+    [key: string]: unknown;
   }>;
 }
+
+export type McpTransport = 'stdio' | 'streamable-http' | 'sse';
+
+export type McpProxyMode = 'sse' | 'streamable-http';
+
+export type McpServerTier = 'official' | 'community' | 'experimental';
 
 export interface McpServerStatus {
   phase: 'Pending' | 'Running' | 'Failed' | 'Unknown';
@@ -88,6 +82,9 @@ export interface McpServerMetadata {
   tags?: string[];
   logo?: string;
   image?: string;
+  transport?: McpTransport;
+  target_port?: number;
+  args?: string[];
   tools?: McpToolMetadata[];
   prompts?: McpPromptMetadata[];
   resources?: McpResourceMetadata[];

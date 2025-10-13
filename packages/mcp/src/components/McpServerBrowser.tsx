@@ -87,15 +87,11 @@ export const McpServerBrowser: React.FC<McpServerBrowserProps> = ({
         if (!searchMatch) return false;
       }
 
-      // Transport filter
+      // Transport filter - match only the transport field
       if (filters.transport !== 'all') {
-        const hasTransportTag = server.tags?.some((tag) => {
-          const tagLower = tag.toLowerCase();
-          const filterLower = filters.transport.toLowerCase();
-          // Try exact match first, then contains for backwards compatibility
-          return tagLower === filterLower || tagLower.includes(filterLower);
-        });
-        if (!hasTransportTag) return false;
+        if (server.transport !== filters.transport) {
+          return false;
+        }
       }
 
       // Tier filter
@@ -395,6 +391,8 @@ export const McpServerBrowser: React.FC<McpServerBrowserProps> = ({
           }}
           server={selectedServer}
           onDeploy={(server) => {
+            setDetailsModalOpen(false);
+            setSelectedServer(null);
             setServerToDeploy(server);
             setDeployModalOpen(true);
             onServerDeploy?.(server);
@@ -405,7 +403,6 @@ export const McpServerBrowser: React.FC<McpServerBrowserProps> = ({
       {/* Server Deploy Modal */}
       {serverToDeploy && deployModalOpen && (
         <McpServerDeployModal
-          isOpen
           onClose={() => {
             setDeployModalOpen(false);
             setServerToDeploy(null);
