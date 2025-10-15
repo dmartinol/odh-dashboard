@@ -708,6 +708,19 @@ export const parseRegistryForServers = async (
                     secret: envVar.secret,
                     default: envVar.default,
                   })) || [],
+                tier: serverData.tier,
+                metadata: serverData.metadata
+                  ? {
+                      stars: serverData.metadata.stars,
+                      pulls: serverData.metadata.pulls,
+                      // eslint-disable-next-line camelcase
+                      last_updated: serverData.metadata.last_updated,
+                      // eslint-disable-next-line camelcase
+                      docker_tags: serverData.metadata.docker_tags,
+                      // eslint-disable-next-line camelcase
+                      target_port: serverData.metadata.target_port,
+                    }
+                  : undefined,
               };
 
               console.log(

@@ -24,7 +24,14 @@ import {
   FormSelect,
   FormSelectOption,
 } from '@patternfly/react-core';
-import { ServerIcon, ExternalLinkAltIcon, CubesIcon, EyeIcon } from '@patternfly/react-icons';
+import {
+  ServerIcon,
+  ExternalLinkAltIcon,
+  CubesIcon,
+  EyeIcon,
+  StarIcon,
+  DownloadIcon,
+} from '@patternfly/react-icons';
 import { McpServerDetailsModal } from './McpServerDetailsModal';
 import { McpServerDeployModal } from './McpServerDeployModal';
 import { McpServerMetadata, McpTransport, McpServerTier } from '../types';
@@ -240,6 +247,35 @@ export const McpServerBrowser: React.FC<McpServerBrowserProps> = ({
                 )}
               </Flex>
             </FlexItem>
+
+            {/* Metadata badges */}
+            {server.metadata && (
+              <FlexItem>
+                <Flex spaceItems={{ default: 'spaceItemsXs' }}>
+                  {server.metadata.stars !== undefined && server.metadata.stars > 0 && (
+                    <FlexItem>
+                      <Label variant="outline" icon={<StarIcon />} isCompact>
+                        {server.metadata.stars} stars
+                      </Label>
+                    </FlexItem>
+                  )}
+                  {server.metadata.pulls !== undefined && server.metadata.pulls > 0 && (
+                    <FlexItem>
+                      <Label variant="outline" icon={<DownloadIcon />} isCompact>
+                        {server.metadata.pulls} pulls
+                      </Label>
+                    </FlexItem>
+                  )}
+                  {server.metadata.last_updated && (
+                    <FlexItem>
+                      <Label variant="outline" isCompact>
+                        Updated: {new Date(server.metadata.last_updated).toLocaleDateString()}
+                      </Label>
+                    </FlexItem>
+                  )}
+                </Flex>
+              </FlexItem>
+            )}
 
             <FlexItem>
               <Flex spaceItems={{ default: 'spaceItemsSm' }}>

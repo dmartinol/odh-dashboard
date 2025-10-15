@@ -112,6 +112,14 @@ export interface McpServerMetadata {
   prompts?: McpPromptMetadata[];
   resources?: McpResourceMetadata[];
   env_vars?: McpEnvironmentVariable[];
+  metadata?: {
+    stars?: number;
+    pulls?: number;
+    last_updated?: string;
+    docker_tags?: string[] | null;
+    target_port?: number;
+  };
+  tier?: McpServerTier;
 }
 
 export interface McpEnvironmentVariable {

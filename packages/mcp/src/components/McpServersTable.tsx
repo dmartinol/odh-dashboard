@@ -18,6 +18,7 @@ interface McpServersTableProps {
   registries: McpRegistry[];
   onCopyEndpoint: (endpoint: string) => void;
   onServerClick: (server: McpServer) => void;
+  onServerEdit: (server: McpServer) => void;
   onServerRegister: (server: McpServer) => void;
   onServerUnregister: (server: McpServer) => void;
   onServerDelete: (server: McpServer) => void;
@@ -113,6 +114,7 @@ export const McpServersTable: React.FC<McpServersTableProps> = ({
   registries,
   onCopyEndpoint,
   onServerClick,
+  onServerEdit,
   onServerRegister,
   onServerUnregister,
   onServerDelete,
@@ -299,6 +301,10 @@ export const McpServersTable: React.FC<McpServersTableProps> = ({
                     {
                       title: 'View details',
                       onClick: () => onServerClick(server),
+                    },
+                    {
+                      title: 'Edit',
+                      onClick: () => onServerEdit(server),
                     },
                     { isSeparator: true },
                     {

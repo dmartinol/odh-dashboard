@@ -6,7 +6,7 @@ import {
   k8sUpdateResource,
   K8sModelCommon,
 } from '@openshift/dynamic-plugin-sdk-utils';
-import { McpRegistry, McpListOptions } from '../types';
+import { McpRegistry, McpListOptions, McpServerMetadata } from '../types';
 
 const McpRegistryModel: K8sModelCommon = {
   apiVersion: 'v1alpha1',
@@ -86,4 +86,114 @@ export const syncMcpRegistry = async (name: string, namespace: string): Promise<
   };
 
   await updateMcpRegistry(patchedRegistry);
+};
+
+// Fetch complete server metadata from a linked registry
+export const getServerMetadataFromRegistry = async (
+  registryName: string,
+  registryNamespace: string,
+  serverName: string,
+): Promise<McpServerMetadata | null> => {
+  try {
+    // Fetch the registry resource
+    const registry = await getMcpRegistry(registryName, registryNamespace);
+
+    // Get the storage ref from registry status
+    const storageRef = registry.status?.storageRef;
+    if (!storageRef?.configMapRef?.name) {
+      console.warn(`Registry ${registryNamespace}/${registryName} has no storage configmap`);
+      return null;
+    }
+
+    // Fetch the storage configmap
+    const ConfigMapModel: K8sModelCommon = {
+      apiVersion: 'v1',
+      kind: 'ConfigMap',
+      plural: 'configmaps',
+    };
+
+    const configMap = await k8sGetResource({
+      model: ConfigMapModel,
+      queryOptions: {
+        name: storageRef.configMapRef.name,
+        ns: registryNamespace,
+      },
+    });
+
+    // Parse the registry data from the configmap
+    const registryDataKey = Object.keys(configMap.data || {})[0];
+    if (!registryDataKey) {
+      console.warn(`Storage configmap has no data keys`);
+      return null;
+    }
+
+    const registryDataStr = configMap.data[registryDataKey];
+    const registryData = JSON.parse(registryDataStr);
+
+    // Find the server in the registry data
+    if (registryData.servers && typeof registryData.servers === 'object') {
+      const serverData = registryData.servers[serverName];
+      if (!serverData) {
+        console.warn(`Server ${serverName} not found in registry ${registryName}`);
+        return null;
+      }
+
+      // Convert ToolHive format to McpServerMetadata
+      const server: McpServerMetadata = {
+        name: serverName,
+        displayName: serverData.displayName || serverName,
+        description: serverData.description,
+        version: serverData.version,
+        author: serverData.author,
+        homepage: serverData.homepage,
+        repository: serverData.repository || serverData.repository_url,
+        license: serverData.license,
+        tags: serverData.tags || [],
+        logo: serverData.logo,
+        image: serverData.image,
+        transport: serverData.transport,
+        // eslint-disable-next-line camelcase
+        target_port: serverData.target_port,
+        args: serverData.args,
+        // eslint-disable-next-line camelcase
+        env_vars: serverData.env_vars || [],
+        tools: serverData.tools?.map(
+          (tool: { name: string; description?: string; inputSchema?: unknown } | string) =>
+            typeof tool === 'string'
+              ? { name: tool, description: undefined, inputSchema: undefined }
+              : {
+                  name: tool.name,
+                  description: tool.description,
+                  inputSchema: tool.inputSchema,
+                },
+        ),
+        prompts: serverData.prompts?.map(
+          (prompt: { name: string; description?: string; arguments?: unknown[] }) => ({
+            name: prompt.name,
+            description: prompt.description,
+            arguments: prompt.arguments || [],
+          }),
+        ),
+        resources: serverData.resources?.map(
+          (resource: { uri: string; name?: string; description?: string; mimeType?: string }) => ({
+            uri: resource.uri,
+            name: resource.name,
+            description: resource.description,
+            mimeType: resource.mimeType,
+          }),
+        ),
+        tier: serverData.tier,
+      };
+
+      return server;
+    }
+
+    return null;
+  } catch (error) {
+    console.error(
+      `Failed to fetch server metadata from registry ${registryNamespace}/${registryName}:`,
+      error,
+    );
+    return null;
+  }
 };
