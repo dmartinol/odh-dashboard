@@ -44,6 +44,7 @@ interface McpServerDeployModalProps {
   onSuccess: () => void;
   server: McpServerMetadata;
   existingServer?: McpServer;
+  serverMetadata?: McpServerMetadata; // Complete metadata when editing (includes all env_vars)
   registryContext?: {
     registry: McpRegistry;
     serverName: string;
@@ -116,6 +117,7 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
   onSuccess,
   server,
   existingServer,
+  serverMetadata,
   registryContext,
 }) => {
   const notification = useNotification();
@@ -171,25 +173,79 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
         memoryRequest: existingServer.spec.resources?.requests?.memory || '128Mi',
         cpuLimit: existingServer.spec.resources?.limits?.cpu || '500m',
         memoryLimit: existingServer.spec.resources?.limits?.memory || '512Mi',
-        environmentVariables: [
-          // Load plain value env vars
-          ...(existingServer.spec.env?.map((e) => ({
-            name: e.name,
-            value: e.value || '',
-            sourceType: 'value' as const,
-            secretRef: undefined,
-          })) || []),
-          // Load secret reference env vars from the secrets array
-          ...(existingServer.spec.secrets?.map((s) => ({
-            name: s.targetEnvName || s.key,
-            value: '',
-            sourceType: 'secretRef' as const,
-            secretRef: {
-              secretName: s.name,
-              secretKey: s.key,
-            },
-          })) || []),
-        ],
+        environmentVariables: (() => {
+          // If we have complete metadata, merge configured values with all available env vars
+          if (serverMetadata?.env_vars) {
+            // Create map of configured values
+            const configuredEnvVars = new Map<string, EnvironmentVariable>();
+
+            // Add existing value-based env vars
+            existingServer.spec.env?.forEach((e) => {
+              const metadata = serverMetadata.env_vars?.find((v) => v.name === e.name);
+              configuredEnvVars.set(e.name, {
+                name: e.name,
+                value: e.value || '',
+                required: metadata?.required,
+                secret: metadata?.secret,
+                sourceType: 'value' as const,
+                secretRef: undefined,
+              });
+            });
+
+            // Add existing secret-based env vars
+            existingServer.spec.secrets?.forEach((s) => {
+              const envName = s.targetEnvName || s.key;
+              const metadata = serverMetadata.env_vars?.find((v) => v.name === envName);
+              configuredEnvVars.set(envName, {
+                name: envName,
+                value: '',
+                required: metadata?.required,
+                secret: metadata?.secret,
+                sourceType: 'secretRef' as const,
+                secretRef: {
+                  secretName: s.name,
+                  secretKey: s.key,
+                },
+              });
+            });
+
+            // Merge with ALL expected env vars from metadata
+            return serverMetadata.env_vars.map((envMeta) => {
+              const existing = configuredEnvVars.get(envMeta.name);
+              return (
+                existing || {
+                  name: envMeta.name,
+                  value: envMeta.default || '',
+                  required: envMeta.required,
+                  secret: envMeta.secret,
+                  sourceType: 'value' as const,
+                  secretRef: undefined,
+                }
+              );
+            });
+          }
+
+          // Fallback: If no metadata, just show configured values
+          return [
+            // Load plain value env vars
+            ...(existingServer.spec.env?.map((e) => ({
+              name: e.name,
+              value: e.value || '',
+              sourceType: 'value' as const,
+              secretRef: undefined,
+            })) || []),
+            // Load secret reference env vars from the secrets array
+            ...(existingServer.spec.secrets?.map((s) => ({
+              name: s.targetEnvName || s.key,
+              value: '',
+              sourceType: 'secretRef' as const,
+              secretRef: {
+                secretName: s.name,
+                secretKey: s.key,
+              },
+            })) || []),
+          ];
+        })(),
         imagePullSecrets:
           existingServer.spec.podTemplateSpec?.spec?.imagePullSecrets?.map((s) => s.name) || [],
         serviceAccount: existingServer.spec.podTemplateSpec?.spec?.serviceAccountName || '',
@@ -241,7 +297,7 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
     }
     setError(undefined);
     setActiveTabKey(DeployDialogTab.SERVER);
-  }, [server.name, existingServer]);
+  }, [server.name, existingServer, serverMetadata]);
 
   const updateConfig = (updates: Partial<DeploymentConfig>) => {
     setConfig((prev) => ({ ...prev, ...updates }));
@@ -416,6 +472,16 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
             'mcp.toolhive.stacklok.dev/server-version': server.version || '',
             'mcp.toolhive.stacklok.dev/server-logo': server.logo || '',
           },
+          // Preserve required metadata fields when updating
+          ...(existingServer?.metadata?.resourceVersion && {
+            resourceVersion: existingServer.metadata.resourceVersion,
+          }),
+          ...(existingServer?.metadata?.uid && {
+            uid: existingServer.metadata.uid,
+          }),
+          ...(existingServer?.metadata?.creationTimestamp && {
+            creationTimestamp: existingServer.metadata.creationTimestamp,
+          }),
         },
         spec: {
           image: server.image || `mcp-server-${server.name}:latest`,
@@ -529,6 +595,7 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
                     name="deployment-name"
                     value={config.name}
                     onChange={(_, value) => updateConfig({ name: value })}
+                    isDisabled={!!existingServer}
                   />
                   <HelperText>
                     <HelperTextItem>
@@ -1316,11 +1383,11 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
         <DashboardModalFooter
           onCancel={onCancelClose}
           onSubmit={onSubmit}
-          submitLabel="Deploy Server"
+          submitLabel={existingServer ? 'Save Changes' : 'Deploy Server'}
           isSubmitLoading={isSubmitting}
           isSubmitDisabled={!canSubmit()}
           error={error}
-          alertTitle="Error deploying MCP server"
+          alertTitle={existingServer ? 'Error updating MCP server' : 'Error deploying MCP server'}
         />
       </ModalFooter>
     </Modal>

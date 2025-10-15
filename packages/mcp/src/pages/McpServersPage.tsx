@@ -359,7 +359,6 @@ const McpServersPage: React.FC = () => {
         <McpDeployedServerDetailsModal
           server={selectedServer}
           serverMetadata={selectedServerMetadata || undefined}
-          linkedRegistry={getLinkedRegistry(selectedServer)}
           onClose={() => {
             setDetailsModalOpen(false);
             setSelectedServer(null);
