@@ -29,6 +29,8 @@ import {
   CodeIcon,
   CogIcon,
   InfoCircleIcon,
+  StarIcon,
+  DownloadIcon,
 } from '@patternfly/react-icons';
 import { McpServerMetadata, McpTransport, McpServerTier } from '../types';
 
@@ -184,6 +186,40 @@ export const McpServerDetailsModal: React.FC<McpServerDetailsModalProps> = ({
               </DescriptionListDescription>
             </DescriptionListGroup>
           )}
+
+          {server.metadata &&
+            (server.metadata.stars !== undefined ||
+              server.metadata.pulls !== undefined ||
+              server.metadata.last_updated) && (
+              <DescriptionListGroup>
+                <DescriptionListTerm>Repository Statistics</DescriptionListTerm>
+                <DescriptionListDescription>
+                  <Flex spaceItems={{ default: 'spaceItemsSm' }}>
+                    {server.metadata.stars !== undefined && server.metadata.stars > 0 && (
+                      <FlexItem>
+                        <Label variant="outline" icon={<StarIcon />} isCompact>
+                          {server.metadata.stars} stars
+                        </Label>
+                      </FlexItem>
+                    )}
+                    {server.metadata.pulls !== undefined && server.metadata.pulls > 0 && (
+                      <FlexItem>
+                        <Label variant="outline" icon={<DownloadIcon />} isCompact>
+                          {server.metadata.pulls} pulls
+                        </Label>
+                      </FlexItem>
+                    )}
+                    {server.metadata.last_updated && (
+                      <FlexItem>
+                        <Label variant="outline" isCompact>
+                          Updated: {new Date(server.metadata.last_updated).toLocaleDateString()}
+                        </Label>
+                      </FlexItem>
+                    )}
+                  </Flex>
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+            )}
 
           {server.tags && server.tags.length > 0 && (
             <DescriptionListGroup>

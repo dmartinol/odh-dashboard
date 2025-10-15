@@ -20,11 +20,13 @@ import { McpServersTable } from '../components/McpServersTable';
 import { McpServersToolbar } from '../components/McpServersToolbar';
 import { McpServerDeployModal } from '../components/McpServerDeployModal';
 import { McpRegistryServerDetailsModal } from '../components/McpRegistryServerDetailsModal';
+import { McpDeployedServerDetailsModal } from '../components/McpDeployedServerDetailsModal';
 import { McpServerRegisterModal } from '../components/McpServerRegisterModal';
 import { McpServerDeleteModal } from '../components/McpServerDeleteModal';
-import { McpServer } from '../types/server';
+import { McpServer, McpServerMetadata } from '../types/server';
 import { McpRegistry } from '../types/registry';
 import { patchMcpServer, deleteMcpServer } from '../api/k8s/mcp';
+import { getServerMetadataFromRegistry } from '../api/registries';
 
 const McpServersPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -38,10 +40,16 @@ const McpServersPage: React.FC = () => {
 
   // State for modals and selected server
   const [selectedServer, setSelectedServer] = React.useState<McpServer | null>(null);
+  const [selectedServerMetadata, setSelectedServerMetadata] =
+    React.useState<McpServerMetadata | null>(null);
+  const [editingServer, setEditingServer] = React.useState<McpServer | null>(null);
+  const [editingServerMetadata, setEditingServerMetadata] =
+    React.useState<McpServerMetadata | null>(null);
   const [selectedRegistryForServer, setSelectedRegistryForServer] = React.useState<{
     registry: McpRegistry;
     serverName: string;
   } | null>(null);
+  const [detailsModalOpen, setDetailsModalOpen] = React.useState(false);
   const [deployModalOpen, setDeployModalOpen] = React.useState(false);
   const [registerModalOpen, setRegisterModalOpen] = React.useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = React.useState(false);
@@ -142,9 +150,34 @@ const McpServersPage: React.FC = () => {
     }
   };
 
+  // Helper function to fetch server metadata from linked registry
+  const fetchServerMetadata = async (server: McpServer): Promise<McpServerMetadata | null> => {
+    const registryName = server.metadata?.labels?.['toolhive.stacklok.io/registry-name'];
+    const registryNamespace = server.metadata?.labels?.['toolhive.stacklok.io/registry-namespace'];
+    const serverName = server.metadata?.labels?.['mcp.toolhive.stacklok.dev/server-type'];
+
+    if (registryName && registryNamespace && serverName) {
+      try {
+        return await getServerMetadataFromRegistry(registryName, registryNamespace, serverName);
+      } catch (error) {
+        console.error('Failed to fetch server metadata:', error);
+      }
+    }
+    return null;
+  };
+
   // Server action handlers
-  const handleServerClick = (server: McpServer) => {
+  const handleServerClick = async (server: McpServer) => {
+    const metadata = await fetchServerMetadata(server);
     setSelectedServer(server);
+    setSelectedServerMetadata(metadata);
+    setDetailsModalOpen(true);
+  };
+
+  const handleServerEdit = async (server: McpServer) => {
+    const metadata = await fetchServerMetadata(server);
+    setEditingServer(server);
+    setEditingServerMetadata(metadata);
     setDeployModalOpen(true);
   };
 
@@ -309,6 +342,7 @@ const McpServersPage: React.FC = () => {
                   registries={registries}
                   onCopyEndpoint={handleCopyEndpoint}
                   onServerClick={handleServerClick}
+                  onServerEdit={handleServerEdit}
                   onServerRegister={handleServerRegister}
                   onServerUnregister={handleServerUnregister}
                   onServerDelete={handleServerDelete}
@@ -321,36 +355,58 @@ const McpServersPage: React.FC = () => {
       </PageSection>
 
       {/* Modals */}
-      {selectedServer && deployModalOpen && (
+      {/* Details modal - read-only view with Edit button */}
+      {selectedServer && detailsModalOpen && (
+        <McpDeployedServerDetailsModal
+          server={selectedServer}
+          serverMetadata={selectedServerMetadata || undefined}
+          onClose={() => {
+            setDetailsModalOpen(false);
+            setSelectedServer(null);
+            setSelectedServerMetadata(null);
+          }}
+          onEdit={(server) => {
+            setDetailsModalOpen(false);
+            setSelectedServer(null);
+            setSelectedServerMetadata(null);
+            handleServerEdit(server);
+          }}
+        />
+      )}
+
+      {/* Edit modal - deploy modal in edit mode */}
+      {editingServer && deployModalOpen && (
         <McpServerDeployModal
           onClose={() => {
             setDeployModalOpen(false);
-            setSelectedServer(null);
+            setEditingServer(null);
+            setEditingServerMetadata(null);
           }}
           onSuccess={() => {
             setDeployModalOpen(false);
-            setSelectedServer(null);
+            setEditingServer(null);
+            setEditingServerMetadata(null);
           }}
           server={{
             name:
-              selectedServer.metadata?.labels?.['mcp.toolhive.stacklok.dev/server-type'] ||
-              selectedServer.metadata?.name ||
+              editingServer.metadata?.labels?.['mcp.toolhive.stacklok.dev/server-type'] ||
+              editingServer.metadata?.name ||
               '',
             displayName:
-              selectedServer.metadata?.annotations?.[
+              editingServer.metadata?.annotations?.[
                 'mcp.toolhive.stacklok.dev/server-display-name'
               ] ||
-              selectedServer.metadata?.name ||
+              editingServer.metadata?.name ||
               '',
             description:
-              selectedServer.metadata?.annotations?.[
+              editingServer.metadata?.annotations?.[
                 'mcp.toolhive.stacklok.dev/server-description'
               ] || '',
             version:
-              selectedServer.metadata?.annotations?.['mcp.toolhive.stacklok.dev/server-version'] ||
+              editingServer.metadata?.annotations?.['mcp.toolhive.stacklok.dev/server-version'] ||
               '',
             logo:
-              selectedServer.metadata?.annotations?.['mcp.toolhive.stacklok.dev/server-logo'] ||
+              editingServer.metadata?.annotations?.['mcp.toolhive.stacklok.dev/server-logo'] ||
               undefined,
             author: '',
             homepage: '',
@@ -358,7 +414,8 @@ const McpServersPage: React.FC = () => {
             license: '',
             tags: [],
           }}
-          existingServer={selectedServer}
+          existingServer={editingServer}
+          serverMetadata={editingServerMetadata || undefined}
         />
       )}
 
