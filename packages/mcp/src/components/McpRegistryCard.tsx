@@ -94,10 +94,11 @@ export const McpRegistryCard: React.FC<McpRegistryCardProps> = ({
             <FlexItem flex={{ default: 'flex_1' }}>
               <Truncate content={spec.displayName || metadata?.name || 'Unknown'} />
             </FlexItem>
-            <FlexItem>
+            <FlexItem style={{ marginLeft: 'auto' }}>
               <Flex
                 alignItems={{ default: 'alignItemsCenter' }}
                 spaceItems={{ default: 'spaceItemsSm' }}
+                style={{ whiteSpace: 'nowrap' }}
               >
                 {onSync && (
                   <FlexItem>
@@ -160,7 +161,7 @@ export const McpRegistryCard: React.FC<McpRegistryCardProps> = ({
                     </Dropdown>
                   </FlexItem>
                 )}
-                <FlexItem>
+                <FlexItem style={{ marginLeft: '8px' }}>
                   <McpRegistryStatusLabel status={registry.status} />
                 </FlexItem>
               </Flex>
