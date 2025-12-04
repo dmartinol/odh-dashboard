@@ -719,18 +719,40 @@ export const parseRegistryForServers = async (
                     default: envVar.default,
                   })) || [],
                 tier: serverData.tier,
-                metadata: serverData.metadata
-                  ? {
-                      stars: serverData.metadata.stars,
-                      pulls: serverData.metadata.pulls,
-                      // eslint-disable-next-line camelcase
-                      last_updated: serverData.metadata.last_updated,
-                      // eslint-disable-next-line camelcase
-                      docker_tags: serverData.metadata.docker_tags,
-                      // eslint-disable-next-line camelcase
-                      target_port: serverData.metadata.target_port,
-                    }
-                  : undefined,
+                metadata:
+                  serverData.metadata && typeof serverData.metadata === 'object'
+                    ? {
+                        stars:
+                          'stars' in serverData.metadata &&
+                          typeof serverData.metadata.stars === 'number'
+                            ? serverData.metadata.stars
+                            : undefined,
+                        pulls:
+                          'pulls' in serverData.metadata &&
+                          typeof serverData.metadata.pulls === 'number'
+                            ? serverData.metadata.pulls
+                            : undefined,
+                        // eslint-disable-next-line camelcase
+                        last_updated:
+                          'last_updated' in serverData.metadata &&
+                          typeof serverData.metadata.last_updated === 'string'
+                            ? serverData.metadata.last_updated
+                            : undefined,
+                        // eslint-disable-next-line camelcase
+                        docker_tags:
+                          'docker_tags' in serverData.metadata &&
+                          (Array.isArray(serverData.metadata.docker_tags) ||
+                            serverData.metadata.docker_tags === null)
+                            ? serverData.metadata.docker_tags
+                            : undefined,
+                        // eslint-disable-next-line camelcase
+                        target_port:
+                          'target_port' in serverData.metadata &&
+                          typeof serverData.metadata.target_port === 'number'
+                            ? serverData.metadata.target_port
+                            : undefined,
+                      }
+                    : undefined,
               };
 
               console.log(
