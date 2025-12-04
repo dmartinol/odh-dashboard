@@ -60,7 +60,6 @@ export const advancedAIMLFlags = {
   disableFineTuning: true,
   disableLMEval: true,
   trainingJobs: false,
-  disableModelTraining: true,
   disableMcp: false,
 } satisfies Partial<DashboardCommonConfig>;
 

@@ -1,3 +1,6 @@
 {
-  "extends": "@odh-dashboard/tsconfig/tsconfig.json"
+  "extends": "@odh-dashboard/tsconfig/tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "../../"
+  }
 }

@@ -152,8 +152,8 @@ export const McpServersTable: React.FC<McpServersTableProps> = ({
           bValue = getLinkedRegistry(b, registries)?.metadata?.name || '';
           break;
         case 'transport':
-          aValue = a.spec.transport;
-          bValue = b.spec.transport;
+          aValue = a.spec.transport || '';
+          bValue = b.spec.transport || '';
           break;
         default:
           aValue = a.metadata?.name || '';
@@ -291,9 +291,13 @@ export const McpServersTable: React.FC<McpServersTableProps> = ({
                 )}
               </Td>
               <Td dataLabel="Transport">
-                <Label color={getTransportColor(server.spec.transport)} isCompact>
-                  {server.spec.transport}
-                </Label>
+                {server.spec.transport ? (
+                  <Label color={getTransportColor(server.spec.transport)} isCompact>
+                    {server.spec.transport}
+                  </Label>
+                ) : (
+                  <span className="pf-v6-u-color-200">—</span>
+                )}
               </Td>
               <Td dataLabel="Actions" isActionCell>
                 <ActionsColumn
