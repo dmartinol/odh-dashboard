@@ -1,0 +1,41 @@
+apiVersion: toolhive.stacklok.dev/v1alpha1
+kind: MCPRegistry
+metadata:
+  name: toolhive-git-registry
+  namespace: toolhive-system
+spec:
+  displayName: "ToolHive Official Registry (Git)"
+  registries:
+    - name: toolhive-git-registry
+      format: toolhive
+      git:
+        repository: "https://github.com/stacklok/toolhive"
+        branch: "main"
+        path: "pkg/registry/data/registry.json"
+      syncPolicy:
+        interval: "1h"
+      filter:
+        tags:
+          include:
+            - "database"
+            - "filesystem"
+            - "api"
+          exclude:
+            - "experimental"
+  databaseConfig:
+    host: demo-db-rw.toolhive-system.svc.cluster.local
+    port: 5432
+    user: db_app
+    # DIRTY TRICK TO USE ENV VAR FOR THE (SINGKLE) PASSWORD
+    migrationUser: db_app
+    database: registry
+    sslMode: require
+  auth:
+    mode: anonymous
+  podTemplateSpec:
+    spec:
+      containers:
+        - name: registry-api
+          env:
+            - name: PGPASSWORD
+              value: app_password

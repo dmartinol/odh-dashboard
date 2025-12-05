@@ -1,0 +1,52 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: demo-db
+spec:
+  instances: 1
+  # imageName: registry.developers.openshift.com/cnpg/postgresql-16:latest
+  
+  storage:
+    size: 1Gi
+    # storageClass: ocs-storagecluster-cephfs 
+
+  bootstrap:
+    initdb:
+      # locale: "en_US.utf8"
+      # encoding: "UTF8"
+
+      database: registry 
+      postInitApplicationSQL:
+        - |
+          BEGIN;
+
+          DO $body$
+            DECLARE
+              migrator_user TEXT := 'db_app';
+              migrator_password TEXT := 'app_password';
+
+              app_user TEXT := 'db_app';
+              app_password TEXT := 'app_password';
+
+              db_name TEXT := 'registry';
+            BEGIN
+              EXECUTE format('CREATE USER %I WITH PASSWORD %L', migrator_user, migrator_password);
+              EXECUTE format('GRANT CONNECT ON DATABASE %I TO %I', db_name, migrator_user);
+              EXECUTE format('GRANT CREATE ON SCHEMA public TO %I', migrator_user);
+              EXECUTE format('GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO %I', migrator_user);
+
+              CREATE ROLE toolhive_registry_server;
+
+              -- EXECUTE format('CREATE USER %I WITH PASSWORD %L', app_user, app_password);
+              EXECUTE format('GRANT toolhive_registry_server TO %I', app_user);
+              EXECUTE format('GRANT CONNECT ON DATABASE %I TO %I', db_name, app_user);
+            END;
+          $body$;
+
+          COMMIT;
+
+  # Synchronous replication is recommended for critical databases
+  # fence_insync_replicas: true
+  # enable_streaming_replication: true
+  service:
+    type: ClusterIP
