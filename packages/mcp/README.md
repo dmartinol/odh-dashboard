@@ -52,12 +52,12 @@ src/
 ## Extensions
 
 ### Navigation Extensions
-- Adds "Model Context Protocol" section to ODH navigation
-- Registries and Servers menu items
+- MCP Registries integrated into AI Hub section
+- AI Asset Endpoints integrated into Gen AI Studio section
 
 ### Route Extensions
-- `/mcp/registries/*` - Registry management
-- `/mcp/servers/*` - Server discovery and deployment
+- `/ai-hub/mcp/registries/*` - Registry management (under AI Hub)
+- `/gen-ai-studio/ai-asset-endpoints/*` - Server discovery and deployment (under Gen AI Studio)
 
 ### Extension Points
 - `mcp.registry` - For registry plugins

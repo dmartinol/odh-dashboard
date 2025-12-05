@@ -63,8 +63,8 @@ export const advancedAIMLFlags = {
   disableMcp: false,
 } satisfies Partial<DashboardCommonConfig>;
 
-// Combined feature flags object
-const allFeatureFlagsConfig = {
+// Combined feature flags object - used as defaults when cluster config doesn't specify values
+export const allFeatureFlagsConfig = {
   ...devTemporaryFeatureFlags,
   ...techPreviewFlags,
   ...coreDashboardFlags,

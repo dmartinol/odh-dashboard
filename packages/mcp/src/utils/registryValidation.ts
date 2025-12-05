@@ -437,7 +437,9 @@ const parseMcpV0Format = async (
       let detailedServer: McpV0DetailedServer = basicServer;
       if (baseUrl && basicServer.name) {
         try {
-          const detailResponse = await fetch(`${baseUrl}/v0/servers/${basicServer.name}`);
+          const detailResponse = await fetch(
+            `${baseUrl}/v0.1/servers/${basicServer.name}/versions`,
+          );
           if (detailResponse.ok) {
             // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
             detailedServer = (await detailResponse.json()) as McpV0DetailedServer;

@@ -78,7 +78,7 @@ export const McpRegistryCard: React.FC<McpRegistryCardProps> = ({
   const handleViewRegistry = () => {
     const registryName = metadata?.name;
     if (registryName) {
-      navigate(`/mcp/registries/${registryName}`);
+      navigate(`/ai-hub/mcp/registries/${registryName}`);
     }
     // Also call the external onView callback if provided (for backward compatibility)
     if (onView) {

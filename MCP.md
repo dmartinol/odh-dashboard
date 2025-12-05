@@ -6,31 +6,32 @@ This document outlines the design and implementation plan for integrating Model 
 
 ## Navigation Design Decision
 
-### Menu Placement: New Top-Level Section
+### Menu Placement: Integration into Existing Sections
 
-**Recommendation: Create a standalone "Model Context Protocol" section (group `4_mcp`)**
+**Decision: Integrate MCP features into AI Hub and Gen AI Studio sections**
 
 **Rationale:**
 
-- MCP serves developers and tools management, distinct from AI model serving
-- Provides dedicated space for MCP-specific workflows
-- Maintains logical separation from AI Hub (which focuses on models)
-- Allows for future expansion of MCP-related features
-- Follows ODH pattern of functional grouping
+- MCP registries align with AI Hub's model registry and catalog concepts
+- MCP servers (AI asset endpoints) fit naturally into Gen AI Studio's asset management
+- Provides logical grouping with related AI/ML functionality
+- Reduces navigation complexity by consolidating related features
+- Follows ODH pattern of functional grouping within existing sections
 
 **Navigation Structure:**
 
 ```
-📍 Current ODH Menu Structure:
+📍 Updated ODH Menu Structure:
 ├── 🏠 Home (1_home)
 ├── 📁 Projects (2_projects)
 ├── 🤖 AI Hub (3_ai_hub)
 │   ├── Registry (model registry)
-│   └── Catalog (model catalog)
-├── ⚡ NEW: Model Context Protocol (4_mcp) ← INSERT HERE
-│   ├── 📋 Registries (/mcp/registries)
-│   │   └── 🔍 Registry Details (/mcp/registries/{name})
-│   └── 🔧 Servers (/mcp/servers)
+│   ├── Catalog (model catalog)
+│   ├── 📋 MCP catalogs (NEW)
+│   └── 📋 MCP registries (/ai-hub/mcp/registries) ← MOVED FROM STANDALONE
+│       └── 🔍 Registry Details (/ai-hub/mcp/registries/{name})
+├── 🎨 Gen AI Studio (NEW SECTION)
+│   └── 🔧 AI asset endpoints (/gen-ai-studio/ai-asset-endpoints) ← MOVED FROM MCP/SERVERS
 ├── 🔬 Develop & Train (5_develop_and_train)
 ├── 📊 Observe & Monitor (6_observe_and_monitor)
 ├── 📚 Learning Resources (7_other)
@@ -60,7 +61,7 @@ The MCP integration will follow ODH's design system while incorporating modern U
 
 ### Page Layout Designs
 
-#### 1. Registries Page (`/mcp/registries`)
+#### 1. Registries Page (`/ai-hub/mcp/registries`)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -81,11 +82,11 @@ The MCP integration will follow ODH's design system while incorporating modern U
 └─────────────────────────────────────────────────────────┘
 ```
 
-#### 2. Registry Details Page (`/mcp/registries/{name}`)
+#### 2. Registry Details Page (`/ai-hub/mcp/registries/{name}`)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ 🏠 MCP > Registries > Production Registry              │
+│ 🏠 AI Hub > MCP Registries > Production Registry       │
 ├─────────────────────────────────────────────────────────┤
 │ Production Registry                          [Edit][⚙️] │
 │ 🏷️ git • ✅ healthy • Last sync: 30m ago              │
@@ -101,11 +102,11 @@ The MCP integration will follow ODH's design system while incorporating modern U
 └─────────────────────────────────────────────────────────┘
 ```
 
-#### 3. Servers Page (`/mcp/servers`)
+#### 3. AI Asset Endpoints Page (`/gen-ai-studio/ai-asset-endpoints`)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ 🔧 MCP Servers                                          │
+│ 🔧 AI Asset Endpoints                                   │
 ├─────────────────────────────────────────────────────────┤
 │ Namespace: [toolhive-system ▼]                          │
 ├─────────────────────────────────────────────────────────┤
@@ -231,24 +232,16 @@ const [servers, loaded, error] = useMcpServers(namespace);
 ```typescript
 // packages/mcp/extensions/navigation.ts
 const extensions: NavExtension[] = [
-  {
-    type: 'app.navigation/section',
-    properties: {
-      id: 'mcp',
-      title: 'Model Context Protocol',
-      group: '4_mcp',
-      iconRef: () => import('#~/images/icons/McpNavIcon'),
-    },
-  },
+  // MCP Registries under AI Hub section
   {
     type: 'app.navigation/href',
     flags: { required: [SupportedArea.MCP_REGISTRIES] },
     properties: {
       id: 'mcp-registries',
-      title: 'Registries',
-      href: '/mcp/registries',
-      section: 'mcp',
-      path: '/mcp/registries',
+      title: 'MCP registries',
+      href: '/ai-hub/mcp/registries',
+      section: 'ai-hub', // Integrate into existing AI Hub section
+      path: '/ai-hub/mcp/registries',
     },
   },
   {
@@ -256,24 +249,91 @@ const extensions: NavExtension[] = [
     flags: { required: [SupportedArea.MCP_REGISTRIES] },
     properties: {
       id: 'mcp-registry-details',
-      href: '/mcp/registries/:name',
-      section: 'mcp',
-      path: '/mcp/registries/*',
+      href: '/ai-hub/mcp/registries/:name',
+      section: 'ai-hub',
+      path: '/ai-hub/mcp/registries/*',
     },
   },
+  // MCP Catalogs under AI Hub section (future feature)
+  {
+    type: 'app.navigation/href',
+    flags: { required: [SupportedArea.MCP_CATALOGS] },
+    properties: {
+      id: 'mcp-catalogs',
+      title: 'MCP catalogs',
+      href: '/ai-hub/mcp/catalogs',
+      section: 'ai-hub',
+      path: '/ai-hub/mcp/catalogs/*',
+    },
+  },
+  // AI Asset Endpoints under Gen AI Studio section
   {
     type: 'app.navigation/href',
     flags: { required: [SupportedArea.MCP_SERVERS] },
     properties: {
-      id: 'mcp-servers',
-      title: 'Servers',
-      href: '/mcp/servers',
-      section: 'mcp',
-      path: '/mcp/servers/*',
+      id: 'ai-asset-endpoints',
+      title: 'AI asset endpoints',
+      href: '/gen-ai-studio/ai-asset-endpoints',
+      section: 'gen-ai-studio', // New Gen AI Studio section
+      path: '/gen-ai-studio/ai-asset-endpoints/*',
     },
   },
 ];
 ```
+
+## Navigation Migration Guide
+
+### Code Changes Required
+
+The following changes need to be implemented to migrate from the standalone MCP section to the integrated structure:
+
+#### 1. **Route Path Updates**
+
+**Old Routes:**
+- `/mcp/registries` → **New:** `/ai-hub/mcp/registries`
+- `/mcp/registries/:name` → **New:** `/ai-hub/mcp/registries/:name`
+- `/mcp/servers` → **New:** `/gen-ai-studio/ai-asset-endpoints`
+
+**Files to Update:**
+- `packages/mcp/extensions/navigation.ts` - Update all `href` and `path` properties
+- All page components that use route paths
+- Breadcrumb components
+- Navigation links between pages
+
+#### 2. **Navigation Extension Updates**
+
+**Changes:**
+- Remove standalone `app.navigation/section` for MCP
+- Update `section` property from `'mcp'` to `'ai-hub'` for registries
+- Add new `section: 'gen-ai-studio'` for AI asset endpoints
+- Update menu item titles:
+  - "Registries" → "MCP registries"
+  - "Servers" → "AI asset endpoints"
+
+#### 3. **Breadcrumb Updates**
+
+**Old Breadcrumbs:**
+- `MCP > Registries > {name}`
+
+**New Breadcrumbs:**
+- `AI Hub > MCP Registries > {name}`
+- `Gen AI Studio > AI Asset Endpoints`
+
+#### 4. **Component & Page Updates**
+
+**Files Requiring Updates:**
+- `McpRegistriesPage.tsx` - Update route path references
+- `McpRegistryDetailsPage.tsx` - Update breadcrumbs and route paths
+- `McpServersPage.tsx` - Rename to `AiAssetEndpointsPage.tsx` and update routes
+- All components with hardcoded `/mcp/*` paths
+- Link components that navigate between MCP pages
+
+#### 5. **Feature Flag Updates**
+
+Ensure feature flags remain the same:
+- `SupportedArea.MCP_REGISTRIES` - For MCP registries
+- `SupportedArea.MCP_SERVERS` - For AI asset endpoints
+- Add `SupportedArea.MCP_CATALOGS` - For future MCP catalogs feature
 
 ## Implementation Plan
 
@@ -286,6 +346,7 @@ const extensions: NavExtension[] = [
 - ✅ **Full Phase 1**: Package structure, navigation, and API foundation
 - ✅ MCP package integrated into ODH Dashboard build system
 - ✅ Navigation menu items appearing correctly
+- ⏳ **Navigation Restructure**: Migrate from standalone MCP section to AI Hub and Gen AI Studio integration
 - ✅ Basic page layouts with PatternFly components
 - ✅ TypeScript type definitions for all MCP resources
 - ✅ API client structure for registries, servers, and instances
@@ -362,7 +423,8 @@ const extensions: NavExtension[] = [
 **🎉 Phase 1 Summary:**
 
 - MCP package successfully integrated into ODH Dashboard
-- Navigation appears correctly with "Model Context Protocol" section
+- Navigation appears correctly (currently standalone "Model Context Protocol" section)
+- ⏳ **Pending**: Navigation restructure to integrate into AI Hub and Gen AI Studio
 - Zero build, lint, or type-check errors
 - Foundation ready for Phase 2 development
 
@@ -393,8 +455,8 @@ const extensions: NavExtension[] = [
 
 2. **Registry Details Page** ✅ **COMPLETED: Modal → Dedicated Page**
 
-   - ✅ **Dedicated page route**: `/mcp/registries/{registry-name}`
-   - ✅ **Breadcrumb navigation**: MCP > Registries > {registry-name}
+   - ✅ **Dedicated page route**: `/ai-hub/mcp/registries/{registry-name}` (to be updated)
+   - ✅ **Breadcrumb navigation**: AI Hub > MCP Registries > {registry-name} (to be updated)
    - ✅ **Tabbed interface**: Overview, Available Servers, Deployed Servers, Configuration
    - ✅ **Page layout and routing**: Full page implementation with navigation
    - ✅ **Registry information display**: Comprehensive registry details view
@@ -566,7 +628,7 @@ const extensions: NavExtension[] = [
 - ✅ **Sortable Table**: All columns sortable (name, status, registry, transport)
 - ✅ **Advanced Filtering**: Search by name, filter by registry/transport/status
 - ✅ **Registry Integration**: Removed Deployed Servers tab, renamed Available Servers to Servers
-- ✅ **Navigation Links**: Added link from Registry Details to Servers page with pre-filters
+- ✅ **Navigation Links**: Added link from Registry Details to AI Asset Endpoints page with pre-filters
 - ✅ **Interactive Server Management**: Clickable server names, row action menus, and modals
 
 #### Tasks:
@@ -604,7 +666,7 @@ const extensions: NavExtension[] = [
 
    - Removed "Deployed Servers" tab (functionality moved to Servers page)
    - Renamed "Available Servers" tab to "Servers"
-   - Added prominent link/button to navigate to Servers page with pre-filter
+   - Added prominent link/button to navigate to AI Asset Endpoints page with pre-filter
    - Alert component explaining where to find deployed instances
    - Clean separation between registry metadata and deployed instances
 5. **Server Actions & Modals** ✅ **COMPLETED**
@@ -645,7 +707,7 @@ const extensions: NavExtension[] = [
 - Server-registry matching using ToolHive label conventions
 - Endpoint display with copy functionality (supports both `status.url` and `status.endpoint` fields)
 - Clean integration with existing registry management features
-- Removed Deployed Servers tab and consolidated server viewing in dedicated page
+- Removed Deployed Servers tab and consolidated server viewing in AI Asset Endpoints page
 - **Interactive server management**: Clickable server names with details modal
 - **Row action menus**: View details, Register/Unregister (conditional), Delete
 - **Server registration**: Connect unregistered servers to registries by adding ToolHive labels
@@ -768,13 +830,23 @@ spec:
 - [useSecrets.ts](packages/mcp/src/hooks/useSecrets.ts) - New hook (48 lines)
 - [useServiceAccounts.ts](packages/mcp/src/hooks/useServiceAccounts.ts) - New hook (53 lines)
 
-### Phase 5: Advanced Features (Week 9-10)
+### Phase 5: Navigation Restructure & Advanced Features (Week 9-10)
 
-**Goal: Production-ready features and polish**
+**Goal: Navigation integration and production-ready features**
 
 #### Tasks:
 
-1. **Integration Features**
+1. **Navigation Restructure** ⏳ **PENDING**
+
+   - Migrate MCP Registries from standalone section to AI Hub section
+   - Migrate MCP Servers (AI Asset Endpoints) to Gen AI Studio section
+   - Update all route paths from `/mcp/*` to `/ai-hub/mcp/*` and `/gen-ai-studio/ai-asset-endpoints`
+   - Update breadcrumb navigation to reflect new structure
+   - Update extension configuration to use `section: 'ai-hub'` and `section: 'gen-ai-studio'`
+   - Add MCP Catalogs placeholder under AI Hub (future feature)
+   - Test navigation and routing after migration
+
+2. **Integration Features**
 
    - Project/namespace context switching
    - RBAC permission integration
@@ -803,6 +875,7 @@ spec:
 
 **Deliverables:**
 
+- ✅ Navigation restructure completed (MCP features integrated into AI Hub and Gen AI Studio)
 - Production-ready MCP integration
 - Comprehensive testing suite
 - Performance optimizations
@@ -862,6 +935,74 @@ spec:
 - TypeScript 5.8+
 - React 18+ with hooks
 - Jest and Testing Library for testing
+
+## Development Setup
+
+### Module Federation Requirements
+
+The ODH Dashboard uses module federation to load plugins dynamically. For the Gen AI Studio section and AI Asset Endpoints to appear, you must run the gen-ai module federation remote server.
+
+#### Starting the Gen AI Dev Server
+
+The gen-ai package must be running as a module federation remote for the main dashboard to load its extensions:
+
+```bash
+# From the project root
+cd packages/gen-ai
+npm run cypress:server:dev
+```
+
+This starts the gen-ai dev server on port **9102** (as configured in `packages/gen-ai/package.json`).
+
+#### Verifying the Remote Entry
+
+You can verify the remote entry is accessible:
+
+```bash
+curl http://localhost:9102/remoteEntry.js
+```
+
+Should return HTTP 200 with the module federation remote entry file.
+
+#### Starting the Main Dashboard
+
+Once the gen-ai dev server is running, start the main dashboard:
+
+```bash
+# From the project root
+cd frontend
+npm run start:dev
+```
+
+The main dashboard will automatically discover and load the gen-ai module federation remote from `http://localhost:9102`.
+
+#### Troubleshooting
+
+**Error: "Failed to load module extensions for genAi: remoteEntryExports is undefined"**
+
+- **Cause**: The gen-ai dev server is not running on port 9102
+- **Solution**: Start the gen-ai dev server using `npm run cypress:server:dev` in `packages/gen-ai`
+
+**Gen AI Studio menu not appearing**
+
+- **Cause**: Either the gen-ai dev server isn't running, or the `genAiStudio` feature flag is disabled
+- **Solution**: 
+  1. Ensure gen-ai dev server is running on port 9102
+  2. Verify `genAiStudio: true` in `frontend/src/concepts/areas/const.ts`
+  3. The flag is forced to `true` in `frontend/src/concepts/areas/utils.ts` to override cluster config
+  4. Refresh the browser after starting the dev server
+
+**Port conflicts**
+
+- If port 9102 is already in use, you can override it:
+  ```bash
+  cd packages/gen-ai/frontend
+  DEPLOYMENT_MODE=federated PORT=9103 npm run start:dev
+  ```
+  Then set the environment variable for the main dashboard:
+  ```bash
+  MF_GENAI_LOCAL_PORT=9103 npm run start:dev
+  ```
 
 ## Risk Mitigation
 

@@ -4,7 +4,7 @@ import {
   DataScienceClusterKindStatus,
 } from '#~/k8sTypes';
 import { IsAreaAvailableStatus, FeatureFlag, SupportedAreaType } from './types';
-import { definedFeatureFlags, SupportedAreasStateMap } from './const';
+import { definedFeatureFlags, SupportedAreasStateMap, allFeatureFlagsConfig } from './const';
 
 export const isDefinedFeatureFlag = (key: string): key is FeatureFlag =>
   definedFeatureFlags.includes(key);
@@ -18,8 +18,15 @@ export type IsAreaAvailableOptions = {
 
 // TODO: support this better; improve types
 // notebookController: dashboardConfigSpec.notebookController?.enabled ?? false,
-export const getFlags = (dashboardConfigSpec: DashboardConfigKind['spec']): FlagState =>
-  dashboardConfigSpec.dashboardConfig;
+export const getFlags = (dashboardConfigSpec: DashboardConfigKind['spec']): FlagState => {
+  const clusterFlags = dashboardConfigSpec.dashboardConfig;
+  // Merge with frontend defaults to ensure undefined flags use code defaults
+  // This ensures flags like genAiStudio default to true even if not in cluster config
+  return {
+    ...allFeatureFlagsConfig,
+    ...clusterFlags,
+  };
+};
 
 const isFlagOn = (flag: string, flagState: FlagState): 'on' | 'off' => {
   if (flagState[flag] === undefined) {

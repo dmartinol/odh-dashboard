@@ -235,7 +235,7 @@ export const McpServersTable: React.FC<McpServersTableProps> = ({
                     variant="link"
                     isInline
                     onClick={() =>
-                      navigate(`/mcp/registries/${linkedRegistry.metadata?.name || ''}`)
+                      navigate(`/ai-hub/mcp/registries/${linkedRegistry.metadata?.name || ''}`)
                     }
                   >
                     {linkedRegistry.spec.displayName || linkedRegistry.metadata.name}

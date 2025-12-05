@@ -324,7 +324,7 @@ const McpRegistryDetailsPage: React.FC = () => {
       }
     }
 
-    navigate('/mcp/registries');
+    navigate('/ai-hub/mcp/registries');
   };
 
   const handleEditRegistry = () => {
@@ -465,11 +465,11 @@ const McpRegistryDetailsPage: React.FC = () => {
           <div className="pf-v6-u-mb-md">
             To view deployed servers, go to{' '}
             <Link
-              to={`/mcp/servers?registry=${registry?.metadata?.name ?? ''}&namespace=${
+              to={`/gen-ai-studio/assets?registry=${registry?.metadata?.name ?? ''}&namespace=${
                 registry?.metadata?.namespace ?? ''
               }`}
             >
-              <b>Servers</b>
+              <b>AI Asset Endpoints</b>
             </Link>
           </div>
         </StackItem>
@@ -530,7 +530,7 @@ const McpRegistryDetailsPage: React.FC = () => {
       {/* Breadcrumb Navigation */}
       <PageSection type="breadcrumb">
         <Breadcrumb>
-          <BreadcrumbItem>Model Context Protocol</BreadcrumbItem>
+          <BreadcrumbItem>AI Hub</BreadcrumbItem>
           <BreadcrumbItem
             onClick={async (e) => {
               e.preventDefault();
@@ -538,7 +538,7 @@ const McpRegistryDetailsPage: React.FC = () => {
             }}
             style={{ cursor: 'pointer' }}
           >
-            Registries
+            MCP Registries
           </BreadcrumbItem>
           <BreadcrumbItem isActive>
             {registry.spec.displayName || registry.metadata?.name}

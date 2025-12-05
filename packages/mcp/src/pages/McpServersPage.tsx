@@ -288,7 +288,7 @@ const McpServersPage: React.FC = () => {
         <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }}>
           <FlexItem>
             <Title headingLevel="h1" size="2xl">
-              MCP Servers
+              AI Asset Endpoints
             </Title>
           </FlexItem>
         </Flex>

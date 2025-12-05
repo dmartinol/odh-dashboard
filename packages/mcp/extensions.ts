@@ -20,18 +20,21 @@ const extensions: (AreaExtension | HrefNavItemExtension | RouteExtension | NavSe
         featureFlags: ['disableMcp'],
       },
     },
+    // MCP Catalogs under AI Hub section
     {
-      type: 'app.navigation/section',
+      type: 'app.navigation/href',
       flags: {
         required: [PLUGIN_MCP],
       },
       properties: {
-        id: 'mcp',
-        title: 'Model Context Protocol',
-        group: '4_mcp',
-        // iconRef: () => import('#~/images/icons/McpNavIcon'),
+        id: 'mcp-catalogs',
+        title: 'MCP catalogs',
+        href: '/ai-hub/mcp/catalogs',
+        section: 'ai-hub',
+        path: '/ai-hub/mcp/catalogs/*',
       },
     },
+    // MCP Registries under AI Hub section
     {
       type: 'app.navigation/href',
       flags: {
@@ -39,33 +42,59 @@ const extensions: (AreaExtension | HrefNavItemExtension | RouteExtension | NavSe
       },
       properties: {
         id: 'mcp-registries',
-        title: 'Registries',
-        href: '/mcp/registries',
-        section: 'mcp',
-        path: '/mcp/registries/*',
+        title: 'MCP registries',
+        href: '/ai-hub/mcp/registries',
+        section: 'ai-hub',
+        path: '/ai-hub/mcp/registries/*',
       },
     },
-    {
-      type: 'app.navigation/href',
-      flags: {
-        required: [PLUGIN_MCP],
-      },
-      properties: {
-        id: 'mcp-servers',
-        title: 'Servers',
-        href: '/mcp/servers',
-        section: 'mcp',
-        path: '/mcp/servers/*',
-      },
-    },
+    // Route for AI Hub MCP registries
     {
       type: 'app.route',
       flags: {
         required: [PLUGIN_MCP],
       },
       properties: {
-        path: '/mcp/*',
+        path: '/ai-hub/mcp/*',
         component: () => import('./src/McpRoutes'),
+      },
+    },
+    // Gen AI Studio section (depends on MCP feature)
+    {
+      type: 'app.navigation/section',
+      flags: {
+        required: [PLUGIN_MCP],
+      },
+      properties: {
+        id: 'gen-ai-studio',
+        title: 'Gen AI studio',
+        group: '4_gen_ai_studio',
+        iconRef: () => import('./src/components/GenAiStudioNavIcon'),
+      },
+    },
+    // AI Asset Endpoints under Gen AI Studio section
+    {
+      type: 'app.navigation/href',
+      flags: {
+        required: [PLUGIN_MCP],
+      },
+      properties: {
+        id: 'ai-asset-endpoints',
+        title: 'AI asset endpoints',
+        href: '/gen-ai-studio/assets',
+        section: 'gen-ai-studio',
+        path: '/gen-ai-studio/assets/*',
+      },
+    },
+    // Route for Gen AI Studio AI Asset Endpoints
+    {
+      type: 'app.route',
+      flags: {
+        required: [PLUGIN_MCP],
+      },
+      properties: {
+        path: '/gen-ai-studio/assets/*',
+        component: () => import('./src/pages/McpServersPage'),
       },
     },
   ];
