@@ -147,6 +147,17 @@ The MCP integration will follow ODH's design system while incorporating modern U
 - **Logs & Debugging**: Access to container logs and events
 - **Orphan Detection**: Identify unmanaged instances
 
+### Catalog Management
+
+- **Catalog Dashboard**: Browse catalogs from MCP registry API endpoints
+- **Project Filtering**: Filter catalogs by project/namespace with "All projects" option
+- **Catalog Cards**: Card-based interface displaying catalog name and description
+- **API Integration**: Fetch catalogs from registry endpoints (`/extension/v0/registries`)
+- **Registry Filtering**: Automatically filter out KUBERNETES and MANAGED type registries
+- **Catalog Details**: Link to catalog details page (future implementation)
+
+For detailed specifications, see [Catalog Management Feature](./features/catalog/specs.md).
+
 ### Integration Features
 
 - **Project Context**: Filter by current ODH project/namespace
@@ -370,8 +381,84 @@ Ensure feature flags remain the same:
 
 - Package-based integration following ODH patterns
 - TypeScript strict mode compliance
+- Zero TypeScript type-check errors (`npm run type-check`)
+- Zero ESLint errors (`npm run lint`)
 - >90% test coverage (unit + integration)
 - Bundle size impact <200KB gzipped
+
+## Development Mode (DEV_MODE) Testing Requirements
+
+### Port Forwarding for Internal Services
+
+**⚠️ IMPORTANT: For local development testing, port forwarding MUST be configured manually.**
+
+When running the ODH dashboard backend in development mode (`DEV_MODE=true`), the backend expects all internal Kubernetes service endpoints to be accessible via `localhost:8888` through port forwarding.
+
+**General Approach:**
+
+This is a **standard pattern** for testing internal Kubernetes services in DEV_MODE across all ODH dashboard features:
+
+1. **Identify the Internal Service**
+   - Extract service name, namespace, and port from the resource status or configuration
+   - Example: Service `toolhive-git-registry-api` in namespace `toolhive-system` on port `8080`
+
+2. **Set up Port Forwarding**
+   ```bash
+   kubectl port-forward -n <namespace> svc/<service-name> 8888:<service-port>
+   ```
+   
+   Example:
+   ```bash
+   kubectl port-forward -n toolhive-system svc/toolhive-git-registry-api 8888:8080
+   ```
+
+3. **Keep Port Forwarding Active**
+   - The port-forward command must remain running in a separate terminal
+   - If the port-forward is interrupted, API calls to internal services will fail
+   - The backend automatically converts service URLs to `localhost:8888` in DEV_MODE
+
+**Developer Responsibilities:**
+
+- **MUST** remember to set up port forwarding before testing features that interact with internal services
+- **MUST** use port `8888` consistently for all internal service port-forwards in DEV_MODE
+- **MUST** keep port-forward sessions active during development
+- **MUST** document port-forwarding requirements in feature specifications
+
+**Environment Variable Override:**
+
+Feature-specific environment variables can override the default `localhost:8888`:
+- `{FEATURE}_SERVICE_HOST` - Override host (default: `localhost`)
+- `{FEATURE}_SERVICE_PORT` - Override port (default: `8888`)
+
+**Production Mode:**
+
+In production (non-DEV_MODE), the backend automatically converts service names to Kubernetes FQDN format (`.svc.cluster.local`) and no port forwarding is required.
+
+### Code Quality Standards
+
+All MCP feature implementations must adhere to the following code quality requirements:
+
+1. **Type Safety**
+   - Avoid type assertions (`as` keyword) - use type guards instead
+   - Handle optional properties with explicit checks or nullish coalescing
+   - Use template literals only with guaranteed non-undefined values
+   - No `any` types
+
+2. **Linting Compliance**
+   - No unused imports or variables
+   - Follow React best practices
+   - Proper formatting (Prettier compliance)
+   - All code must pass `npm run lint` with zero errors
+
+3. **Type Checking**
+   - All code must pass `npm run type-check` with zero errors
+   - Use proper type narrowing for optional properties
+   - Validate API responses with type guards
+
+4. **Pre-commit Validation**
+   - Run `npm run type-check` before committing
+   - Run `npm run lint` before committing
+   - Fix auto-fixable issues with `npm run lint -- --fix`
 
 ## Dependencies & Prerequisites
 
