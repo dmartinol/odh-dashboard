@@ -1,12 +1,26 @@
 apiVersion: toolhive.stacklok.dev/v1alpha1
 kind: MCPRegistry
 metadata:
-  name: toolhive-git-registry
+  name: demo-registry
   namespace: toolhive-system
 spec:
   displayName: "ToolHive Official Registry (Git)"
   registries:
-    - name: toolhive-git-registry
+    - name: rh-catalog-mcp
+      format: toolhive
+      configMapRef:
+        name: rh-catalog-mcp
+        key: registry.json
+      syncPolicy:
+        interval: "1h"
+    - name: rh-partners-mcp
+      format: toolhive
+      configMapRef:
+        name: rh-partners-mcp
+        key: registry.json
+      syncPolicy:
+        interval: "1h"
+    - name: toolhive
       format: toolhive
       git:
         repository: "https://github.com/stacklok/toolhive"

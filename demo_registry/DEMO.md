@@ -119,9 +119,19 @@ This is also reflected in the init script inside the `Database` resource:
 ```
 
 ## Deploy MCP registry
+
+Create additiona ConfigMaps
+```
+oc create cm rh-catalog-mcp --from-file registry.json=rh-catalog-mcp.json
+oc create cm rh-partners-mcp --from-file registry.json=rh-partners-mcp.json
+```
+
 Catalog source is the ToolHive registry data from the git repo:
 ```
 oc delete -f mcpregistry-git-toolhive.yaml
+```
+
+```
 oc apply -f mcpregistry-git-toolhive.yaml
 oc get mcpregistry
 oc get pods -w

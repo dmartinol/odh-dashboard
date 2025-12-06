@@ -1,0 +1,711 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stacklok/toolhive/main/pkg/registry/data/schema.json",
+  "version": "1.0.0",
+  "last_updated": "2025-01-14T00:00:00Z",
+  "servers": {
+    "couchbase-ecosystem": {
+      "description": "Official MCP server for Couchbase database operations with SQL++ query support",
+      "tier": "Official",
+      "status": "Active",
+      "transport": "stdio",
+      "tools": [
+        "get_buckets_list",
+        "get_scopes_and_collections",
+        "get_scopes_list",
+        "get_collections_list",
+        "get_collection_structure",
+        "get_document_by_id",
+        "upsert_document",
+        "delete_document",
+        "run_sql_plus_plus_queries",
+        "get_server_status",
+        "check_cluster_credentials"
+      ],
+      "metadata": {
+        "stars": 18,
+        "pulls": 43,
+        "last_updated": "2025-09-09T00:00:00Z"
+      },
+      "repository_url": "https://github.com/Couchbase-Ecosystem/mcp-server-couchbase",
+      "tags": [
+        "database",
+        "nosql",
+        "couchbase",
+        "document-database",
+        "sql-plus-plus",
+        "json"
+      ],
+      "image": "quay.io/validated-mcp-servers/couchbase:0.4.0",
+      "permissions": {
+        "network": {
+          "outbound": {}
+        }
+      },
+      "env_vars": [
+        {
+          "name": "CB_CONNECTION_STRING",
+          "description": "Connection string to the Couchbase cluster",
+          "required": true
+        },
+        {
+          "name": "CB_USERNAME",
+          "description": "Username with access to required buckets",
+          "required": true
+        },
+        {
+          "name": "CB_PASSWORD",
+          "description": "Password for basic authentication",
+          "required": true,
+          "secret": true
+        },
+        {
+          "name": "CB_CLIENT_CERT_PATH",
+          "description": "Path to the client certificate file for mTLS",
+          "required": false
+        },
+        {
+          "name": "CB_CLIENT_KEY_PATH",
+          "description": "Path to the client key file for mTLS",
+          "required": false
+        },
+        {
+          "name": "CB_CA_CERT_PATH",
+          "description": "Path to server root certificate for TLS",
+          "required": false
+        },
+        {
+          "name": "CB_MCP_READ_ONLY_QUERY_MODE",
+          "description": "Prevent data modification queries",
+          "required": false,
+          "default": "true"
+        },
+        {
+          "name": "CB_MCP_TRANSPORT",
+          "description": "Transport mode: stdio, http, sse",
+          "required": false,
+          "default": "stdio"
+        },
+        {
+          "name": "CB_MCP_HOST",
+          "description": "Host for HTTP/SSE transport modes",
+          "required": false,
+          "default": "127.0.0.1"
+        },
+        {
+          "name": "CB_MCP_PORT",
+          "description": "Port for HTTP/SSE transport modes",
+          "required": false
+        }
+      ]
+    },
+    "dynatrace-oss": {
+      "description": "Official MCP server for Dynatrace observability platform with AI-powered insights",
+      "tier": "Official",
+      "status": "Active",
+      "transport": "stdio",
+      "tools": [
+        "list_problems",
+        "get_problem_details",
+        "list_security_problems",
+        "get_security_vulnerability_details",
+        "execute_dql",
+        "get_monitored_entities",
+        "get_entity_ownership",
+        "send_slack_messages",
+        "send_email",
+        "setup_notification_workflows",
+        "natural_language_to_dql",
+        "explain_dql",
+        "ai_chat_assistant",
+        "provide_ai_feedback"
+      ],
+      "metadata": {
+        "stars": 146,
+        "pulls": 89,
+        "last_updated": "2025-09-25T00:00:00Z"
+      },
+      "repository_url": "https://github.com/dynatrace-oss/dynatrace-mcp",
+      "tags": [
+        "observability",
+        "monitoring",
+        "dynatrace",
+        "ai",
+        "dql",
+        "automation",
+        "apm"
+      ],
+      "image": "quay.io/validated-mcp-servers/dynatrace:0.5.0-rc.2",
+      "permissions": {
+        "network": {
+          "outbound": {}
+        }
+      },
+      "env_vars": [
+        {
+          "name": "DT_ENVIRONMENT",
+          "description": "Dynatrace Platform URL",
+          "required": true
+        },
+        {
+          "name": "DT_PLATFORM_TOKEN",
+          "description": "Platform Token for authentication",
+          "required": true,
+          "secret": true
+        },
+        {
+          "name": "OAUTH_CLIENT_ID",
+          "description": "OAuth Client ID (alternative to platform token)",
+          "required": false
+        },
+        {
+          "name": "OAUTH_CLIENT_SECRET",
+          "description": "OAuth Client Secret (alternative to platform token)",
+          "required": false,
+          "secret": true
+        },
+        {
+          "name": "DT_GRAIL_QUERY_BUDGET_GB",
+          "description": "Budget limit in GB for Grail queries",
+          "required": false,
+          "default": "1000"
+        },
+        {
+          "name": "SLACK_CONNECTION_ID",
+          "description": "Slack Connection ID for messaging",
+          "required": false
+        }
+      ]
+    },
+    "elastic": {
+      "description": "Official MCP server for Elasticsearch data operations and ES|QL queries",
+      "tier": "Official",
+      "status": "Active",
+      "transport": "stdio",
+      "tools": [
+        "list_indices",
+        "get_mappings",
+        "search",
+        "esql",
+        "get_shards"
+      ],
+      "metadata": {
+        "stars": 483,
+        "pulls": 97,
+        "last_updated": "2025-09-28T00:00:00Z"
+      },
+      "repository_url": "https://github.com/elastic/mcp-server-elasticsearch",
+      "tags": [
+        "elasticsearch",
+        "search",
+        "analytics",
+        "data",
+        "indexing",
+        "esql"
+      ],
+      "image": "quay.io/validated-mcp-servers/elasticsearch:20250809-5014d91",
+      "permissions": {
+        "network": {
+          "outbound": {}
+        }
+      },
+      "env_vars": [
+        {
+          "name": "ES_URL",
+          "description": "The URL of your Elasticsearch cluster",
+          "required": true
+        },
+        {
+          "name": "ES_API_KEY",
+          "description": "Elasticsearch API key for authentication",
+          "required": false,
+          "secret": true
+        },
+        {
+          "name": "ES_USERNAME",
+          "description": "Elasticsearch username for basic authentication",
+          "required": false
+        },
+        {
+          "name": "ES_PASSWORD",
+          "description": "Elasticsearch password for basic authentication",
+          "required": false,
+          "secret": true
+        },
+        {
+          "name": "ES_SSL_SKIP_VERIFY",
+          "description": "Skip SSL/TLS certificate verification",
+          "required": false
+        }
+      ]
+    },
+    "hashicorp": {
+      "description": "Official MCP server for Terraform ecosystem integration and workspace management",
+      "tier": "Official",
+      "status": "Active",
+      "transport": "stdio",
+      "tools": [
+        "terraform_registry_integration",
+        "hcp_terraform_workspace_management",
+        "terraform_enterprise_support",
+        "create_workspace",
+        "update_workspace",
+        "delete_workspace",
+        "list_organizations",
+        "list_projects",
+        "manage_variables",
+        "manage_tags",
+        "run_management"
+      ],
+      "metadata": {
+        "stars": 968,
+        "pulls": 100,
+        "last_updated": "2025-09-28T00:00:00Z"
+      },
+      "repository_url": "https://github.com/hashicorp/terraform-mcp-server",
+      "tags": [
+        "terraform",
+        "iac",
+        "infrastructure",
+        "hcp",
+        "workspace",
+        "automation"
+      ],
+      "image": "quay.io/validated-mcp-servers/terraform-mcp-server:20250809-13ef8d0",
+      "permissions": {
+        "network": {
+          "outbound": {}
+        }
+      },
+      "env_vars": [
+        {
+          "name": "TFE_ADDRESS",
+          "description": "HCP Terraform or TFE address",
+          "required": false,
+          "default": "https://app.terraform.io"
+        },
+        {
+          "name": "TFE_TOKEN",
+          "description": "Terraform Enterprise API token",
+          "required": true,
+          "secret": true
+        },
+        {
+          "name": "TFE_HOSTNAME",
+          "description": "Alternative hostname specification",
+          "required": false
+        },
+        {
+          "name": "TFE_SKIP_TLS_VERIFY",
+          "description": "Skip TLS verification",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "ENABLE_TF_OPERATIONS",
+          "description": "Enable tools that require explicit approval",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "TRANSPORT_MODE",
+          "description": "Transport mode: stdio or streamable-http",
+          "required": false,
+          "default": "stdio"
+        },
+        {
+          "name": "TRANSPORT_HOST",
+          "description": "Host binding for HTTP transport",
+          "required": false,
+          "default": "127.0.0.1"
+        },
+        {
+          "name": "TRANSPORT_PORT",
+          "description": "HTTP server port",
+          "required": false,
+          "default": "8080"
+        }
+      ]
+    },
+    "ibm": {
+      "description": "Official MCP server for IBM watsonx.ai Flows Engine integration",
+      "tier": "Official",
+      "status": "Active",
+      "transport": "stdio",
+      "tools": [
+        "search_books",
+        "search_wikipedia"
+      ],
+      "metadata": {
+        "stars": 105,
+        "pulls": 67,
+        "last_updated": "2025-09-23T00:00:00Z"
+      },
+      "repository_url": "https://github.com/IBM/wxflows/tree/main/examples/mcp/javascript",
+      "tags": [
+        "ibm",
+        "watsonx",
+        "ai",
+        "flows",
+        "search",
+        "integration"
+      ],
+      "image": "quay.io/validated-mcp-servers/wxflows:20250813-839f463",
+      "permissions": {
+        "network": {
+          "outbound": {}
+        }
+      },
+      "env_vars": [
+        {
+          "name": "WXFLOWS_APIKEY",
+          "description": "Your wxflows API key for authentication",
+          "required": true,
+          "secret": true
+        },
+        {
+          "name": "WXFLOWS_ENDPOINT",
+          "description": "Your wxflows endpoint URL",
+          "required": true
+        }
+      ]
+    },
+    "jfrog": {
+      "description": "Official MCP server for JFrog platform with comprehensive artifact and build management",
+      "tier": "Official",
+      "status": "Active",
+      "transport": "stdio",
+      "tools": [
+        "check_jfrog_availability",
+        "create_local_repository",
+        "create_remote_repository",
+        "create_virtual_repository",
+        "list_repositories",
+        "set_folder_property",
+        "execute_aql_query",
+        "list_jfrog_builds",
+        "get_specific_build",
+        "list_jfrog_runtime_clusters",
+        "get_jfrog_runtime_specific_cluster",
+        "list_jfrog_running_images",
+        "list_jfrog_environments",
+        "list_jfrog_projects",
+        "get_specific_project",
+        "create_project",
+        "jfrog_get_package_info",
+        "jfrog_get_package_versions",
+        "jfrog_get_package_version_vulnerabilities",
+        "jfrog_get_vulnerability_info",
+        "jfrog_get_package_curation_status"
+      ],
+      "metadata": {
+        "stars": 106,
+        "pulls": 71,
+        "last_updated": "2025-09-21T00:00:00Z"
+      },
+      "repository_url": "https://github.com/jfrog/mcp-jfrog",
+      "tags": [
+        "jfrog",
+        "artifactory",
+        "artifacts",
+        "repositories",
+        "security",
+        "devops"
+      ],
+      "image": "quay.io/validated-mcp-servers/jfrog:0.0.1",
+      "permissions": {
+        "network": {
+          "outbound": {}
+        }
+      }
+    },
+    "mulesoft": {
+      "description": "Official MCP server for MuleSoft Anypoint Platform with AI-powered generation",
+      "tier": "Official",
+      "status": "Active",
+      "transport": "stdio",
+      "tools": [
+        "generate_mule_flow",
+        "generate_api_spec"
+      ],
+      "metadata": {
+        "stars": 0,
+        "pulls": 12,
+        "last_updated": "2025-09-08T00:00:00Z"
+      },
+      "repository_url": "https://github.com/mulesoft/docs-mulesoft-mcp-server/blob/latest/modules/ROOT/pages/getting-started.adoc",
+      "tags": [
+        "mulesoft",
+        "anypoint",
+        "integration",
+        "api",
+        "ai",
+        "flow-generation"
+      ],
+      "image": "quay.io/validated-mcp-servers/mulesoft-mcp-server:1.0.0",
+      "permissions": {
+        "network": {
+          "outbound": {}
+        }
+      },
+      "env_vars": [
+        {
+          "name": "ANYPOINT_CLIENT_ID",
+          "description": "Your connected app client ID",
+          "required": true
+        },
+        {
+          "name": "ANYPOINT_CLIENT_SECRET",
+          "description": "Your connected app client secret",
+          "required": true,
+          "secret": true
+        },
+        {
+          "name": "ANYPOINT_REGION",
+          "description": "Anypoint Platform region",
+          "required": false,
+          "default": "PROD_US"
+        }
+      ]
+    },
+    "redis": {
+      "description": "Official MCP server for Redis data structures and operations with comprehensive toolset",
+      "tier": "Official",
+      "status": "Active",
+      "transport": "stdio",
+      "tools": [
+        "set_string",
+        "get_string",
+        "hset_hash",
+        "hget_hash",
+        "lpush_list",
+        "rpop_list",
+        "sadd_set",
+        "srem_set",
+        "zadd_sorted_set",
+        "zrange_sorted_set",
+        "publish_message",
+        "subscribe_channel",
+        "xadd_stream",
+        "xread_stream",
+        "json_set",
+        "json_get",
+        "create_vector_index",
+        "vector_search",
+        "get_server_info"
+      ],
+      "metadata": {
+        "stars": 257,
+        "pulls": 84,
+        "last_updated": "2025-09-28T00:00:00Z"
+      },
+      "repository_url": "https://github.com/redis/mcp-redis/",
+      "tags": [
+        "redis",
+        "database",
+        "key-value",
+        "cache",
+        "vectors",
+        "streams"
+      ],
+      "image": "quay.io/validated-mcp-servers/redis:version0.3.0",
+      "permissions": {
+        "network": {
+          "outbound": {}
+        }
+      },
+      "env_vars": [
+        {
+          "name": "REDIS_HOST",
+          "description": "Redis IP or hostname",
+          "required": false,
+          "default": "127.0.0.1"
+        },
+        {
+          "name": "REDIS_PORT",
+          "description": "Redis port",
+          "required": false,
+          "default": "6379"
+        },
+        {
+          "name": "REDIS_DB",
+          "description": "Database number",
+          "required": false,
+          "default": "0"
+        },
+        {
+          "name": "REDIS_USERNAME",
+          "description": "Database username",
+          "required": false,
+          "default": "default"
+        },
+        {
+          "name": "REDIS_PWD",
+          "description": "Database password",
+          "required": false,
+          "secret": true
+        },
+        {
+          "name": "REDIS_SSL",
+          "description": "Enable SSL/TLS",
+          "required": false,
+          "default": "False"
+        },
+        {
+          "name": "REDIS_CA_PATH",
+          "description": "CA certificate path",
+          "required": false
+        },
+        {
+          "name": "REDIS_CLUSTER_MODE",
+          "description": "Enable cluster mode",
+          "required": false,
+          "default": "False"
+        }
+      ]
+    },
+    "redis-cloud": {
+      "description": "Official MCP server for Redis Cloud management and database operations",
+      "tier": "Official",
+      "status": "Active",
+      "transport": "stdio",
+      "tools": [
+        "get_current_account",
+        "get_current_payment_methods",
+        "get_pro_subscriptions",
+        "create_pro_subscription",
+        "get_essential_subscriptions",
+        "get_essential_subscription_by_id",
+        "create_essential_subscription",
+        "delete_essential_subscription",
+        "get_database_modules",
+        "get_pro_plans_regions",
+        "get_essentials_plans",
+        "get_tasks",
+        "get_task_by_id"
+      ],
+      "metadata": {
+        "stars": 35,
+        "pulls": 52,
+        "last_updated": "2025-09-24T00:00:00Z"
+      },
+      "repository_url": "https://github.com/redis/mcp-redis-cloud/",
+      "tags": [
+        "redis",
+        "cloud",
+        "database",
+        "management",
+        "subscriptions",
+        "redis-cloud"
+      ],
+      "image": "quay.io/validated-mcp-servers/redis-cloud:1.0.0",
+      "permissions": {
+        "network": {
+          "outbound": {}
+        }
+      },
+      "env_vars": [
+        {
+          "name": "API_KEY",
+          "description": "Redis Cloud API key",
+          "required": true,
+          "secret": true
+        },
+        {
+          "name": "SECRET_KEY",
+          "description": "Redis Cloud API secret key",
+          "required": true,
+          "secret": true
+        }
+      ]
+    },
+    "snyk": {
+      "description": "Official MCP server for Snyk security scanning with comprehensive vulnerability detection",
+      "tier": "Official",
+      "status": "Active",
+      "transport": "stdio",
+      "tools": [
+        "snyk_sca_scan",
+        "snyk_code_scan",
+        "snyk_iac_scan",
+        "snyk_container_scan",
+        "snyk_sbom_scan",
+        "snyk_aibom",
+        "snyk_trust",
+        "snyk_auth",
+        "snyk_logout",
+        "snyk_auth_status",
+        "snyk_version"
+      ],
+      "metadata": {
+        "stars": 67,
+        "pulls": 61,
+        "last_updated": "2025-09-26T00:00:00Z"
+      },
+      "repository_url": "https://github.com/snyk/snyk-ls/blob/main/mcp_extension/README.md",
+      "tags": [
+        "security",
+        "snyk",
+        "vulnerability-scanning",
+        "sca",
+        "sast",
+        "container-security"
+      ],
+      "image": "quay.io/validated-mcp-servers/snyk:v1.11298.2",
+      "permissions": {
+        "network": {
+          "outbound": {}
+        }
+      }
+    },
+    "unstructured-io": {
+      "description": "Official MCP server for Unstructured API with document processing and workflow management",
+      "tier": "Official",
+      "status": "Active",
+      "transport": "stdio",
+      "tools": [
+        "list_sources",
+        "get_source_info",
+        "create_source_connector",
+        "update_source_connector",
+        "delete_source_connector",
+        "list_destinations",
+        "get_destination_info",
+        "create_destination_connector",
+        "update_destination_connector",
+        "delete_destination_connector",
+        "list_workflows",
+        "get_workflow_info",
+        "create_workflow",
+        "run_workflow",
+        "update_workflow",
+        "delete_workflow",
+        "list_jobs",
+        "get_job_info",
+        "cancel_job",
+        "list_workflows_with_finished_jobs",
+        "invoke_firecrawl_crawlhtml",
+        "check_crawlhtml_status",
+        "cancel_crawlhtml_job"
+      ],
+      "metadata": {
+        "stars": 35,
+        "pulls": 48,
+        "last_updated": "2025-09-09T00:00:00Z"
+      },
+      "repository_url": "https://github.com/Unstructured-IO/UNS-MCP",
+      "tags": [
+        "unstructured",
+        "document-processing",
+        "workflow",
+        "connectors",
+        "data-pipeline"
+      ],
+      "image": "quay.io/validated-mcp-servers/uns-mcp:20250813-ef58e67",
+      "permissions": {
+        "network": {
+          "outbound": {}
+        }
+      }
+    }
+  }
+}
