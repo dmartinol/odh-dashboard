@@ -67,3 +67,43 @@ export interface RegistryApiRegistryResponse {
   updatedAt?: string;
   [key: string]: unknown;
 }
+
+/**
+ * Publisher metadata extracted from _meta.io.modelcontextprotocol.registry/publisher-provided.server_meta
+ * This contains ToolHive-specific metadata stored as base64-encoded JSON
+ */
+export interface PublisherMetadata {
+  tags?: string[];
+  tier?: string; // "Official" | "Community" | "Experimental"
+  tools?: Array<string | { name: string; description?: string; inputSchema?: unknown }>;
+  status?: string; // "Active" | "Inactive" | etc.
+  metadata?: {
+    pulls?: number;
+    stars?: number;
+    last_updated?: string;
+  };
+  permissions?: {
+    network?: {
+      outbound?: Record<string, unknown>;
+    };
+  };
+  [key: string]: unknown; // Allow other fields
+}
+
+/**
+ * Publisher-provided metadata structure from MCP v0.1 API
+ */
+export interface PublisherProvidedMeta {
+  server_meta?: string; // base64-encoded JSON
+  [key: string]: unknown;
+}
+
+/**
+ * Nested structure of publisher metadata
+ * Structure: { "io.github.stacklok": { "quay.io/mcp-servers/...": PublisherMetadata } }
+ */
+export interface NestedPublisherMetadata {
+  [publisherName: string]: {
+    [packageIdentifier: string]: PublisherMetadata;
+  };
+}

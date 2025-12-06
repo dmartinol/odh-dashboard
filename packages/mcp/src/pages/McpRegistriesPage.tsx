@@ -41,7 +41,7 @@ import { useRegistryApiServers } from '../hooks/useRegistryApiServers';
 import { McpRegistry } from '../types/registry';
 import { McpRegistryCreateModal } from '../components/McpRegistryCreateModal';
 import { McpRegistryDeleteModal } from '../components/McpRegistryDeleteModal';
-import { McpServerBrowser } from '../components/McpServerBrowser';
+import { McpServersTab } from '../components/McpServersTab';
 import { McpRegistryStatusLabel } from '../components/McpRegistryStatusLabel';
 import { deleteMcpRegistry } from '../api/k8s/mcp';
 
@@ -419,15 +419,13 @@ const McpRegistriesPage: React.FC = () => {
   };
 
   const renderServersTab = () => (
-    <PageSection hasBodyWrapper={false} isFilled>
-      <McpServerBrowser
-        servers={apiServers}
-        loading={serversLoading}
-        error={serversError || undefined}
-        onServerSelect={handleServerSelect}
-        registry={registry}
-      />
-    </PageSection>
+    <McpServersTab
+      servers={apiServers}
+      loading={serversLoading}
+      error={serversError}
+      onServerSelect={handleServerSelect}
+      registry={registry}
+    />
   );
 
   return (

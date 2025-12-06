@@ -6,8 +6,9 @@ import {
   RegistryApiServerListResponse,
   RegistryApiRegistryResponse,
   RegistryApiServer,
+  PublisherMetadata,
 } from '../types/registryApi';
-import { McpServerMetadata, McpTransport } from '../types';
+import { McpServerMetadata, McpTransport, McpServerTier, McpToolMetadata } from '../types';
 
 /**
  * Type guard to check if value is a Record (object but not array)
@@ -230,6 +231,191 @@ export const fetchServersFromRegistryApi = async (
 };
 
 /**
+ * Type guard to check if value is a tool-like object
+ */
+const isToolLike = (
+  value: unknown,
+): value is { name: string; description?: unknown; inputSchema?: unknown } => {
+  return isRecord(value) && typeof value.name === 'string';
+};
+
+/**
+ * Extract publisher metadata from _meta field
+ * Decodes base64-encoded server_meta and navigates nested structure
+ * @param server Server object from MCP v0.1 API
+ * @returns PublisherMetadata or null if not found or error
+ */
+const extractPublisherMetadata = (server: {
+  name: string;
+  _meta?: Record<string, unknown>;
+  packages?: Array<{ identifier?: string }>;
+}): PublisherMetadata | null => {
+  try {
+    // Extract publisher-provided metadata
+    const meta = server._meta;
+    if (!meta || typeof meta !== 'object') {
+      return null;
+    }
+
+    const publisherProvidedKey = 'io.modelcontextprotocol.registry/publisher-provided';
+    const publisherProvidedValue = meta[publisherProvidedKey];
+    if (
+      !publisherProvidedValue ||
+      typeof publisherProvidedValue !== 'object' ||
+      !isRecord(publisherProvidedValue) ||
+      !('server_meta' in publisherProvidedValue)
+    ) {
+      return null;
+    }
+    // eslint-disable-next-line camelcase
+    const serverMetaValue = publisherProvidedValue.server_meta;
+    if (typeof serverMetaValue !== 'string' || !serverMetaValue) {
+      return null;
+    }
+
+    // Decode base64 string
+    const decodedJson = atob(serverMetaValue);
+    let parsed: unknown = JSON.parse(decodedJson);
+
+    // Handle case where decoded JSON contains another server_meta field (nested base64)
+    // Some registries encode the metadata twice: first decode gives { server_meta: "base64..." }
+    // which needs to be decoded again to get the actual metadata structure
+    if (isRecord(parsed) && 'server_meta' in parsed && typeof parsed.server_meta === 'string') {
+      // Decode the nested server_meta field
+      try {
+        const nestedDecoded = atob(parsed.server_meta);
+        parsed = JSON.parse(nestedDecoded);
+        console.log('[extractPublisherMetadata] Decoded nested server_meta field');
+      } catch (nestedError) {
+        console.warn('Failed to decode nested server_meta:', nestedError);
+        // Continue with the outer parsed object
+      }
+    }
+
+    // Navigate nested structure: { "io.github.stacklok": { "quay.io/mcp-servers/...": { ... } } }
+    // OR direct structure: { "tags": [...], "tier": "...", ... }
+    if (!isRecord(parsed)) {
+      return null;
+    }
+
+    // Check if this is a direct metadata structure (has tags, tier, tools directly)
+    if ('tags' in parsed || 'tier' in parsed || 'tools' in parsed) {
+      console.log('[extractPublisherMetadata] Found direct metadata structure');
+      const result: PublisherMetadata = {
+        tags: Array.isArray(parsed.tags) ? parsed.tags : undefined,
+        tier: typeof parsed.tier === 'string' ? parsed.tier : undefined,
+        tools: Array.isArray(parsed.tools) ? parsed.tools : undefined,
+        status: typeof parsed.status === 'string' ? parsed.status : undefined,
+        metadata: isRecord(parsed.metadata) ? parsed.metadata : undefined,
+        permissions: isRecord(parsed.permissions) ? parsed.permissions : undefined,
+      };
+      return result;
+    }
+
+    // Find metadata by matching package identifier
+    const packageIdentifier =
+      Array.isArray(server.packages) && server.packages.length > 0
+        ? server.packages[0]?.identifier
+        : undefined;
+
+    // Search through nested structure
+    for (const publisherName in parsed) {
+      if (Object.prototype.hasOwnProperty.call(parsed, publisherName)) {
+        const publisherData = parsed[publisherName];
+        if (isRecord(publisherData)) {
+          // Try to find metadata by package identifier or server name
+          for (const key in publisherData) {
+            if (Object.prototype.hasOwnProperty.call(publisherData, key)) {
+              const metadata = publisherData[key];
+              if (isRecord(metadata)) {
+                // Match by package identifier (exact match) or by server name (contains check)
+                const serverNamePart = server.name.split('/').pop() || '';
+                const matchesIdentifier = key === packageIdentifier;
+                const matchesServerName = key.includes(serverNamePart);
+
+                if (matchesIdentifier || matchesServerName) {
+                  // Type guard to ensure metadata has expected structure
+                  if ('tags' in metadata || 'tier' in metadata || 'tools' in metadata) {
+                    const packageId = packageIdentifier || 'unknown';
+                    console.log(
+                      `[extractPublisherMetadata] Found metadata for ${server.name} (package: ${packageId}, key: ${key})`,
+                    );
+                    const result: PublisherMetadata = {
+                      tags: Array.isArray(metadata.tags) ? metadata.tags : undefined,
+                      tier: typeof metadata.tier === 'string' ? metadata.tier : undefined,
+                      tools: Array.isArray(metadata.tools) ? metadata.tools : undefined,
+                      status: typeof metadata.status === 'string' ? metadata.status : undefined,
+                      metadata: isRecord(metadata.metadata) ? metadata.metadata : undefined,
+                      permissions: isRecord(metadata.permissions)
+                        ? metadata.permissions
+                        : undefined,
+                    };
+                    return result;
+                  }
+                }
+              }
+            }
+          }
+          // If no match by identifier, return first metadata object as fallback
+          const firstKey = Object.keys(publisherData)[0];
+          if (firstKey) {
+            const firstMetadata = publisherData[firstKey];
+            if (
+              isRecord(firstMetadata) &&
+              ('tags' in firstMetadata || 'tier' in firstMetadata || 'tools' in firstMetadata)
+            ) {
+              console.log(
+                `[extractPublisherMetadata] Using fallback metadata for ${server.name} (key: ${firstKey})`,
+              );
+              const result: PublisherMetadata = {
+                tags: Array.isArray(firstMetadata.tags) ? firstMetadata.tags : undefined,
+                tier: typeof firstMetadata.tier === 'string' ? firstMetadata.tier : undefined,
+                tools: Array.isArray(firstMetadata.tools) ? firstMetadata.tools : undefined,
+                status: typeof firstMetadata.status === 'string' ? firstMetadata.status : undefined,
+                metadata: isRecord(firstMetadata.metadata) ? firstMetadata.metadata : undefined,
+                permissions: isRecord(firstMetadata.permissions)
+                  ? firstMetadata.permissions
+                  : undefined,
+              };
+              return result;
+            }
+          }
+        }
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.warn('Failed to extract publisher metadata:', error);
+    return null;
+  }
+};
+
+/**
+ * Map tier string from publisher metadata to McpServerTier
+ * @param tier Tier string from publisher metadata
+ * @returns McpServerTier or undefined
+ */
+const mapTierToMcpServerTier = (tier?: string): McpServerTier | undefined => {
+  if (!tier) {
+    return undefined;
+  }
+
+  const tierLower = tier.toLowerCase();
+  if (tierLower === 'official') {
+    return 'official';
+  }
+  if (tierLower === 'community') {
+    return 'community';
+  }
+  if (tierLower === 'experimental') {
+    return 'experimental';
+  }
+
+  return undefined;
+};
+
+/**
  * Convert MCP v0.1 API server format to McpServerMetadata
  * @param apiServer Server from MCP v0.1 API
  * @returns McpServerMetadata object
@@ -268,6 +454,65 @@ export const convertApiServerToMetadata = (apiServer: {
     repository = server.repository.url;
   }
 
+  // Extract publisher metadata
+  const serverMeta = server._meta;
+  const serverPackages = server.packages;
+
+  // Type guard for packages array
+  const packagesArray: Array<{ identifier?: string }> | undefined = Array.isArray(serverPackages)
+    ? serverPackages.filter(
+        (pkg): pkg is { identifier?: string } =>
+          typeof pkg === 'object' && pkg !== null && isRecord(pkg),
+      )
+    : undefined;
+
+  const publisherMeta = extractPublisherMetadata({
+    name: server.name,
+    _meta: isRecord(serverMeta) ? serverMeta : undefined,
+    packages: packagesArray,
+  });
+
+  // Merge tags from publisher metadata with any existing tags
+  const tags = new Set<string>();
+  if (publisherMeta?.tags && Array.isArray(publisherMeta.tags)) {
+    publisherMeta.tags.forEach((tag) => {
+      if (typeof tag === 'string') {
+        tags.add(tag);
+      }
+    });
+  }
+
+  // Extract tools from publisher metadata
+  // Convert string array to McpToolMetadata array
+  const tools: McpToolMetadata[] = [];
+  if (publisherMeta?.tools && Array.isArray(publisherMeta.tools)) {
+    publisherMeta.tools.forEach((tool) => {
+      if (typeof tool === 'string') {
+        tools.push({ name: tool });
+      } else if (isToolLike(tool)) {
+        const toolMetadata: McpToolMetadata = {
+          name: tool.name,
+          description: typeof tool.description === 'string' ? tool.description : undefined,
+          inputSchema: isRecord(tool.inputSchema) ? tool.inputSchema : undefined,
+        };
+        tools.push(toolMetadata);
+      }
+    });
+  }
+
+  // Map tier from publisher metadata
+  const tier = mapTierToMcpServerTier(publisherMeta?.tier);
+
+  // Debug logging
+  if (publisherMeta) {
+    console.log(`[convertApiServerToMetadata] Extracted metadata for ${server.name}:`, {
+      tier: publisherMeta.tier,
+      mappedTier: tier,
+      tags: tags.size,
+      tools: tools.length,
+    });
+  }
+
   return {
     name: server.name,
     displayName: typeof server.name === 'string' ? server.name : String(server.name),
@@ -275,17 +520,18 @@ export const convertApiServerToMetadata = (apiServer: {
     version: typeof server.version === 'string' ? server.version : undefined,
     repository,
     transport,
+    tier,
     image:
       packageInfo && typeof packageInfo.identifier === 'string'
         ? packageInfo.identifier
         : undefined,
-    // Extract tags from _meta if available
-    tags: [],
-    // Extract tools from _meta if available
-    tools: [],
-    // Extract prompts from _meta if available
+    // Use tags from publisher metadata
+    tags: Array.from(tags),
+    // Use tools from publisher metadata
+    tools,
+    // Extract prompts from _meta if available (not yet in publisher metadata)
     prompts: [],
-    // Extract resources from _meta if available
+    // Extract resources from _meta if available (not yet in publisher metadata)
     resources: [],
     // Extract env_vars from packageInfo
     // eslint-disable-next-line camelcase

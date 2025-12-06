@@ -106,13 +106,19 @@ export const McpServerBrowser: React.FC<McpServerBrowserProps> = ({
 
       // Tier filter
       if (filters.tier !== 'all') {
-        const hasTierTag = server.tags?.some((tag) => {
-          const tagLower = tag.toLowerCase();
-          const filterLower = filters.tier.toLowerCase();
-          // Try exact match first, then contains for backwards compatibility
-          return tagLower === filterLower || tagLower.includes(filterLower);
-        });
-        if (!hasTierTag) return false;
+        // First check if tier is directly set on the server
+        if (server.tier && server.tier === filters.tier) {
+          // Tier matches, continue
+        } else {
+          // Fallback to checking tags for backwards compatibility
+          const hasTierTag = server.tags?.some((tag) => {
+            const tagLower = tag.toLowerCase();
+            const filterLower = filters.tier.toLowerCase();
+            // Try exact match first, then contains for backwards compatibility
+            return tagLower === filterLower || tagLower.includes(filterLower);
+          });
+          if (!hasTierTag) return false;
+        }
       }
 
       // Tag filters
@@ -142,6 +148,11 @@ export const McpServerBrowser: React.FC<McpServerBrowserProps> = ({
   };
 
   const getTransportFromTags = (server: McpServerMetadata): McpTransport | undefined => {
+    // First check if transport is directly set on the server
+    if (server.transport) {
+      return server.transport;
+    }
+    // Fallback to extracting from tags for backwards compatibility
     const transports: McpTransport[] = ['stdio', 'sse', 'streamable-http'];
     return transports.find((transport) =>
       server.tags?.some((tag) => {
@@ -154,6 +165,11 @@ export const McpServerBrowser: React.FC<McpServerBrowserProps> = ({
   };
 
   const getTierFromTags = (server: McpServerMetadata): McpServerTier | undefined => {
+    // First check if tier is directly set on the server
+    if (server.tier) {
+      return server.tier;
+    }
+    // Fallback to extracting from tags for backwards compatibility
     const tiers: McpServerTier[] = ['official', 'community', 'experimental'];
     return tiers.find((tier) =>
       server.tags?.some((tag) => {

@@ -25,7 +25,7 @@ import {
 } from '@patternfly/react-core';
 import { CubeIcon, FolderOpenIcon } from '@patternfly/react-icons';
 import { McpRegistryStatusLabel } from '../components/McpRegistryStatusLabel';
-import { McpServerBrowser } from '../components/McpServerBrowser';
+import { McpServersTab } from '../components/McpServersTab';
 import { CatalogData } from '../types/catalog';
 import { McpRegistryStatus } from '../types/registry';
 import { useRegistryApiServers } from '../hooks/useRegistryApiServers';
@@ -320,15 +320,13 @@ const McpCatalogDetailsPage: React.FC = () => {
   };
 
   const renderServersTab = () => (
-    <PageSection hasBodyWrapper={false} isFilled>
-      <McpServerBrowser
-        servers={apiServers}
-        loading={serversLoading}
-        error={serversError || undefined}
-        onServerSelect={handleServerSelect}
-        registry={undefined}
-      />
-    </PageSection>
+    <McpServersTab
+      servers={apiServers}
+      loading={serversLoading}
+      error={serversError}
+      onServerSelect={handleServerSelect}
+      registry={undefined}
+    />
   );
 
   // Show error state if catalog data is missing
