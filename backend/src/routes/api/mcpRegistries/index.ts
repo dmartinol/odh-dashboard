@@ -407,19 +407,26 @@ export default async (fastify: KubeFastifyInstance): Promise<void> => {
    * Proxy request to MCP registry API to fetch servers
    * GET /api/mcpRegistries/:namespace/:registryName/servers
    * Proxies to: {endpoint}/registry/{registryName}/v0.1/servers
+   * Supports pagination via query parameters: cursor, limit
    * Note: registryName is the name in the API (typically project name),
    * not necessarily the MCPRegistry CRD name. We find any MCPRegistry CRD in the namespace
    * to get the API endpoint.
+   *
+   * Query Parameters:
+   * - cursor: Optional cursor for pagination (opaque string from previous response)
+   * - limit: Optional limit for page size (default: API default, typically 50)
    */
   fastify.get(
     '/:namespace/:registryName/servers',
     async (
       request: FastifyRequest<{
         Params: { namespace: string; registryName: string };
+        Querystring: { cursor?: string; limit?: string };
       }>,
       reply: FastifyReply,
     ) => {
       const { namespace, registryName } = request.params;
+      const { cursor, limit } = request.query;
 
       try {
         // Find any MCPRegistry CRD in the namespace to get the API endpoint
@@ -455,12 +462,23 @@ export default async (fastify: KubeFastifyInstance): Promise<void> => {
           `Normalized endpoint for servers: ${endpoint} (original: ${registry.status.apiStatus.endpoint})`,
         );
 
-        // Construct the registry API URL
+        // Construct the registry API URL with pagination parameters
         // registryName is the name in the API (e.g., project name), not the CRD name
-        const registryApiUrl = `${endpoint}/registry/${encodeURIComponent(
-          registryName,
-        )}/v0.1/servers`;
-        fastify.log.info(`Fetching servers from: ${registryApiUrl}`);
+        const url = new URL(
+          `${endpoint}/registry/${encodeURIComponent(registryName)}/v0.1/servers`,
+        );
+        if (cursor) {
+          url.searchParams.set('cursor', cursor);
+        }
+        if (limit) {
+          url.searchParams.set('limit', limit);
+        }
+        const registryApiUrl = url.href;
+        fastify.log.info(
+          `Fetching servers from: ${registryApiUrl} (cursor: ${cursor || 'none'}, limit: ${
+            limit || 'default'
+          })`,
+        );
 
         // Make a simple HTTP request to the registry API
         const response = await makeSimpleHttpRequest<unknown>(registryApiUrl, 'GET', fastify);

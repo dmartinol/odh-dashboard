@@ -62,6 +62,7 @@ When the catalog details page is opened:
    - Backend proxies to: `{endpoint}/registry/{catalogName}/v0.1/servers`
    - Note: `registryName` parameter is the catalog name (not the CRD name)
    - Use the same backend proxy pattern as the list-registries feature
+   - **Pagination**: The API client automatically handles cursor-based pagination to fetch all servers from all pages (see [API Pagination](../infrastructure/api-pagination/specs.md))
 
 4. **Display Servers**
    - Convert API server format to `McpServerMetadata` using `convertApiServerToMetadata`

@@ -32,10 +32,21 @@ export interface RegistryApiServer {
 }
 
 /**
+ * Pagination metadata from MCP v0.1 API responses
+ * Based on: https://github.com/modelcontextprotocol/registry/blob/main/docs/reference/api/generic-registry-api.md
+ */
+export interface RegistryApiPaginationMetadata {
+  count?: number;
+  nextCursor?: string | null;
+}
+
+/**
  * Response from /registry/{registryName}/v0.1/servers
+ * Supports cursor-based pagination as per MCP Registry API specification
  */
 export interface RegistryApiServerListResponse {
   servers: RegistryApiServer[];
+  metadata?: RegistryApiPaginationMetadata;
 }
 
 /**

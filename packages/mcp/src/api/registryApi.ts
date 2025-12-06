@@ -2,7 +2,11 @@
  * API client functions for MCP Registry API (v0.1) via backend proxy
  */
 
-import { RegistryApiServerListResponse, RegistryApiRegistryResponse } from '../types/registryApi';
+import {
+  RegistryApiServerListResponse,
+  RegistryApiRegistryResponse,
+  RegistryApiServer,
+} from '../types/registryApi';
 import { McpServerMetadata, McpTransport } from '../types';
 
 /**
@@ -23,7 +27,14 @@ const isRegistryApiServerListResponse = (data: unknown): data is RegistryApiServ
   if (!('servers' in data)) {
     return false;
   }
-  return Array.isArray(data.servers);
+  if (!Array.isArray(data.servers)) {
+    return false;
+  }
+  // metadata is optional, but if present should be an object
+  if ('metadata' in data && data.metadata !== null && typeof data.metadata !== 'object') {
+    return false;
+  }
+  return true;
 };
 
 /**
@@ -86,21 +97,48 @@ export const verifyRegistryExists = async (
 };
 
 /**
- * Fetch servers from registry API via backend proxy
+ * Fetch servers from registry API via backend proxy with pagination support
+ * Fetches all pages automatically using cursor-based pagination
  * @param namespace Namespace of the registry
  * @param registryName Name of the registry (typically project name)
- * @returns Promise with server list response
+ * @param cursor Optional cursor for pagination (used internally for recursive fetching)
+ * @param allServers Accumulated servers from previous pages (used internally)
+ * @param limitOverride Optional limit override (used internally for fallback)
+ * @returns Promise with complete server list (all pages)
  */
 export const fetchServersFromRegistryApi = async (
   namespace: string,
   registryName: string,
-): Promise<RegistryApiServerListResponse> => {
-  const url = `/api/mcpRegistries/${encodeURIComponent(namespace)}/${encodeURIComponent(
-    registryName,
-  )}/servers`;
+  cursor?: string | null,
+  allServers: RegistryApiServer[] = [],
+  limitOverride?: number,
+): Promise<McpServerMetadata[]> => {
+  const url = new URL(
+    `/api/mcpRegistries/${encodeURIComponent(namespace)}/${encodeURIComponent(
+      registryName,
+    )}/servers`,
+    window.location.origin,
+  );
+
+  // Add pagination parameters
+  if (cursor) {
+    url.searchParams.set('cursor', cursor);
+  }
+  // Use override limit if provided, otherwise use a large limit to get all servers
+  // Many registry APIs don't properly return nextCursor, so requesting a large limit
+  // is more reliable than pagination
+  const limit = limitOverride || 1000;
+  url.searchParams.set('limit', String(limit));
+
+  // Debug logging
+  console.log(
+    `[fetchServersFromRegistryApi] Fetching servers with limit=${limit}, cursor=${
+      cursor || 'none'
+    }, URL=${url.toString()}`,
+  );
 
   try {
-    const response = await fetch(url, {
+    const response = await fetch(url.toString(), {
       headers: {
         'Content-Type': 'application/json',
       },
@@ -117,9 +155,76 @@ export const fetchServersFromRegistryApi = async (
       throw new Error('Invalid server list response: missing servers array');
     }
 
-    return data;
+    // Accumulate servers from this page
+    const currentServers = [...allServers, ...data.servers];
+
+    // Debug logging
+    console.log(
+      `[fetchServersFromRegistryApi] Received ${data.servers.length} servers (total so far: ${currentServers.length})`,
+    );
+
+    // Check if there are more pages using cursor-based pagination
+    const nextCursor = data.metadata?.nextCursor;
+    if (nextCursor) {
+      // Recursively fetch next page with cursor
+      return await fetchServersFromRegistryApi(
+        namespace,
+        registryName,
+        nextCursor,
+        currentServers,
+        limitOverride,
+      );
+    }
+
+    // Fallback: If we got exactly the limit number of servers and no nextCursor,
+    // the API might not be returning nextCursor properly. Try fetching with a larger limit
+    // to get all remaining servers in one go.
+    // This handles cases where the API doesn't properly implement cursor-based pagination
+    if (!cursor && data.servers.length === limit && limit < 5000) {
+      console.log(
+        `Got exactly ${limit} servers without nextCursor. Attempting fallback fetch with larger limit.`,
+      );
+      // Try fetching all remaining servers with a much larger limit
+      const fallbackLimit = 5000;
+      const fallbackUrl = new URL(
+        `/api/mcpRegistries/${encodeURIComponent(namespace)}/${encodeURIComponent(
+          registryName,
+        )}/servers`,
+        window.location.origin,
+      );
+      fallbackUrl.searchParams.set('limit', String(fallbackLimit));
+
+      try {
+        const fallbackResponse = await fetch(fallbackUrl.toString(), {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (fallbackResponse.ok) {
+          const fallbackData: unknown = await fallbackResponse.json();
+          if (isRegistryApiServerListResponse(fallbackData)) {
+            // Use the fallback result if it has more servers
+            if (fallbackData.servers.length > currentServers.length) {
+              console.log(
+                `Fallback fetch returned ${fallbackData.servers.length} servers (vs ${currentServers.length} from paginated fetch)`,
+              );
+              return fallbackData.servers.map(convertApiServerToMetadata);
+            }
+          }
+        }
+      } catch (fallbackError) {
+        // If fallback fails, continue with current results
+        console.warn('Fallback fetch failed, using paginated results:', fallbackError);
+      }
+    }
+
+    // Convert all servers to McpServerMetadata format
+    const result = currentServers.map(convertApiServerToMetadata);
+    console.log(`[fetchServersFromRegistryApi] Returning ${result.length} total servers`);
+    return result;
   } catch (error) {
-    console.error(`Error fetching servers from ${url}:`, error);
+    console.error(`Error fetching servers from ${url.toString()}:`, error);
     throw error;
   }
 };

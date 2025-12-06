@@ -1,9 +1,10 @@
 /**
  * React hook for fetching servers from MCP registry API (v0.1)
+ * Automatically handles pagination to fetch all servers
  */
 
 import * as React from 'react';
-import { fetchServersFromRegistryApi, convertApiServerToMetadata } from '../api/registryApi';
+import { fetchServersFromRegistryApi } from '../api/registryApi';
 import { McpServerMetadata } from '../types';
 
 interface UseRegistryApiServersResult {
@@ -41,12 +42,11 @@ export const useRegistryApiServers = (
       setError(null);
 
       try {
-        const response = await fetchServersFromRegistryApi(namespace, registryName);
+        // fetchServersFromRegistryApi automatically handles pagination
+        // and returns all servers from all pages
+        const allServers = await fetchServersFromRegistryApi(namespace, registryName);
 
-        // Convert API server format to McpServerMetadata
-        const convertedServers = response.servers.map(convertApiServerToMetadata);
-
-        setServers(convertedServers);
+        setServers(allServers);
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch servers');

@@ -77,7 +77,11 @@ The registry dashboard displays:
 - **Backend Proxy Route**: `GET /api/mcpRegistries/:namespace/:registryName/servers`
 - **Registry Name**: Uses project name as registry name
 - **Base URL**: Extracted from MCPRegistry CRD `status.apiStatus.endpoint`
-- **Response Format**: MCP v0.1 server list format
+- **Response Format**: MCP v0.1 server list format with pagination metadata
+- **Pagination**: Supports cursor-based pagination (see [API Pagination](../infrastructure/api-pagination/specs.md))
+  - Query parameters: `cursor` (optional), `limit` (optional, default: API default)
+  - Response includes `metadata.nextCursor` for fetching subsequent pages
+  - Frontend automatically fetches all pages to load complete server list
 - **Usage**: Primary method for loading servers when registry has API endpoint
 
 **Backend Proxy Architecture**:
