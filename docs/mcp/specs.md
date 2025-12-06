@@ -124,39 +124,78 @@ The MCP integration will follow ODH's design system while incorporating modern U
 
 ## Feature Requirements
 
-### Registry Management
+MCP features are organized into **epics**, each containing multiple **features**. For detailed specifications and tasks, see the individual epic and feature documentation.
 
-- **Registry Dashboard**: List all MCP registries with status, server counts, and health
-- **Registry Creation**: Multi-step form supporting Git, HTTP, and ConfigMap sources
-- **Registry Details**: Comprehensive view with server listings and sync status
-- **Sync Operations**: Manual/automatic synchronization with source repositories
+### Epics Overview
 
-### Server Discovery & Deployment
+1. **[Registries Epic](./epics/registries/epic.md)** - Managing MCP registries (CRUD operations, synchronization)
+2. **[Catalogs Epic](./epics/catalogs/epic.md)** - Browsing catalogs from registry API endpoints
+3. **[Servers Epic](./epics/servers/epic.md)** - Server discovery and deployment
+4. **[Instances Epic](./epics/instances/epic.md)** - Managing deployed server instances
+5. **[Infrastructure Epic](./epics/infrastructure/epic.md)** - Cross-cutting concerns (foundation, navigation, integration, UX, performance, testing)
 
-- **Server Browsing**: Filterable card interface (transport, tier, tags, search)
-- **Server Details**: Popup/modal with overview, tools, configuration tabs
-- **Quick Deploy**: One-click deployment with sensible defaults
-- **Advanced Deploy**: Full configuration dialog with environment variables, resources
-- **Manifest Preview**: YAML/JSON preview before deployment
+### Registry Management Epic
 
-### Instance Management
+**Epic**: [Registries](./epics/registries/epic.md)
 
-- **Instance Monitoring**: Real-time status of deployed MCP servers
-- **Lifecycle Operations**: Start, stop, restart, delete with confirmations
-- **Resource Metrics**: CPU, memory, network usage visualization
-- **Logs & Debugging**: Access to container logs and events
-- **Orphan Detection**: Identify unmanaged instances
+**Features**:
+- [List Registries](./epics/registries/list-registries/specs.md) - Dashboard view with registry cards
+- [View Registry Details](./epics/registries/view-registry-details/specs.md) - Comprehensive registry information
+- [Create Registry](./epics/registries/create-registry/specs.md) - Multi-step creation wizard
+- [Update Registry](./epics/registries/update-registry/specs.md) - Edit existing registries
+- [Delete Registry](./epics/registries/delete-registry/specs.md) - Remove registries with confirmation
+- [Sync Registry](./epics/registries/sync-registry/specs.md) - Manual and automatic synchronization
 
-### Catalog Management
+### Catalog Management Epic
 
-- **Catalog Dashboard**: Browse catalogs from MCP registry API endpoints
-- **Project Filtering**: Filter catalogs by project/namespace with "All projects" option
-- **Catalog Cards**: Card-based interface displaying catalog name and description
-- **API Integration**: Fetch catalogs from registry endpoints (`/extension/v0/registries`)
-- **Registry Filtering**: Automatically filter out KUBERNETES and MANAGED type registries
-- **Catalog Details**: Link to catalog details page (future implementation)
+**Epic**: [Catalogs](./epics/catalogs/epic.md)
 
-For detailed specifications, see [Catalog Management Feature](./features/catalog/specs.md).
+**Features**:
+- [List Catalogs](./epics/catalogs/list-catalogs/specs.md) - Browse catalogs from registry API endpoints
+- [View Catalog Details](./epics/catalogs/view-catalog-details/specs.md) - Detailed catalog information (pending)
+
+### Server Discovery & Deployment Epic
+
+**Epic**: [Servers](./epics/servers/epic.md)
+
+**Features**:
+- [Browse Servers](./epics/servers/browse-servers/specs.md) - Filterable card interface for server discovery
+- [View Server Details](./epics/servers/view-server-details/specs.md) - Comprehensive server information modal
+- [Deploy Server](./epics/servers/deploy-server/specs.md) - Advanced deployment with custom configurations
+
+### Instance Management Epic
+
+**Epic**: [Instances](./epics/instances/epic.md)
+
+**Features**:
+- [List Instances](./epics/instances/list-instances/specs.md) - Table-based interface for deployed servers
+- [View Instance Details](./epics/instances/view-instance-details/specs.md) - Detailed instance information
+- [Register Instance](./epics/instances/register-instance/specs.md) - Link servers to registries
+- [Unregister Instance](./epics/instances/unregister-instance/specs.md) - Remove registry links
+- [Delete Instance](./epics/instances/delete-instance/specs.md) - Remove deployed server instances
+
+### Infrastructure Epic
+
+**Epic**: [Infrastructure](./epics/infrastructure/epic.md)
+
+**Features**:
+- [Package Foundation](./epics/infrastructure/package-foundation/specs.md) - Package structure and navigation
+- [Navigation Integration](./epics/infrastructure/navigation-integration/specs.md) - Menu restructuring
+- [RBAC Integration](./epics/infrastructure/rbac-integration/specs.md) - Permission integration (pending)
+- [Resource Quota Validation](./epics/infrastructure/resource-quota-validation/specs.md) - Quota checks (pending)
+- [Multi-cluster Support](./epics/infrastructure/multi-cluster-support/specs.md) - Multi-cluster architecture (pending)
+- [Keyboard Navigation](./epics/infrastructure/keyboard-navigation/specs.md) - Keyboard shortcuts (pending)
+- [Accessibility Improvements](./epics/infrastructure/accessibility-improvements/specs.md) - WCAG compliance (pending)
+- [Loading States](./epics/infrastructure/loading-states/specs.md) - Skeleton screens (pending)
+- [Error Recovery](./epics/infrastructure/error-recovery/specs.md) - Retry mechanisms (pending)
+- [Virtual Scrolling](./epics/infrastructure/virtual-scrolling/specs.md) - Performance optimization (pending)
+- [Lazy Loading](./epics/infrastructure/lazy-loading/specs.md) - Code splitting (pending)
+- [Caching Strategies](./epics/infrastructure/caching-strategies/specs.md) - Caching implementation (pending)
+- [Bundle Optimization](./epics/infrastructure/bundle-optimization/specs.md) - Bundle size reduction (pending)
+- [Unit Testing](./epics/infrastructure/unit-testing/specs.md) - Test coverage (pending)
+- [Integration Testing](./epics/infrastructure/integration-testing/specs.md) - Integration tests (pending)
+- [E2E Testing](./epics/infrastructure/e2e-testing/specs.md) - End-to-end tests (pending)
+- [User Documentation](./epics/infrastructure/user-documentation/specs.md) - User guides (pending)
 
 ### Integration Features
 

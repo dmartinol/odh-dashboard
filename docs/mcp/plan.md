@@ -22,10 +22,26 @@
 
 ---
 
+## Epic-Based Organization
+
+MCP features are organized into **epics**, each containing multiple **features**. For detailed specifications and tasks, see:
+
+- **[Registries Epic](./epics/registries/epic.md)** - Registry management features
+- **[Catalogs Epic](./epics/catalogs/epic.md)** - Catalog browsing features
+- **[Servers Epic](./epics/servers/epic.md)** - Server discovery and deployment
+- **[Instances Epic](./epics/instances/epic.md)** - Instance management features
+- **[Infrastructure Epic](./epics/infrastructure/epic.md)** - Cross-cutting concerns
+
+Each epic contains:
+- `epic.md` - Epic overview and status
+- Feature folders with `specs.md` and `tasks.md` for each feature
+
+---
+
 ## Phase Overview
 
 ### Phase 1: Foundation ✅ **COMPLETED**
-**Status**: Complete | **Duration**: Week 1-2 | **Details**: [See foundation.md](./features/foundation.md)
+**Status**: Complete | **Duration**: Week 1-2 | **Epic**: [Infrastructure > Package Foundation](./epics/infrastructure/package-foundation/specs.md)
 
 **Goal**: Basic package structure and navigation
 
@@ -40,7 +56,7 @@
 ---
 
 ### Phase 2: Registry Management ✅ **COMPLETED**
-**Status**: Complete | **Duration**: Week 3-4 | **Details**: [See registry-management.md](./features/registry-management.md)
+**Status**: Complete | **Duration**: Week 3-4 | **Epic**: [Registries](./epics/registries/epic.md)
 
 **Goal**: Complete registry CRUD operations
 
@@ -51,12 +67,20 @@
 - ✅ Real-time updates via Kubernetes Watch API
 - ✅ Complete CRUD operations (Create, Read, Update, Delete)
 
+**Features Completed**:
+- ✅ [List Registries](./epics/registries/list-registries/specs.md)
+- ✅ [View Registry Details](./epics/registries/view-registry-details/specs.md)
+- ✅ [Create Registry](./epics/registries/create-registry/specs.md)
+- ✅ [Update Registry](./epics/registries/update-registry/specs.md)
+- ✅ [Delete Registry](./epics/registries/delete-registry/specs.md)
+- ✅ [Sync Registry](./epics/registries/sync-registry/specs.md)
+
 **Summary**: Complete registry management system with professional UX and enterprise-grade features. All CRUD operations fully functional with real-time updates.
 
 ---
 
 ### Phase 3: Server Discovery ✅ **COMPLETED**
-**Status**: Complete | **Duration**: Week 5-6 | **Details**: [See server-discovery.md](./features/server-discovery.md)
+**Status**: Complete | **Duration**: Week 5-6 | **Epic**: [Servers](./epics/servers/epic.md)
 
 **Goal**: Server browsing and deployment
 
@@ -67,12 +91,17 @@
 - ✅ ToolHive registry format parsing
 - ✅ Reference implementation alignment
 
+**Features Completed**:
+- ✅ [Browse Servers](./epics/servers/browse-servers/specs.md)
+- ✅ [View Server Details](./epics/servers/view-server-details/specs.md)
+- ✅ [Deploy Server](./epics/servers/deploy-server/specs.md)
+
 **Summary**: Complete server discovery system with ToolHive registry format parsing. Professional server browser with advanced filtering and comprehensive deployment workflows.
 
 ---
 
 ### Phase 4: Instance Management ✅ **COMPLETED**
-**Status**: Complete | **Duration**: Week 7-8 | **Details**: [See instance-management.md](./features/instance-management.md)
+**Status**: Complete | **Duration**: Week 7-8 | **Epic**: [Instances](./epics/instances/epic.md)
 
 **Goal**: Monitor and manage deployed MCPServer instances
 
@@ -83,6 +112,13 @@
 - ✅ Server registration/unregistration functionality
 - ✅ Advanced deployment configuration (image pull secrets, service accounts, node selectors)
 
+**Features Completed**:
+- ✅ [List Instances](./epics/instances/list-instances/specs.md)
+- ✅ [View Instance Details](./epics/instances/view-instance-details/specs.md)
+- ✅ [Register Instance](./epics/instances/register-instance/specs.md)
+- ✅ [Unregister Instance](./epics/instances/unregister-instance/specs.md)
+- ✅ [Delete Instance](./epics/instances/delete-instance/specs.md)
+
 **Summary**: Complete servers management system with table-based UI. Namespace-aware server management with advanced filtering and comprehensive modals for server operations.
 
 ---
@@ -91,39 +127,43 @@
 **Status**: 1/5 tasks complete | **Duration**: Week 9-10
 
 #### 5.1 Navigation Integration ✅ **COMPLETED**
-**Details**: [See navigation-integration.md](./features/navigation-integration.md)
+**Epic**: [Infrastructure > Navigation Integration](./epics/infrastructure/navigation-integration/specs.md)
 - ✅ Migrated MCP Registries to AI Hub section
 - ✅ Created Gen AI Studio section
 - ✅ Migrated AI Asset Endpoints to Gen AI Studio
 - ✅ Updated all route paths and breadcrumbs
 
-#### 5.2 Integration Features ⏳ **PENDING**
-**Details**: [See integration-features.md](./features/integration-features.md)
-- ⏳ Project/namespace context switching
-- ⏳ RBAC permission integration
-- ⏳ Resource quota validation
-- ⏳ Multi-cluster support preparation
+#### 5.2 Catalog Management ✅ **COMPLETED**
+**Epic**: [Catalogs](./epics/catalogs/epic.md)
+- ✅ [List Catalogs](./epics/catalogs/list-catalogs/specs.md) - Browse catalogs from registry API endpoints
+- ⏳ [View Catalog Details](./epics/catalogs/view-catalog-details/specs.md) - Detailed catalog view (pending)
 
-#### 5.3 User Experience ⏳ **PENDING**
-**Details**: [See user-experience.md](./features/user-experience.md)
-- ⏳ Keyboard navigation shortcuts
-- ⏳ Accessibility improvements (WCAG 2.1 AA)
-- ⏳ Loading states and skeleton screens
-- ⏳ Error recovery mechanisms
+#### 5.3 Integration Features ⏳ **PENDING**
+**Epic**: [Infrastructure](./epics/infrastructure/epic.md)
+- ⏳ [RBAC Integration](./epics/infrastructure/rbac-integration/specs.md) - Permission integration
+- ⏳ [Resource Quota Validation](./epics/infrastructure/resource-quota-validation/specs.md) - Quota checks
+- ⏳ [Multi-cluster Support](./epics/infrastructure/multi-cluster-support/specs.md) - Multi-cluster architecture
 
-#### 5.4 Performance Optimization ⏳ **PENDING**
-**Details**: [See performance.md](./features/performance.md)
-- ⏳ Virtual scrolling for large lists
-- ⏳ Lazy loading of server details
-- ⏳ Caching strategies implementation
-- ⏳ Bundle size optimization
+#### 5.4 User Experience ⏳ **PENDING**
+**Epic**: [Infrastructure](./epics/infrastructure/epic.md)
+- ⏳ [Keyboard Navigation](./epics/infrastructure/keyboard-navigation/specs.md) - Keyboard shortcuts
+- ⏳ [Accessibility Improvements](./epics/infrastructure/accessibility-improvements/specs.md) - WCAG 2.1 AA compliance
+- ⏳ [Loading States](./epics/infrastructure/loading-states/specs.md) - Skeleton screens
+- ⏳ [Error Recovery](./epics/infrastructure/error-recovery/specs.md) - Retry mechanisms
 
-#### 5.5 Testing & Documentation ⏳ **PENDING**
-**Details**: [See testing-documentation.md](./features/testing-documentation.md)
-- ⏳ Unit test coverage (>90%)
-- ⏳ Integration testing setup
-- ⏳ E2E testing scenarios
-- ⏳ User documentation
+#### 5.5 Performance Optimization ⏳ **PENDING**
+**Epic**: [Infrastructure](./epics/infrastructure/epic.md)
+- ⏳ [Virtual Scrolling](./epics/infrastructure/virtual-scrolling/specs.md) - Large list optimization
+- ⏳ [Lazy Loading](./epics/infrastructure/lazy-loading/specs.md) - Code splitting
+- ⏳ [Caching Strategies](./epics/infrastructure/caching-strategies/specs.md) - Caching implementation
+- ⏳ [Bundle Optimization](./epics/infrastructure/bundle-optimization/specs.md) - Bundle size reduction
+
+#### 5.6 Testing & Documentation ⏳ **PENDING**
+**Epic**: [Infrastructure](./epics/infrastructure/epic.md)
+- ⏳ [Unit Testing](./epics/infrastructure/unit-testing/specs.md) - Test coverage (>90%)
+- ⏳ [Integration Testing](./epics/infrastructure/integration-testing/specs.md) - Integration tests
+- ⏳ [E2E Testing](./epics/infrastructure/e2e-testing/specs.md) - End-to-end tests
+- ⏳ [User Documentation](./epics/infrastructure/user-documentation/specs.md) - User guides
 
 ---
 
@@ -134,11 +174,18 @@
 - **Phase 2**: 100% ✅
 - **Phase 3**: 100% ✅
 - **Phase 4**: 100% ✅
-- **Phase 5**: 20% 🟡 (1/5 tasks complete)
+- **Phase 5**: 40% 🟡 (2/5 tasks complete)
+
+### Completion by Epic
+- **Registries Epic**: 100% ✅ (6/6 features complete)
+- **Catalogs Epic**: 50% 🟡 (1/2 features complete)
+- **Servers Epic**: 100% ✅ (3/3 features complete)
+- **Instances Epic**: 100% ✅ (5/5 features complete)
+- **Infrastructure Epic**: 15% 🟡 (2/16 features complete)
 
 ### Overall Completion
 - **Completed Phases**: 4/5 (80%)
-- **Completed Tasks**: 20/25 (80%)
+- **Completed Features**: 17/32 (53%)
 - **Remaining Work**: Integration features, UX improvements, performance, testing
 
 ---
@@ -152,9 +199,9 @@
 - ✅ Navigation structure migration
 
 ### Pending Dependencies
-- ⏳ RBAC system integration (for Phase 5.2)
-- ⏳ Performance testing infrastructure (for Phase 5.4)
-- ⏳ Testing framework setup (for Phase 5.5)
+- ⏳ RBAC system integration (for Phase 5.3)
+- ⏳ Performance testing infrastructure (for Phase 5.5)
+- ⏳ Testing framework setup (for Phase 5.6)
 
 ---
 
@@ -170,5 +217,4 @@
 
 ---
 
-_This plan is updated as tasks are completed. See individual feature files for detailed task breakdowns._
-
+_This plan is updated as tasks are completed. See individual epic and feature files for detailed task breakdowns._
