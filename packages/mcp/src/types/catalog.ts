@@ -38,5 +38,9 @@ export interface CatalogData {
   endpoint: string;
   registryName: string;
   registryNamespace: string;
+  type?: string;
+  syncStatus?: RegistrySyncStatus;
+  createdAt?: string;
+  updatedAt?: string;
   details?: RegistryDetailsResponse;
 }

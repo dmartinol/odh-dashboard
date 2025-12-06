@@ -24,10 +24,17 @@ The catalog view displays:
 
 2. **Catalog Cards**
    - Card-based layout for displaying catalogs
+   - Each card should be similar to the registry card (`McpRegistryCard`) as much as possible
    - Each card contains:
-     - **Title**: Registry name from API response
-     - **Description**: Fixed format "MCP catalog {registryName}"
-     - **Link**: Placeholder link to catalog details page (not implemented yet)
+     - **Title**: Catalog name from API response (registry name in catalog)
+     - **Description**: Catalog description or fixed format "MCP catalog {catalogName}"
+     - **Status Label**: Catalog sync status (if available from API)
+     - **Metadata Line**: 
+       - Catalog type (e.g., REMOTE, FILE)
+       - Server count (from syncStatus if available)
+       - Last sync time (if available)
+     - **View Button**: Navigate to catalog details page
+     - **Registry Information**: Source registry name and namespace (displayed as metadata)
 
 ### Visual Design
 
@@ -74,8 +81,10 @@ The catalog view displays:
 
 6. **Display Catalog Cards**
    - Use the `name` field as the card title
-   - Set description as: `"MCP catalog {registryName}"`
-   - Store full registry details for future catalog details page
+   - Set description from API response or default to: `"MCP catalog {name}"`
+   - Display catalog type, server count, and sync status (from `syncStatus` in API response)
+   - Store full registry details and catalog information for catalog details page
+   - Make cards visually similar to `McpRegistryCard` component
 
 ### Backend Proxy Architecture
 
@@ -138,7 +147,9 @@ If you need to use a different host/port, you can set environment variables:
 ### Components
 
 - **McpCatalogsPage**: Main page component
-- **McpCatalogCard**: Individual catalog card component
+- **McpCatalogCard**: Individual catalog card component (similar to `McpRegistryCard`)
+  - Should include: title, description, status label, metadata line, view button
+  - Should match visual style and layout of registry cards
 - **ProjectSelector**: Reuse existing component with `selectAllProjects={true}`
 
 ### Hooks

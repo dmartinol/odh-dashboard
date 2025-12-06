@@ -28,13 +28,21 @@
 
 ### Phase 2: UI Components
 
-- [x] Create catalog card component
+- [x] Create catalog card component (basic version)
   - [x] `McpCatalogCard` component
   - [x] Display catalog title (registry name)
   - [x] Display description ("MCP catalog {registryName}")
   - [x] Add placeholder link to catalog details
   - [x] Follow ODH design patterns
   - [x] File: `packages/mcp/src/components/McpCatalogCard.tsx`
+
+- [ ] Update catalog card to match registry card design
+  - [ ] Add status label (from catalog syncStatus)
+  - [ ] Add metadata line (type, server count, last sync time)
+  - [ ] Add view button (similar to registry card)
+  - [ ] Match visual style and layout of `McpRegistryCard`
+  - [ ] Display registry information as metadata
+  - [ ] Update `McpCatalogCard.tsx` component
 
 - [x] Update McpCatalogsPage component
   - [x] Add project selector with `selectAllProjects={true}`
@@ -87,9 +95,22 @@
 
 ## Pending Tasks
 
+### Phase 6: Catalog Card Enhancement
+
+- [ ] Update `McpCatalogCard` to match `McpRegistryCard` design
+  - [ ] Add status label component (reuse `McpRegistryStatusLabel` or create similar)
+  - [ ] Add metadata line with catalog type, server count, sync info
+  - [ ] Add view button with navigation to catalog details
+  - [ ] Match card header layout (title, actions, status)
+  - [ ] Match card body layout (metadata, description, source info)
+  - [ ] Update `CatalogData` type if needed to include sync status
+  - [ ] Update `useCatalogData` hook to include sync status in catalog data
+
+### Phase 7: Testing
+
 - [ ] Unit tests for API client functions
 - [ ] Unit tests for useCatalogData hook
-- [ ] Component tests
+- [ ] Component tests for updated catalog card
 - [ ] Integration tests
 - [ ] UI polish
 

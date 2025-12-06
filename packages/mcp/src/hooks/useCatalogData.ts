@@ -91,6 +91,10 @@ export const useCatalogData = (namespace: string): UseCatalogDataResult => {
                       endpoint,
                       registryName,
                       registryNamespace,
+                      type: reg.type,
+                      syncStatus: reg.syncStatus,
+                      createdAt: reg.createdAt,
+                      updatedAt: reg.updatedAt,
                       details,
                     };
                   } catch (err) {
@@ -105,6 +109,10 @@ export const useCatalogData = (namespace: string): UseCatalogDataResult => {
                       endpoint,
                       registryName,
                       registryNamespace,
+                      type: reg.type,
+                      syncStatus: reg.syncStatus,
+                      createdAt: reg.createdAt,
+                      updatedAt: reg.updatedAt,
                     };
                   }
                 },
