@@ -6,6 +6,7 @@ import {
   RegistryApiServerListResponse,
   RegistryApiRegistryResponse,
   RegistryApiServer,
+  ServerJSON,
   PublisherMetadata,
 } from '../types/registryApi';
 import { McpServerMetadata, McpTransport, McpServerTier, McpToolMetadata } from '../types';
@@ -416,6 +417,165 @@ const mapTierToMcpServerTier = (tier?: string): McpServerTier | undefined => {
 };
 
 /**
+ * Encode publisher metadata to base64 format for _meta field
+ * Reconstructs the publisher-provided metadata structure from McpServerMetadata
+ * @param server Server metadata to encode
+ * @returns Base64-encoded JSON string for server_meta field
+ */
+const encodePublisherMetadata = (server: McpServerMetadata): string => {
+  // Reconstruct publisher metadata structure
+  // The structure should match what extractPublisherMetadata expects
+  const publisherMetadata: PublisherMetadata = {
+    tags: server.tags && server.tags.length > 0 ? server.tags : undefined,
+    tier:
+      server.tier === 'official'
+        ? 'Official'
+        : server.tier === 'community'
+        ? 'Community'
+        : server.tier === 'experimental'
+        ? 'Experimental'
+        : undefined,
+    tools: server.tools
+      ? server.tools.map((tool) => {
+          if (typeof tool === 'string') {
+            return tool;
+          }
+          return {
+            name: tool.name,
+            description: tool.description,
+            inputSchema: tool.inputSchema,
+          };
+        })
+      : undefined,
+    status: 'Active', // Default status
+    metadata: server.metadata
+      ? {
+          pulls: server.metadata.pulls,
+          stars: server.metadata.stars,
+          // eslint-disable-next-line camelcase
+          last_updated: server.metadata.last_updated,
+        }
+      : undefined,
+  };
+
+  // Remove undefined fields
+  const cleanedMetadata: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(publisherMetadata)) {
+    if (value !== undefined) {
+      cleanedMetadata[key] = value;
+    }
+  }
+
+  // Encode to base64
+  const jsonString = JSON.stringify(cleanedMetadata);
+  return btoa(jsonString);
+};
+
+/**
+ * Convert McpServerMetadata to MCP v0.1 API server format for publishing
+ * @param server Server metadata to convert
+ * @returns ServerJSON object ready for publishing (matches ServerJSON type from Go package)
+ */
+export const convertServerMetadataToApiFormat = (server: McpServerMetadata): ServerJSON => {
+  // Validate that server name is not empty
+  if (!server.name || server.name.trim() === '') {
+    throw new Error('Server name is required and cannot be empty');
+  }
+
+  const packages = [];
+  if (server.image) {
+    packages.push({
+      identifier: server.image,
+      transport: server.transport
+        ? {
+            type: server.transport,
+          }
+        : undefined,
+      environmentVariables: server.env_vars
+        ? server.env_vars.map((env) => ({ name: env.name }))
+        : undefined,
+    });
+  }
+
+  // Encode publisher metadata if we have tags, tier, tools, or other metadata
+  const hasPublisherMetadata =
+    (server.tags && server.tags.length > 0) ||
+    server.tier ||
+    (server.tools && server.tools.length > 0) ||
+    server.metadata;
+
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  const serverMeta: Record<string, unknown> | undefined = hasPublisherMetadata
+    ? {
+        'io.modelcontextprotocol.registry/publisher-provided': {
+          // eslint-disable-next-line camelcase
+          server_meta: encodePublisherMetadata(server),
+        },
+      }
+    : undefined;
+
+  // The publish endpoint expects just the server object (ServerJSON type from Go package)
+  // Not the full RegistryApiServer wrapper with { server: ..., _meta: ... }
+  return {
+    $schema: 'https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json',
+    name: server.name.trim(),
+    description: server.description,
+    version: server.version,
+    repository: server.repository
+      ? {
+          url: server.repository,
+        }
+      : undefined,
+    packages: packages.length > 0 ? packages : undefined,
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    _meta: serverMeta,
+  };
+};
+
+/**
+ * Publish a server to a registry via backend proxy
+ * @param namespace Namespace of the registry
+ * @param registryName Name of the registry (typically project name)
+ * @param serverData Server data in MCP v0.1 format
+ * @returns Promise that resolves when server is published
+ */
+export const publishServerToRegistry = async (
+  namespace: string,
+  registryName: string,
+  serverData: ServerJSON,
+): Promise<void> => {
+  const url = `/api/mcpRegistries/${encodeURIComponent(namespace)}/${encodeURIComponent(
+    registryName,
+  )}/publish`;
+
+  try {
+    // The publish endpoint expects just the server object (ServerJSON type from Go package)
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(serverData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: response.statusText }));
+      throw new Error(
+        `Failed to publish server: ${response.status} ${response.statusText} - ${
+          errorData.message || 'Unknown error'
+        }`,
+      );
+    }
+
+    // Response might be empty, which is fine
+    await response.json().catch(() => ({}));
+  } catch (error) {
+    console.error(`Error publishing server to ${namespace}/${registryName}:`, error);
+    throw error;
+  }
+};
+
+/**
  * Convert MCP v0.1 API server format to McpServerMetadata
  * @param apiServer Server from MCP v0.1 API
  * @returns McpServerMetadata object
@@ -424,6 +584,37 @@ export const convertApiServerToMetadata = (apiServer: {
   server: { name: string; [key: string]: unknown };
 }): McpServerMetadata => {
   const { server } = apiServer;
+
+  // Validate that server name exists and is not empty
+  if (!server.name || typeof server.name !== 'string' || server.name.trim() === '') {
+    console.error('[convertApiServerToMetadata] Server name is missing or empty:', {
+      serverName: server.name,
+      serverObject: server,
+      fullApiServer: apiServer,
+    });
+    // Try to use package identifier as fallback
+    const packageInfo =
+      Array.isArray(server.packages) && server.packages.length > 0 ? server.packages[0] : null;
+    const fallbackName =
+      packageInfo && typeof packageInfo.identifier === 'string'
+        ? packageInfo.identifier
+        : 'unknown-server';
+
+    console.warn(
+      `[convertApiServerToMetadata] Using fallback name: ${fallbackName} (original was empty)`,
+    );
+
+    // If we still don't have a valid name, throw an error
+    if (fallbackName === 'unknown-server') {
+      throw new Error(
+        'Server name is required but was empty or missing in API response. Cannot convert server metadata.',
+      );
+    }
+
+    // Use fallback name
+    server.name = fallbackName;
+  }
+
   const packageInfo =
     Array.isArray(server.packages) && server.packages.length > 0 ? server.packages[0] : null;
 

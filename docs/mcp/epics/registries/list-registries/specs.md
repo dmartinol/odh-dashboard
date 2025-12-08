@@ -21,6 +21,7 @@ The registry dashboard displays:
 1. **Page Header**
    - Title: "MCP Registries"
    - Create button for new registry
+   - Refresh button to manually reload registry data and servers
 
 2. **Project Selector**
    - Filter registries by project/namespace
@@ -99,6 +100,15 @@ The registry dashboard displays:
 - Uses `useK8sWatchResource` for real-time registry updates
 - WebSocket communication via Kubernetes Watch API
 - Server list updates when registry changes
+
+### Manual Refresh
+
+- **Refresh Button**: Manual refresh button in page header
+- **Purpose**: Reload registry data and server list on demand
+- **Use Case**: Kubernetes events don't show when servers are published via API, so manual refresh is needed after approving/publishing servers
+- **Implementation**: Uses `refetch` functions from hooks (`useRegistryVerification`, `useRegistryApiServers`)
+- **Location**: Next to "Create" button in page header
+- **Icon**: PatternFly RefreshIcon
 
 ## Development Mode (DEV_MODE) Requirements
 

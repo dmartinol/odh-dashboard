@@ -32,6 +32,33 @@ export interface RegistryApiServer {
 }
 
 /**
+ * ServerJSON type for publish endpoint
+ * The publish endpoint expects just the server object, not the full RegistryApiServer wrapper
+ * This matches the ServerJSON type from github.com/modelcontextprotocol/registry/pkg/api/v0
+ */
+export interface ServerJSON {
+  $schema?: string;
+  name: string;
+  description?: string;
+  repository?: {
+    url: string;
+    source?: string;
+  };
+  version?: string;
+  packages?: Array<{
+    registryType?: string;
+    identifier?: string;
+    transport?: {
+      type?: string;
+    };
+    environmentVariables?: Array<{
+      name: string;
+    }>;
+  }>;
+  _meta?: Record<string, unknown>;
+}
+
+/**
  * Pagination metadata from MCP v0.1 API responses
  * Based on: https://github.com/modelcontextprotocol/registry/blob/main/docs/reference/api/generic-registry-api.md
  */

@@ -31,9 +31,11 @@ import {
   EyeIcon,
   StarIcon,
   DownloadIcon,
+  CheckCircleIcon,
 } from '@patternfly/react-icons';
 import { McpServerDetailsModal } from './McpServerDetailsModal';
 import { McpServerDeployModal } from './McpServerDeployModal';
+import { McpServerApproveModal } from './McpServerApproveModal';
 import { McpServerMetadata, McpTransport, McpServerTier } from '../types';
 import { McpRegistry } from '../types/registry';
 
@@ -51,7 +53,9 @@ interface McpServerBrowserProps {
   error?: string;
   onServerSelect?: (server: McpServerMetadata) => void;
   onServerDeploy?: (server: McpServerMetadata) => void;
+  onServerApprove?: (server: McpServerMetadata, projectNames: string[]) => Promise<void>;
   registry?: McpRegistry; // Optional registry context for deployment labels
+  showApproveButton?: boolean; // Whether to show approve button (default: false, true for catalog views)
 }
 
 interface ServerFilters {
@@ -74,13 +78,17 @@ export const McpServerBrowser: React.FC<McpServerBrowserProps> = ({
   error,
   onServerSelect,
   onServerDeploy,
+  onServerApprove,
   registry,
+  showApproveButton = false,
 }) => {
   const [filters, setFilters] = React.useState<ServerFilters>(initialFilters);
   const [selectedServer, setSelectedServer] = React.useState<McpServerMetadata | null>(null);
   const [detailsModalOpen, setDetailsModalOpen] = React.useState(false);
   const [deployModalOpen, setDeployModalOpen] = React.useState(false);
   const [serverToDeploy, setServerToDeploy] = React.useState<McpServerMetadata | null>(null);
+  const [approveModalOpen, setApproveModalOpen] = React.useState(false);
+  const [serverToApprove, setServerToApprove] = React.useState<McpServerMetadata | null>(null);
 
   // Filter servers based on current filters
   const filteredServers = React.useMemo(() => {
@@ -310,6 +318,30 @@ export const McpServerBrowser: React.FC<McpServerBrowserProps> = ({
                     Deploy
                   </Button>
                 </FlexItem>
+                {showApproveButton && (
+                  <FlexItem>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={<CheckCircleIcon />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        console.log(
+                          '[McpServerBrowser] Approve button clicked for server:',
+                          server.name,
+                        );
+                        console.log(
+                          '[McpServerBrowser] onServerApprove available:',
+                          !!onServerApprove,
+                        );
+                        setServerToApprove(server);
+                        setApproveModalOpen(true);
+                      }}
+                    >
+                      Approve
+                    </Button>
+                  </FlexItem>
+                )}
                 {server.homepage && (
                   <FlexItem>
                     <Button
@@ -476,6 +508,24 @@ export const McpServerBrowser: React.FC<McpServerBrowserProps> = ({
                 }
               : undefined
           }
+        />
+      )}
+
+      {/* Server Approve Modal */}
+      {/* eslint-disable-next-line no-restricted-syntax */}
+      {serverToApprove && onServerApprove && approveModalOpen && (
+        <McpServerApproveModal
+          isOpen
+          onClose={() => {
+            setApproveModalOpen(false);
+            setServerToApprove(null);
+          }}
+          server={serverToApprove}
+          onApprove={async (projectNames) => {
+            await onServerApprove(serverToApprove, projectNames);
+            setApproveModalOpen(false);
+            setServerToApprove(null);
+          }}
         />
       )}
     </PageSection>

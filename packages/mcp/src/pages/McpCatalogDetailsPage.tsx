@@ -24,11 +24,18 @@ import {
   CardBody,
 } from '@patternfly/react-core';
 import { CubeIcon, FolderOpenIcon } from '@patternfly/react-icons';
+import useNotification from '@odh-dashboard/internal/utilities/useNotification';
 import { McpRegistryStatusLabel } from '../components/McpRegistryStatusLabel';
 import { McpServersTab } from '../components/McpServersTab';
 import { CatalogData } from '../types/catalog';
 import { McpRegistryStatus } from '../types/registry';
 import { useRegistryApiServers } from '../hooks/useRegistryApiServers';
+import {
+  verifyRegistryExists,
+  publishServerToRegistry,
+  convertServerMetadataToApiFormat,
+} from '../api/registryApi';
+import { McpServerMetadata } from '../types';
 
 enum CatalogDetailsTab {
   OVERVIEW = 'overview',
@@ -58,6 +65,7 @@ const McpCatalogDetailsPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [activeTabKey, setActiveTabKey] = React.useState<string>(CatalogDetailsTab.OVERVIEW);
+  const notification = useNotification();
 
   // Get catalog data from route state (passed from catalog card)
   const catalog = React.useMemo(() => {
@@ -163,6 +171,80 @@ const McpCatalogDetailsPage: React.FC = () => {
   const handleServerSelect = (server: { name: string }) => {
     // TODO: Open server details modal
     console.log('Selected server:', server.name);
+  };
+
+  const handleServerApprove = async (server: McpServerMetadata, projectNames: string[]) => {
+    interface ApprovalResults {
+      succeeded: string[];
+      failed: Array<{ project: string; error: string }>;
+      skipped: string[];
+    }
+    const results: ApprovalResults = {
+      succeeded: [],
+      failed: [],
+      skipped: [],
+    };
+
+    // Process each project
+    for (const projectName of projectNames) {
+      try {
+        // Verify registry exists (using project name as registry name)
+        const verification = await verifyRegistryExists(projectName, projectName);
+
+        if (!verification.exists) {
+          results.skipped.push(projectName);
+          continue;
+        }
+
+        // Convert server to API format and publish
+        // Validate server has required fields
+        if (!server.name || server.name.trim() === '') {
+          console.error('[handleServerApprove] Server name is empty:', server);
+          throw new Error(`Server name is empty. Cannot publish server without a name.`);
+        }
+
+        console.log('[handleServerApprove] Publishing server:', {
+          name: server.name,
+          displayName: server.displayName,
+          image: server.image,
+          project: projectName,
+        });
+
+        const serverData = convertServerMetadataToApiFormat(server);
+        console.log(
+          '[handleServerApprove] Converted server data:',
+          JSON.stringify(serverData, null, 2),
+        );
+        await publishServerToRegistry(projectName, projectName, serverData);
+        results.succeeded.push(projectName);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        results.failed.push({ project: projectName, error: errorMessage });
+      }
+    }
+
+    // Display notifications
+    if (results.succeeded.length > 0) {
+      notification.success(
+        `Server approved to ${results.succeeded.length} project(s)`,
+        `Successfully published to: ${results.succeeded.join(', ')}`,
+      );
+    }
+
+    if (results.failed.length > 0) {
+      const failedProjects = results.failed.map((f) => f.project).join(', ');
+      notification.error(
+        `Failed to approve server to ${results.failed.length} project(s)`,
+        `Failed projects: ${failedProjects}`,
+      );
+    }
+
+    if (results.skipped.length > 0) {
+      notification.warning(
+        `Skipped ${results.skipped.length} project(s) (no registry)`,
+        `Projects without registries: ${results.skipped.join(', ')}`,
+      );
+    }
   };
 
   const renderOverviewTab = () => {
@@ -325,7 +407,9 @@ const McpCatalogDetailsPage: React.FC = () => {
       loading={serversLoading}
       error={serversError}
       onServerSelect={handleServerSelect}
+      onServerApprove={handleServerApprove}
       registry={undefined}
+      showApproveButton
     />
   );
 

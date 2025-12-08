@@ -14,7 +14,9 @@ interface McpServersTabProps {
   loading: boolean;
   error: string | null | undefined;
   onServerSelect?: (server: McpServerMetadata) => void;
+  onServerApprove?: (server: McpServerMetadata, projectNames: string[]) => Promise<void>;
   registry?: McpRegistry;
+  showApproveButton?: boolean;
 }
 
 /**
@@ -26,7 +28,9 @@ export const McpServersTab: React.FC<McpServersTabProps> = ({
   loading,
   error,
   onServerSelect,
+  onServerApprove,
   registry,
+  showApproveButton = false,
 }) => {
   return (
     <PageSection hasBodyWrapper={false} isFilled>
@@ -35,7 +39,9 @@ export const McpServersTab: React.FC<McpServersTabProps> = ({
         loading={loading}
         error={error || undefined}
         onServerSelect={onServerSelect}
+        onServerApprove={onServerApprove}
         registry={registry}
+        showApproveButton={showApproveButton}
       />
     </PageSection>
   );

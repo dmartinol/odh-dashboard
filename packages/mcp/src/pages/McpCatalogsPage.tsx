@@ -15,7 +15,7 @@ import {
   GridItem,
   Button,
 } from '@patternfly/react-core';
-import { FolderOpenIcon } from '@patternfly/react-icons';
+import { FolderOpenIcon, SyncIcon } from '@patternfly/react-icons';
 import ProjectSelector from '@odh-dashboard/internal/concepts/projects/ProjectSelector';
 import { ProjectsContext } from '../../../../frontend/src/concepts/projects/ProjectsContext';
 import { useCatalogData } from '../hooks/useCatalogData';
@@ -126,6 +126,17 @@ const McpCatalogsPage: React.FC = () => {
             <Title headingLevel="h1" size="2xl">
               MCP Catalogs
             </Title>
+          </FlexItem>
+          <FlexItem>
+            <Button
+              variant="secondary"
+              icon={<SyncIcon />}
+              onClick={() => refetch()}
+              isDisabled={loading}
+              aria-label="Refresh catalog data"
+            >
+              Refresh
+            </Button>
           </FlexItem>
         </Flex>
       </PageSection>

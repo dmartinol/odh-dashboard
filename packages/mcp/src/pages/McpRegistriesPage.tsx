@@ -31,6 +31,7 @@ import {
   FileAltIcon,
   EditIcon,
   InfoCircleIcon,
+  SyncIcon,
 } from '@patternfly/react-icons';
 import { ProjectsContext } from '@odh-dashboard/internal/concepts/projects/ProjectsContext';
 import ProjectSelector from '@odh-dashboard/internal/concepts/projects/ProjectSelector';
@@ -86,16 +87,18 @@ const McpRegistriesPage: React.FC = () => {
   }, [registries]);
 
   // Verify registry exists via API
-  const { exists: registryExists, loading: verifying } = useRegistryVerification(
-    selectedNamespace,
-    registryName,
-  );
+  const {
+    exists: registryExists,
+    loading: verifying,
+    refetch: refetchVerification,
+  } = useRegistryVerification(selectedNamespace, registryName);
 
   // Fetch servers from API
   const {
     servers: apiServers,
     loading: serversLoading,
     error: serversError,
+    refetch: refetchServers,
   } = useRegistryApiServers(selectedNamespace, registryName);
 
   // Sync selected namespace with preferred project changes
@@ -418,6 +421,12 @@ const McpRegistriesPage: React.FC = () => {
     console.log('Selected server:', server.name);
   };
 
+  const handleRefresh = () => {
+    // Refresh both registry verification and server list
+    refetchVerification();
+    refetchServers();
+  };
+
   const renderServersTab = () => (
     <McpServersTab
       servers={apiServers}
@@ -436,6 +445,26 @@ const McpRegistriesPage: React.FC = () => {
             <Title headingLevel="h1" size="2xl">
               MCP Registries
             </Title>
+          </FlexItem>
+          <FlexItem>
+            <Flex spaceItems={{ default: 'spaceItemsSm' }}>
+              <FlexItem>
+                <Button
+                  variant="secondary"
+                  icon={<SyncIcon />}
+                  onClick={handleRefresh}
+                  isDisabled={verifying || serversLoading || !selectedNamespace}
+                  aria-label="Refresh registry data"
+                >
+                  Refresh
+                </Button>
+              </FlexItem>
+              <FlexItem>
+                <Button variant="primary" onClick={() => setCreateModalOpen(true)}>
+                  Create registry
+                </Button>
+              </FlexItem>
+            </Flex>
           </FlexItem>
         </Flex>
       </PageSection>
@@ -538,6 +567,17 @@ const McpRegistriesPage: React.FC = () => {
                     </FlexItem>
                     <FlexItem>
                       <Flex spaceItems={{ default: 'spaceItemsSm' }}>
+                        <FlexItem>
+                          <Button
+                            variant="secondary"
+                            icon={<SyncIcon />}
+                            onClick={handleRefresh}
+                            isDisabled={serversLoading}
+                            aria-label="Refresh registry data"
+                          >
+                            Refresh
+                          </Button>
+                        </FlexItem>
                         <FlexItem>
                           <Button
                             variant="secondary"

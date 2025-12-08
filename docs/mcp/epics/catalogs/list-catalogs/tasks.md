@@ -1,6 +1,6 @@
 # List Catalogs - Development Tasks
 
-## Status: ✅ Complete
+## Status: 🟡 In Progress (Refresh Button Added)
 
 ## Completed Tasks
 
@@ -106,7 +106,16 @@
   - [ ] Update `CatalogData` type if needed to include sync status
   - [ ] Update `useCatalogData` hook to include sync status in catalog data
 
-### Phase 7: Testing
+### Phase 7: Manual Refresh Button ✅
+
+- [x] Add refresh button to page header
+  - [x] Add RefreshIcon from PatternFly
+  - [x] Position in page header next to title
+  - [x] Call `refetch` from `useCatalogData` hook
+  - [x] Show loading state while refreshing
+  - [x] File: `packages/mcp/src/pages/McpCatalogsPage.tsx` (updated)
+
+### Phase 8: Testing
 
 - [ ] Unit tests for API client functions
 - [ ] Unit tests for useCatalogData hook

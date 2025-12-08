@@ -1,6 +1,6 @@
 # List Registries - Development Tasks
 
-## Status: ✅ Completed
+## Status: 🟡 In Progress (Refresh Button Added)
 
 ## Refactoring Tasks
 
@@ -176,6 +176,16 @@
 - [ ] Error states are handled gracefully
 - [ ] Empty states are shown appropriately (no project selected)
 - [ ] All existing functionality (create, edit, delete, sync) still works
+
+### Phase 8: Manual Refresh Button ✅
+
+- [x] Add refresh button to page header
+  - [x] Add RefreshIcon from PatternFly
+  - [x] Position next to "Create" button in page header
+  - [x] Call `refetch` from `useRegistryVerification` hook
+  - [x] Call `refetch` from `useRegistryApiServers` hook
+  - [x] Show loading state while refreshing
+  - [x] File: `packages/mcp/src/pages/McpRegistriesPage.tsx` (updated)
 
 ---
 

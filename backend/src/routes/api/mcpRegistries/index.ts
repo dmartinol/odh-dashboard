@@ -136,11 +136,14 @@ const makeSimpleHttpRequest = <T>(
   url: string,
   method: string,
   fastify: KubeFastifyInstance,
+  body?: unknown,
 ): Promise<T> => {
   return new Promise((resolve, reject) => {
     try {
       const urlObj = new URL(url);
       const requestModule = urlObj.protocol === 'https:' ? https : http;
+
+      const requestBody = body ? JSON.stringify(body) : undefined;
 
       const req = requestModule.request(
         url,
@@ -149,7 +152,7 @@ const makeSimpleHttpRequest = <T>(
           headers: {
             'Content-Type': 'application/json',
           },
-          timeout: 10000, // 10 seconds timeout
+          timeout: method === 'POST' ? 30000 : 10000, // 30 seconds for POST, 10 for GET
           ...(urlObj.protocol === 'https:' && DEV_MODE ? { rejectUnauthorized: false } : {}),
         },
         (res) => {
@@ -160,7 +163,12 @@ const makeSimpleHttpRequest = <T>(
           res.on('end', () => {
             if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
               try {
-                resolve(JSON.parse(data));
+                // Handle empty responses
+                if (data.trim() === '') {
+                  resolve({} as T);
+                } else {
+                  resolve(JSON.parse(data));
+                }
               } catch (parseError) {
                 fastify.log.error(
                   `Failed to parse registry API response. Error: ${parseError}, Response: ${data.substring(
@@ -186,8 +194,36 @@ const makeSimpleHttpRequest = <T>(
       );
 
       req.on('error', (err) => {
-        fastify.log.error(`HTTP request error to ${url}: ${err.message}`);
-        reject(err);
+        const errorCode = (err as NodeJS.ErrnoException).code;
+        fastify.log.error(
+          `HTTP request error to ${url} (${method}): ${err.message} (code: ${
+            errorCode || 'unknown'
+          })`,
+        );
+        // Provide more specific error messages based on error code
+        if (errorCode === 'ECONNREFUSED') {
+          reject(
+            new Error(
+              `Connection refused to ${url}. The registry API service may not be running or accessible.`,
+            ),
+          );
+        } else if (errorCode === 'ENOTFOUND') {
+          reject(
+            new Error(
+              `Host not found for ${url}. Check if the service name and namespace are correct.`,
+            ),
+          );
+        } else if (errorCode === 'ETIMEDOUT') {
+          reject(
+            new Error(`Connection timeout to ${url}. The service may be slow or unreachable.`),
+          );
+        } else {
+          reject(
+            new Error(
+              `HTTP request failed to ${url}: ${err.message} (code: ${errorCode || 'unknown'})`,
+            ),
+          );
+        }
       });
 
       req.on('timeout', () => {
@@ -195,6 +231,10 @@ const makeSimpleHttpRequest = <T>(
         fastify.log.error(`HTTP request to ${url} timed out.`);
         reject(new Error('Request to registry API timed out'));
       });
+
+      if (requestBody) {
+        req.write(requestBody);
+      }
 
       req.end();
     } catch (err) {
@@ -491,6 +531,86 @@ export default async (fastify: KubeFastifyInstance): Promise<void> => {
         );
         reply.code(500).send({
           error: 'Failed to fetch servers',
+          message: errorMessage,
+        });
+      }
+    },
+  );
+
+  /**
+   * Proxy request to MCP registry API to publish a server
+   * POST /api/mcpRegistries/:namespace/:registryName/publish
+   * Proxies to: {endpoint}/registry/{registryName}/v0.1/publish
+   */
+  fastify.post(
+    '/:namespace/:registryName/publish',
+    async (
+      request: FastifyRequest<{
+        Params: { namespace: string; registryName: string };
+        Body: unknown;
+      }>,
+      reply: FastifyReply,
+    ) => {
+      const { namespace, registryName } = request.params;
+      const serverData = request.body;
+
+      try {
+        // Find any MCPRegistry CRD in the namespace to get the API endpoint
+        // The registryName parameter is the name in the API (e.g., project name), not the CRD name
+        const registries = await listMcpRegistries(fastify, namespace);
+        const registry = registries.items.find((reg) => {
+          // Check if this registry has an API endpoint
+          return hasApiStatusEndpoint(reg.status);
+        });
+
+        if (!registry) {
+          reply.code(404).send({
+            error: 'No registry with API endpoint found',
+            message: `No MCPRegistry with API endpoint found in namespace ${namespace}`,
+          });
+          return;
+        }
+
+        // Use type guard to safely extract endpoint
+        if (!hasApiStatusEndpoint(registry.status)) {
+          reply.code(404).send({
+            error: 'Registry API endpoint not available',
+            message: `MCPRegistry in namespace ${namespace} has no API endpoint configured`,
+          });
+          return;
+        }
+
+        let endpoint = registry.status.apiStatus.endpoint;
+
+        // Normalize the endpoint URL for Kubernetes internal services
+        endpoint = normalizeEndpointUrl(endpoint, namespace, registryName);
+        fastify.log.info(
+          `Normalized endpoint for publish: ${endpoint} (original: ${registry.status.apiStatus.endpoint})`,
+        );
+
+        // Construct the registry API URL
+        const registryApiUrl = `${endpoint}/registry/${encodeURIComponent(
+          registryName,
+        )}/v0.1/publish`;
+        fastify.log.info(`Publishing server to: ${registryApiUrl}`);
+        fastify.log.info(`Server data: ${JSON.stringify(serverData, null, 2)}`);
+
+        // Make HTTP POST request to publish server
+        const response = await makeSimpleHttpRequest<unknown>(
+          registryApiUrl,
+          'POST',
+          fastify,
+          serverData,
+        );
+
+        reply.send(response);
+      } catch (e) {
+        const errorMessage = extractErrorMessage(e);
+        fastify.log.error(
+          `Failed to publish server to registry ${registryName} in namespace ${namespace}: ${errorMessage}`,
+        );
+        reply.code(500).send({
+          error: 'Failed to publish server',
           message: errorMessage,
         });
       }

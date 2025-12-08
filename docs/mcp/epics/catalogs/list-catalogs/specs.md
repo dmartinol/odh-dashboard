@@ -17,7 +17,11 @@ The List Catalogs feature allows users to browse and view catalogs from MCP regi
 
 The catalog view displays:
 
-1. **Project Selector**
+1. **Page Header**
+   - Title: "MCP Catalogs"
+   - Refresh button to manually reload catalog data
+
+2. **Project Selector**
    - Includes "All projects" option (when `selectAllProjects` prop is enabled)
    - Defaults to the value selected in the Projects menu, or to no value (empty string)
    - Uses `ProjectSelector` component with `selectAllProjects={true}`
@@ -189,6 +193,15 @@ If you need to use a different host/port, you can set environment variables:
 - Show loading state while fetching API data
 - Display empty state when no catalogs are found
 - Display error state with retry functionality
+
+## Manual Refresh
+
+- **Refresh Button**: Manual refresh button in page header
+- **Purpose**: Reload catalog data on demand
+- **Use Case**: Kubernetes events don't show when servers are published via API, so manual refresh is needed after approving/publishing servers
+- **Implementation**: Uses `refetch` function from `useCatalogData` hook
+- **Location**: In page header next to title
+- **Icon**: PatternFly RefreshIcon
 
 ## Status
 
