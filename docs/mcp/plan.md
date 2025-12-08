@@ -74,6 +74,7 @@ Each epic contains:
 - ✅ [Update Registry](./epics/registries/update-registry/specs.md)
 - ✅ [Delete Registry](./epics/registries/delete-registry/specs.md)
 - ✅ [Sync Registry](./epics/registries/sync-registry/specs.md)
+- ⏳ [Unregister Server](./epics/registries/unregister-server/specs.md) - In progress
 
 **Summary**: Complete registry management system with professional UX and enterprise-grade features. All CRUD operations fully functional with real-time updates.
 
@@ -177,7 +178,7 @@ Each epic contains:
 - **Phase 5**: 40% 🟡 (2/5 tasks complete)
 
 ### Completion by Epic
-- **Registries Epic**: 100% ✅ (6/6 features complete)
+- **Registries Epic**: 86% 🟡 (6/7 features complete)
 - **Catalogs Epic**: 50% 🟡 (1/2 features complete)
 - **Servers Epic**: 100% ✅ (3/3 features complete)
 - **Instances Epic**: 100% ✅ (5/5 features complete)

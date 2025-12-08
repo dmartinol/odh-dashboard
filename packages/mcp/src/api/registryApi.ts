@@ -576,6 +576,119 @@ export const publishServerToRegistry = async (
 };
 
 /**
+ * Unregister a server version from a registry
+ * @param namespace Namespace of the registry
+ * @param registryName Name of the registry (typically project name)
+ * @param serverName Name of the server to unregister (will be URL-encoded)
+ * @param version Version of the server to unregister (will be URL-encoded)
+ * @returns Promise that resolves when server version is deleted
+ */
+export const unregisterServerVersion = async (
+  namespace: string,
+  registryName: string,
+  serverName: string,
+  version: string,
+): Promise<void> => {
+  const encodedServerName = encodeURIComponent(serverName);
+  const encodedVersion = encodeURIComponent(version);
+  const url = `/api/mcpRegistries/${encodeURIComponent(namespace)}/${encodeURIComponent(
+    registryName,
+  )}/servers/${encodedServerName}/versions/${encodedVersion}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'DELETE',
+      // Don't set Content-Type for DELETE requests without body
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: response.statusText }));
+      throw new Error(
+        `Failed to unregister server version: ${response.status} ${response.statusText} - ${
+          errorData.message || 'Unknown error'
+        }`,
+      );
+    }
+
+    // Response might be empty, which is fine
+    await response.json().catch(() => ({}));
+  } catch (error) {
+    console.error(
+      `Error unregistering server version ${serverName}/${version} from ${namespace}/${registryName}:`,
+      error,
+    );
+    throw error;
+  }
+};
+
+/**
+ * Unregister all versions of a server from a registry
+ * Fetches all servers, finds all versions of the specified server, and deletes each one
+ * @param namespace Namespace of the registry
+ * @param registryName Name of the registry (typically project name)
+ * @param serverName Name of the server to unregister
+ * @returns Promise that resolves when all versions are deleted, or rejects if any deletion fails
+ */
+export const unregisterAllServerVersions = async (
+  namespace: string,
+  registryName: string,
+  serverName: string,
+): Promise<void> => {
+  try {
+    // Fetch all servers to find all versions of this server
+    const allServers = await fetchServersFromRegistryApi(namespace, registryName);
+
+    // Find all versions of this server
+    const serverVersions = allServers
+      .filter((server) => server.name === serverName)
+      .map((server) => server.version || 'latest')
+      .filter((version, index, self) => self.indexOf(version) === index); // Remove duplicates
+
+    if (serverVersions.length === 0) {
+      throw new Error(`No versions found for server: ${serverName}`);
+    }
+
+    // Delete each version, collecting errors but continuing with others
+    const errors: Array<{ version: string; error: Error }> = [];
+    const deletePromises = serverVersions.map(async (version) => {
+      try {
+        await unregisterServerVersion(namespace, registryName, serverName, version);
+      } catch (error) {
+        // Log error but continue with other versions
+        const err = error instanceof Error ? error : new Error(String(error));
+        console.error(`Failed to delete version ${version} of server ${serverName}:`, err);
+        errors.push({ version, error: err });
+      }
+    });
+
+    await Promise.all(deletePromises);
+
+    // If all deletions failed, throw an error
+    if (errors.length === serverVersions.length) {
+      throw new Error(
+        `Failed to delete all versions of server ${serverName}: ${errors
+          .map((e) => e.error.message)
+          .join('; ')}`,
+      );
+    }
+
+    // If some deletions failed, log a warning but don't throw (partial success)
+    if (errors.length > 0) {
+      console.warn(
+        `Some versions of server ${serverName} could not be deleted:`,
+        errors.map((e) => `${e.version}: ${e.error.message}`).join(', '),
+      );
+    }
+  } catch (error) {
+    console.error(
+      `Error unregistering all versions of server ${serverName} from ${namespace}/${registryName}:`,
+      error,
+    );
+    throw error;
+  }
+};
+
+/**
  * Convert MCP v0.1 API server format to McpServerMetadata
  * @param apiServer Server from MCP v0.1 API
  * @returns McpServerMetadata object

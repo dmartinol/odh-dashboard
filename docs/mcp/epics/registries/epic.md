@@ -19,6 +19,7 @@ The Registries epic encompasses all functionality related to managing MCP regist
 - **Update Registry**: Edit existing registry configurations
 - **Delete Registry**: Remove registries with confirmation
 - **Sync Registry**: Manual and automatic synchronization with source repositories
+- **Unregister Server**: Remove servers from registries with confirmation
 
 ## Navigation
 
@@ -28,7 +29,7 @@ The Registries epic encompasses all functionality related to managing MCP regist
 
 ## Status
 
-✅ **Complete** - All registry management features are implemented and functional.
+🟡 **In Progress** - Core registry management features are complete. Server unregistration feature is in development.
 
 ## Related Epics
 

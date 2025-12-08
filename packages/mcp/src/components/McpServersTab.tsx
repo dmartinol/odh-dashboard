@@ -15,8 +15,10 @@ interface McpServersTabProps {
   error: string | null | undefined;
   onServerSelect?: (server: McpServerMetadata) => void;
   onServerApprove?: (server: McpServerMetadata, projectNames: string[]) => Promise<void>;
+  onServerUnregister?: (server: McpServerMetadata) => Promise<void>;
   registry?: McpRegistry;
   showApproveButton?: boolean;
+  showUnregisterButton?: boolean;
 }
 
 /**
@@ -29,8 +31,10 @@ export const McpServersTab: React.FC<McpServersTabProps> = ({
   error,
   onServerSelect,
   onServerApprove,
+  onServerUnregister,
   registry,
   showApproveButton = false,
+  showUnregisterButton = false,
 }) => {
   return (
     <PageSection hasBodyWrapper={false} isFilled>
@@ -40,8 +44,10 @@ export const McpServersTab: React.FC<McpServersTabProps> = ({
         error={error || undefined}
         onServerSelect={onServerSelect}
         onServerApprove={onServerApprove}
+        onServerUnregister={onServerUnregister}
         registry={registry}
         showApproveButton={showApproveButton}
+        showUnregisterButton={showUnregisterButton}
       />
     </PageSection>
   );

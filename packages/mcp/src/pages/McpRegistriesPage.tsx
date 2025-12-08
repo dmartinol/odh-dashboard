@@ -45,6 +45,7 @@ import { McpRegistryDeleteModal } from '../components/McpRegistryDeleteModal';
 import { McpServersTab } from '../components/McpServersTab';
 import { McpRegistryStatusLabel } from '../components/McpRegistryStatusLabel';
 import { deleteMcpRegistry } from '../api/k8s/mcp';
+import { unregisterAllServerVersions } from '../api/registryApi';
 
 enum RegistryDetailsTab {
   OVERVIEW = 'overview',
@@ -427,13 +428,38 @@ const McpRegistriesPage: React.FC = () => {
     refetchServers();
   };
 
+  const handleServerUnregister = async (server: { name: string }) => {
+    if (!selectedNamespace || !registryName) {
+      notification.error('Unregister failed', 'Namespace or registry name is missing');
+      return;
+    }
+
+    try {
+      await unregisterAllServerVersions(selectedNamespace, registryName, server.name);
+
+      notification.success(
+        'Server unregistered',
+        `Server '${server.name}' has been successfully unregistered from the registry`,
+      );
+
+      // Refresh the server list
+      refetchServers();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to unregister server';
+      notification.error('Unregister failed', errorMessage);
+      throw error; // Re-throw so modal can handle it
+    }
+  };
+
   const renderServersTab = () => (
     <McpServersTab
       servers={apiServers}
       loading={serversLoading}
       error={serversError}
       onServerSelect={handleServerSelect}
+      onServerUnregister={handleServerUnregister}
       registry={registry}
+      showUnregisterButton
     />
   );
 

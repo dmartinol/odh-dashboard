@@ -145,13 +145,17 @@ const makeSimpleHttpRequest = <T>(
 
       const requestBody = body ? JSON.stringify(body) : undefined;
 
+      // Only set Content-Type header if there's a body
+      const headers: Record<string, string> = {};
+      if (requestBody) {
+        headers['Content-Type'] = 'application/json';
+      }
+
       const req = requestModule.request(
         url,
         {
           method,
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers,
           timeout: method === 'POST' ? 30000 : 10000, // 30 seconds for POST, 10 for GET
           ...(urlObj.protocol === 'https:' && DEV_MODE ? { rejectUnauthorized: false } : {}),
         },
@@ -611,6 +615,83 @@ export default async (fastify: KubeFastifyInstance): Promise<void> => {
         );
         reply.code(500).send({
           error: 'Failed to publish server',
+          message: errorMessage,
+        });
+      }
+    },
+  );
+
+  /**
+   * Proxy request to MCP registry API to delete a server version
+   * DELETE /api/mcpRegistries/:namespace/:registryName/servers/:serverName/versions/:version
+   * Proxies to: {endpoint}/registry/{registryName}/v0.1/servers/{serverName}/versions/{version}
+   * Note: serverName and version must be URL-encoded
+   */
+  fastify.delete(
+    '/:namespace/:registryName/servers/:serverName/versions/:version',
+    async (
+      request: FastifyRequest<{
+        Params: { namespace: string; registryName: string; serverName: string; version: string };
+      }>,
+      reply: FastifyReply,
+    ) => {
+      const { namespace, registryName, serverName, version } = request.params;
+
+      try {
+        // Find any MCPRegistry CRD in the namespace to get the API endpoint
+        // The registryName parameter is the name in the API (e.g., project name), not the CRD name
+        const registries = await listMcpRegistries(fastify, namespace);
+        const registry = registries.items.find((reg) => {
+          // Check if this registry has an API endpoint
+          return hasApiStatusEndpoint(reg.status);
+        });
+
+        if (!registry) {
+          reply.code(404).send({
+            error: 'No registry with API endpoint found',
+            message: `No MCPRegistry with API endpoint found in namespace ${namespace}`,
+          });
+          return;
+        }
+
+        // Use type guard to safely extract endpoint
+        if (!hasApiStatusEndpoint(registry.status)) {
+          reply.code(404).send({
+            error: 'Registry API endpoint not available',
+            message: `MCPRegistry in namespace ${namespace} has no API endpoint configured`,
+          });
+          return;
+        }
+
+        let endpoint = registry.status.apiStatus.endpoint;
+
+        // Normalize the endpoint URL for Kubernetes internal services
+        endpoint = normalizeEndpointUrl(endpoint, namespace, registry.metadata?.name || 'registry');
+        fastify.log.info(
+          `Normalized endpoint for delete server: ${endpoint} (original: ${registry.status.apiStatus.endpoint})`,
+        );
+
+        // Construct the registry API URL
+        // serverName and version are already URL-encoded from the route params
+        // But we need to ensure they're properly encoded
+        const encodedServerName = encodeURIComponent(serverName);
+        const encodedVersion = encodeURIComponent(version);
+        const registryApiUrl = `${endpoint}/registry/${encodeURIComponent(
+          registryName,
+        )}/v0.1/servers/${encodedServerName}/versions/${encodedVersion}`;
+        fastify.log.info(`Deleting server version from: ${registryApiUrl}`);
+
+        // Make HTTP DELETE request
+        const response = await makeSimpleHttpRequest<unknown>(registryApiUrl, 'DELETE', fastify);
+
+        reply.send(response);
+      } catch (e) {
+        const errorMessage = extractErrorMessage(e);
+        fastify.log.error(
+          `Failed to delete server version ${serverName}/${version} from registry ${registryName} in namespace ${namespace}: ${errorMessage}`,
+        );
+        reply.code(500).send({
+          error: 'Failed to delete server version',
           message: errorMessage,
         });
       }

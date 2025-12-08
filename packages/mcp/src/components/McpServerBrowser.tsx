@@ -32,10 +32,12 @@ import {
   StarIcon,
   DownloadIcon,
   CheckCircleIcon,
+  TrashIcon,
 } from '@patternfly/react-icons';
 import { McpServerDetailsModal } from './McpServerDetailsModal';
 import { McpServerDeployModal } from './McpServerDeployModal';
 import { McpServerApproveModal } from './McpServerApproveModal';
+import { McpServerUnregisterModal } from './McpServerUnregisterModal';
 import { McpServerMetadata, McpTransport, McpServerTier } from '../types';
 import { McpRegistry } from '../types/registry';
 
@@ -54,8 +56,10 @@ interface McpServerBrowserProps {
   onServerSelect?: (server: McpServerMetadata) => void;
   onServerDeploy?: (server: McpServerMetadata) => void;
   onServerApprove?: (server: McpServerMetadata, projectNames: string[]) => Promise<void>;
+  onServerUnregister?: (server: McpServerMetadata) => Promise<void>;
   registry?: McpRegistry; // Optional registry context for deployment labels
   showApproveButton?: boolean; // Whether to show approve button (default: false, true for catalog views)
+  showUnregisterButton?: boolean; // Whether to show unregister button (default: false, true for registry views)
 }
 
 interface ServerFilters {
@@ -79,8 +83,10 @@ export const McpServerBrowser: React.FC<McpServerBrowserProps> = ({
   onServerSelect,
   onServerDeploy,
   onServerApprove,
+  onServerUnregister,
   registry,
   showApproveButton = false,
+  showUnregisterButton = false,
 }) => {
   const [filters, setFilters] = React.useState<ServerFilters>(initialFilters);
   const [selectedServer, setSelectedServer] = React.useState<McpServerMetadata | null>(null);
@@ -89,6 +95,10 @@ export const McpServerBrowser: React.FC<McpServerBrowserProps> = ({
   const [serverToDeploy, setServerToDeploy] = React.useState<McpServerMetadata | null>(null);
   const [approveModalOpen, setApproveModalOpen] = React.useState(false);
   const [serverToApprove, setServerToApprove] = React.useState<McpServerMetadata | null>(null);
+  const [unregisterModalOpen, setUnregisterModalOpen] = React.useState(false);
+  const [serverToUnregister, setServerToUnregister] = React.useState<McpServerMetadata | null>(
+    null,
+  );
 
   // Filter servers based on current filters
   const filteredServers = React.useMemo(() => {
@@ -342,6 +352,22 @@ export const McpServerBrowser: React.FC<McpServerBrowserProps> = ({
                     </Button>
                   </FlexItem>
                 )}
+                {showUnregisterButton && (
+                  <FlexItem>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={<TrashIcon />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setServerToUnregister(server);
+                        setUnregisterModalOpen(true);
+                      }}
+                    >
+                      Unregister
+                    </Button>
+                  </FlexItem>
+                )}
                 {server.homepage && (
                   <FlexItem>
                     <Button
@@ -525,6 +551,20 @@ export const McpServerBrowser: React.FC<McpServerBrowserProps> = ({
             await onServerApprove(serverToApprove, projectNames);
             setApproveModalOpen(false);
             setServerToApprove(null);
+          }}
+        />
+      )}
+
+      {/* Server Unregister Modal */}
+      {serverToUnregister && onServerUnregister && unregisterModalOpen && (
+        <McpServerUnregisterModal
+          onClose={() => {
+            setUnregisterModalOpen(false);
+            setServerToUnregister(null);
+          }}
+          server={serverToUnregister}
+          onUnregister={async () => {
+            await onServerUnregister(serverToUnregister);
           }}
         />
       )}

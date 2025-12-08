@@ -12,7 +12,7 @@ Each epic is a top-level directory containing:
 
 ## Epics
 
-### 1. [Registries Epic](./registries/epic.md) ✅ **Complete**
+### 1. [Registries Epic](./registries/epic.md) 🟡 **In Progress**
 
 Registry management features including CRUD operations and synchronization.
 
@@ -23,8 +23,9 @@ Registry management features including CRUD operations and synchronization.
 - ✅ [Update Registry](./registries/update-registry/specs.md) - Edit existing registries
 - ✅ [Delete Registry](./registries/delete-registry/specs.md) - Remove registries with confirmation
 - ✅ [Sync Registry](./registries/sync-registry/specs.md) - Manual and automatic synchronization
+- ⏳ [Unregister Server](./registries/unregister-server/specs.md) - Remove servers from registries (in progress)
 
-**Status**: 6/6 features complete (100%)
+**Status**: 6/7 features complete (86%)
 
 ---
 
