@@ -78,7 +78,7 @@ export const McpServerUnregisterModal: React.FC<McpServerUnregisterModalProps> =
             <Alert
               variant={AlertVariant.warning}
               isInline
-              icon={<ExclamationTriangleIcon />}
+              customIcon={<ExclamationTriangleIcon />}
               title="This action cannot be undone"
             >
               This action will permanently remove all versions of this server from the registry. The

@@ -35,6 +35,8 @@ import {
   publishServerToRegistry,
   convertServerMetadataToApiFormat,
 } from '../api/registryApi';
+import { fetchRegistryList } from '../api/catalog';
+import { useMcpRegistries } from '../hooks/useMcpRegistries';
 import { McpServerMetadata } from '../types';
 
 enum CatalogDetailsTab {
@@ -66,6 +68,22 @@ const McpCatalogDetailsPage: React.FC = () => {
   const location = useLocation();
   const [activeTabKey, setActiveTabKey] = React.useState<string>(CatalogDetailsTab.OVERVIEW);
   const notification = useNotification();
+
+  // Fetch all registries to find one with an API endpoint for MANAGED registry verification
+  const [allRegistries] = useMcpRegistries('');
+  const registryWithEndpoint = React.useMemo(() => {
+    return allRegistries.find((reg) => {
+      return (
+        reg.status &&
+        typeof reg.status === 'object' &&
+        'apiStatus' in reg.status &&
+        reg.status.apiStatus &&
+        typeof reg.status.apiStatus === 'object' &&
+        'endpoint' in reg.status.apiStatus &&
+        typeof reg.status.apiStatus.endpoint === 'string'
+      );
+    });
+  }, [allRegistries]);
 
   // Get catalog data from route state (passed from catalog card)
   const catalog = React.useMemo(() => {
@@ -188,10 +206,43 @@ const McpCatalogDetailsPage: React.FC = () => {
     // Process each project
     for (const projectName of projectNames) {
       try {
-        // Verify registry exists (using project name as registry name)
-        const verification = await verifyRegistryExists(projectName, projectName);
+        // Check if registry exists by checking the API list (for MANAGED registries)
+        // or using verify endpoint (for CRD-based registries)
+        let registryExists = false;
 
-        if (!verification.exists) {
+        if (registryWithEndpoint) {
+          try {
+            // First, try to check the API list for any registry matching the project name
+            // This includes MANAGED, KUBERNETES, and REMOTE registries
+            const registryNamespace = registryWithEndpoint.metadata?.namespace || '';
+            const mcpRegistryName = registryWithEndpoint.metadata?.name || '';
+            const registryList = await fetchRegistryList(registryNamespace, mcpRegistryName);
+            const matchingRegistry = registryList.registries.find(
+              (reg) => reg.name === projectName,
+            );
+            if (matchingRegistry) {
+              registryExists = true;
+            }
+          } catch (err) {
+            console.warn(`Failed to check registries for ${projectName}:`, err);
+          }
+        }
+
+        // If not found as MANAGED, try verify endpoint (for CRD-based registries)
+        // Only verify if we have a registryWithEndpoint to avoid errors with namespace names
+        if (!registryExists && registryWithEndpoint) {
+          try {
+            // Use the namespace where the MCPRegistry CRD is located for verification
+            const verifyNamespace = registryWithEndpoint.metadata?.namespace || projectName;
+            const verification = await verifyRegistryExists(verifyNamespace, projectName);
+            registryExists = verification.exists;
+          } catch (err) {
+            console.warn(`Failed to verify registry for ${projectName}:`, err);
+            // Don't skip here - let it fall through to check if registryExists is still false
+          }
+        }
+
+        if (!registryExists) {
           results.skipped.push(projectName);
           continue;
         }
@@ -215,7 +266,12 @@ const McpCatalogDetailsPage: React.FC = () => {
           '[handleServerApprove] Converted server data:',
           JSON.stringify(serverData, null, 2),
         );
-        await publishServerToRegistry(projectName, projectName, serverData);
+        // For MANAGED registries, use the namespace where the MCPRegistry CRD is located
+        // For CRD-based registries, use the project name as namespace
+        const publishNamespace = registryWithEndpoint
+          ? registryWithEndpoint.metadata?.namespace || projectName
+          : projectName;
+        await publishServerToRegistry(publishNamespace, projectName, serverData);
         results.succeeded.push(projectName);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';

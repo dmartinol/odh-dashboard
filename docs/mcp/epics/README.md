@@ -19,13 +19,13 @@ Registry management features including CRUD operations and synchronization.
 **Features**:
 - ✅ [List Registries](./registries/list-registries/specs.md) - Dashboard view with registry cards
 - ✅ [View Registry Details](./registries/view-registry-details/specs.md) - Comprehensive registry information
-- ✅ [Create Registry](./registries/create-registry/specs.md) - Multi-step creation wizard
+- 🟡 [Create Registry](./registries/create-registry/specs.md) - Simplified managed registry creation (in progress)
 - ✅ [Update Registry](./registries/update-registry/specs.md) - Edit existing registries
 - ✅ [Delete Registry](./registries/delete-registry/specs.md) - Remove registries with confirmation
 - ✅ [Sync Registry](./registries/sync-registry/specs.md) - Manual and automatic synchronization
 - ⏳ [Unregister Server](./registries/unregister-server/specs.md) - Remove servers from registries (in progress)
 
-**Status**: 6/7 features complete (86%)
+**Status**: 5/7 features complete (71%), 1 in progress
 
 ---
 
@@ -36,8 +36,9 @@ Catalog browsing features from registry API endpoints.
 **Features**:
 - ✅ [List Catalogs](./catalogs/list-catalogs/specs.md) - Browse catalogs from registry API endpoints
 - ⏳ [View Catalog Details](./catalogs/view-catalog-details/specs.md) - Detailed catalog information (pending)
+- ⏳ [Import Catalog](./catalogs/import-catalog/specs.md) - Import catalog configurations into MCPRegistry (pending)
 
-**Status**: 1/2 features complete (50%)
+**Status**: 1/3 features complete (33%), 2 pending
 
 ---
 
@@ -107,9 +108,10 @@ Cross-cutting concerns supporting all MCP features.
 ## Overall Progress
 
 - **Total Epics**: 5
-- **Total Features**: 32
-- **Completed Features**: 17 (53%)
-- **Pending Features**: 15 (47%)
+- **Total Features**: 33
+- **Completed Features**: 17 (52%)
+- **In Progress Features**: 2 (6%)
+- **Pending Features**: 14 (42%)
 
 ## Navigation
 

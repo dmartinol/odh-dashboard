@@ -39,13 +39,17 @@ import useNotification from '@odh-dashboard/internal/utilities/useNotification';
 import { useMcpRegistries } from '../hooks/useMcpRegistries';
 import { useRegistryVerification } from '../hooks/useRegistryVerification';
 import { useRegistryApiServers } from '../hooks/useRegistryApiServers';
+import { fetchRegistryList } from '../api/catalog';
+import { RegistryListItem } from '../types/catalog';
+import { unregisterAllServerVersions } from '../api/registryApi';
+import { RegistryApiRegistryResponse } from '../types/registryApi';
 import { McpRegistry } from '../types/registry';
 import { McpRegistryCreateModal } from '../components/McpRegistryCreateModal';
 import { McpRegistryDeleteModal } from '../components/McpRegistryDeleteModal';
+import { McpDeploymentRestartModal } from '../components/McpDeploymentRestartModal';
 import { McpServersTab } from '../components/McpServersTab';
 import { McpRegistryStatusLabel } from '../components/McpRegistryStatusLabel';
-import { deleteMcpRegistry } from '../api/k8s/mcp';
-import { unregisterAllServerVersions } from '../api/registryApi';
+import { deleteMcpRegistry, createManagedRegistryEntry, deleteDeployment } from '../api/k8s/mcp';
 
 enum RegistryDetailsTab {
   OVERVIEW = 'overview',
@@ -59,22 +63,45 @@ const McpRegistriesPage: React.FC = () => {
     preferredProject?.metadata.name || projects[0]?.metadata.name || '',
   );
   const [activeTabKey, setActiveTabKey] = React.useState<string>(RegistryDetailsTab.OVERVIEW);
-  const [createModalOpen, setCreateModalOpen] = React.useState(false);
   const [editingRegistry, setEditingRegistry] = React.useState<McpRegistry | undefined>();
   const [deleteModalOpen, setDeleteModalOpen] = React.useState(false);
   const [deletingRegistry, setDeletingRegistry] = React.useState<McpRegistry | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [restartModalOpen, setRestartModalOpen] = React.useState(false);
+  const [pendingRestartInfo, setPendingRestartInfo] = React.useState<{
+    deploymentName: string;
+    namespace: string;
+  } | null>(null);
+  const [isRestarting, setIsRestarting] = React.useState(false);
 
   // Use project name as registry name
   const registryName = selectedNamespace || undefined;
 
   // Fetch registry CRD from Kubernetes
   const [registries, registriesLoaded, registriesError] = useMcpRegistries(selectedNamespace || '');
+  // Also fetch all registries to find MCPRegistry instances for managed registry creation
+  const [allRegistries, allRegistriesLoaded] = useMcpRegistries('');
+
+  // Find any registry CRD that has an API endpoint (used for API calls)
+  const registryWithEndpoint = React.useMemo(() => {
+    // Find any registry in any namespace that has an API endpoint
+    // This is used to get the API endpoint for MANAGED registries
+    return allRegistries.find((reg) => {
+      return (
+        reg.status &&
+        typeof reg.status === 'object' &&
+        'apiStatus' in reg.status &&
+        reg.status.apiStatus &&
+        typeof reg.status.apiStatus === 'object' &&
+        'endpoint' in reg.status.apiStatus &&
+        typeof reg.status.apiStatus.endpoint === 'string'
+      );
+    });
+  }, [allRegistries]);
+
+  // Find registry CRD in the selected namespace (for CRD-based registries)
   const registry = React.useMemo(() => {
-    // Find any registry in the namespace that has an API endpoint
-    // The registryName (project name) is used for API calls, not for finding the CRD
     return registries.find((reg) => {
-      // Check if this registry has an API endpoint
       return (
         reg.status &&
         typeof reg.status === 'object' &&
@@ -87,20 +114,113 @@ const McpRegistriesPage: React.FC = () => {
     });
   }, [registries]);
 
-  // Verify registry exists via API
+  // Fetch all registries from API and find MANAGED registry matching selected project
+  const [managedRegistry, setManagedRegistry] = React.useState<RegistryListItem | null>(null);
+  const [managedRegistryDetails, setManagedRegistryDetails] =
+    React.useState<RegistryApiRegistryResponse | null>(null);
+  const [loadingManagedRegistry, setLoadingManagedRegistry] = React.useState(false);
+
+  // Verify registry exists via API (for CRD-based registries)
+  // Only verify if we have a registry CRD in the selected namespace, otherwise rely on MANAGED registry fetch
+  const shouldVerify = React.useMemo(() => {
+    return !!registry && !!selectedNamespace && !!registryName;
+  }, [registry, selectedNamespace, registryName]);
+
   const {
     exists: registryExists,
+    registry: apiRegistry,
     loading: verifying,
     refetch: refetchVerification,
-  } = useRegistryVerification(selectedNamespace, registryName);
+  } = useRegistryVerification(
+    shouldVerify ? selectedNamespace : undefined,
+    shouldVerify ? registryName : undefined,
+  );
+
+  // Fetch MANAGED registries from API when a project is selected and we have a registry with endpoint
+  React.useEffect(() => {
+    if (!selectedNamespace || !registryWithEndpoint || !allRegistriesLoaded) {
+      setManagedRegistry(null);
+      setManagedRegistryDetails(null);
+      setLoadingManagedRegistry(false);
+      return;
+    }
+
+    const fetchManagedRegistries = async () => {
+      setLoadingManagedRegistry(true);
+
+      try {
+        const registryNamespace = registryWithEndpoint.metadata?.namespace || '';
+        const mcpRegistryName = registryWithEndpoint.metadata?.name || '';
+
+        // Fetch all registries from the API
+        const registryList = await fetchRegistryList(registryNamespace, mcpRegistryName);
+
+        // Find MANAGED registry matching the selected project name
+        // Note: KUBERNETES registries should be handled via CRD, not API list
+        const foundManagedRegistry = registryList.registries.find(
+          (reg: RegistryListItem) => reg.type === 'MANAGED' && reg.name === selectedNamespace,
+        );
+
+        if (foundManagedRegistry) {
+          setManagedRegistry(foundManagedRegistry);
+          // For MANAGED registries, use the list item data directly
+          // We don't need to verify via the verify endpoint since we already found it in the list
+          setManagedRegistryDetails({
+            name: foundManagedRegistry.name,
+            type: foundManagedRegistry.type,
+            syncStatus: foundManagedRegistry.syncStatus,
+            createdAt: foundManagedRegistry.createdAt,
+            updatedAt: foundManagedRegistry.updatedAt,
+          });
+        } else {
+          setManagedRegistry(null);
+          setManagedRegistryDetails(null);
+        }
+      } catch (error) {
+        console.error('Failed to fetch MANAGED registries:', error);
+        setManagedRegistry(null);
+        setManagedRegistryDetails(null);
+      } finally {
+        setLoadingManagedRegistry(false);
+      }
+    };
+
+    fetchManagedRegistries();
+  }, [selectedNamespace, registryWithEndpoint, allRegistriesLoaded]);
+
+  // Determine which registry to display: CRD-based or MANAGED
+  const displayedRegistry = React.useMemo(() => {
+    // Only show CRD-based registry if verification confirms it exists
+    // (registry CRD might exist in the namespace, but the actual registry with that name might not)
+    if (registry && shouldVerify && registryExists === true) {
+      return { type: 'crd' as const, registry };
+    }
+    // Show MANAGED registry if we have the list item, even without full details
+    if (managedRegistry) {
+      return {
+        type: 'managed' as const,
+        registry: managedRegistryDetails || {
+          name: managedRegistry.name,
+          type: managedRegistry.type,
+          syncStatus: managedRegistry.syncStatus,
+          createdAt: managedRegistry.createdAt,
+          updatedAt: managedRegistry.updatedAt,
+        },
+        listItem: managedRegistry,
+      };
+    }
+    return null;
+  }, [registry, shouldVerify, registryExists, managedRegistry, managedRegistryDetails]);
 
   // Fetch servers from API
+  // For MANAGED registries, we need to use the registryWithEndpoint's namespace for API calls
+  const apiRegistryNamespace = registryWithEndpoint?.metadata?.namespace || selectedNamespace;
   const {
     servers: apiServers,
     loading: serversLoading,
     error: serversError,
     refetch: refetchServers,
-  } = useRegistryApiServers(selectedNamespace, registryName);
+  } = useRegistryApiServers(apiRegistryNamespace, registryName);
 
   // Sync selected namespace with preferred project changes
   React.useEffect(() => {
@@ -119,6 +239,64 @@ const McpRegistriesPage: React.FC = () => {
 
   const handleCreateSuccess = () => {
     // Refresh happens automatically via useK8sWatchResource
+  };
+
+  const handleCreateManagedRegistry = async () => {
+    if (!selectedNamespace) {
+      notification.error('Create failed', 'No project selected');
+      return;
+    }
+
+    try {
+      // Wait for registries to load
+      if (!allRegistriesLoaded) {
+        notification.error('Create failed', 'Unable to check for existing MCPRegistry instances');
+        return;
+      }
+
+      if (allRegistries.length === 0) {
+        notification.error(
+          'Create failed',
+          'No MCPRegistry instance found. Please create an MCPRegistry first.',
+        );
+        return;
+      }
+
+      if (allRegistries.length > 1) {
+        notification.error(
+          'Create failed',
+          `Multiple MCPRegistry instances found (${allRegistries.length}). Exactly one instance is required.`,
+        );
+        return;
+      }
+
+      // Get the single MCPRegistry instance
+      const mcpRegistry = allRegistries[0];
+      const mcpRegistryName = mcpRegistry.metadata?.name;
+      const registryNamespace = mcpRegistry.metadata?.namespace;
+
+      if (!mcpRegistryName || !registryNamespace) {
+        notification.error('Create failed', 'MCPRegistry instance is missing name or namespace');
+        return;
+      }
+
+      // Create managed registry entry (will check for duplicates in the ConfigMap)
+      await createManagedRegistryEntry(selectedNamespace, mcpRegistryName, registryNamespace);
+
+      // Show restart confirmation dialog
+      // mcpRegistryName is guaranteed to be defined here due to the check above
+      const deploymentName = `${mcpRegistryName}-api`;
+      setPendingRestartInfo({
+        deploymentName,
+        namespace: registryNamespace,
+      });
+      setRestartModalOpen(true);
+    } catch (error) {
+      notification.error(
+        'Create failed',
+        error instanceof Error ? error.message : 'Unknown error occurred',
+      );
+    }
   };
 
   const handleEditRegistry = () => {
@@ -164,6 +342,62 @@ const McpRegistriesPage: React.FC = () => {
   const handleCancelDelete = () => {
     setDeleteModalOpen(false);
     setDeletingRegistry(null);
+  };
+
+  const handleConfirmRestart = async () => {
+    if (!pendingRestartInfo) {
+      return;
+    }
+
+    setIsRestarting(true);
+    try {
+      // Delete the deployment (operator will recreate it)
+      await deleteDeployment(pendingRestartInfo.deploymentName, pendingRestartInfo.namespace);
+
+      notification.success(
+        'Registry created',
+        `Managed registry entry for project "${selectedNamespace}" has been created successfully. ` +
+          `The registry API deployment is being restarted.`,
+      );
+
+      // Refresh registry data
+      refetchVerification();
+
+      // Close modal and reset state
+      setRestartModalOpen(false);
+      setPendingRestartInfo(null);
+    } catch (error) {
+      // Log warning but don't fail - deployment may not exist or already be deleted
+      console.warn('Failed to delete deployment:', error);
+      notification.warning(
+        'Deployment restart skipped',
+        `Registry entry created successfully, but deployment restart failed: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }. ` + `The deployment may need to be restarted manually.`,
+      );
+      // Still close modal and refresh
+      setRestartModalOpen(false);
+      setPendingRestartInfo(null);
+      refetchVerification();
+    } finally {
+      setIsRestarting(false);
+    }
+  };
+
+  const handleCancelRestart = () => {
+    if (!isRestarting) {
+      setRestartModalOpen(false);
+      setPendingRestartInfo(null);
+      // Still show success for registry creation
+      notification.success(
+        'Registry created',
+        `Managed registry entry for project "${selectedNamespace}" has been created successfully. ` +
+          `Please restart the deployment "${
+            pendingRestartInfo?.deploymentName || 'unknown'
+          }" manually to apply changes.`,
+      );
+      refetchVerification();
+    }
   };
 
   const getSourceTypeIcon = (sourceType?: string) => {
@@ -260,10 +494,11 @@ const McpRegistriesPage: React.FC = () => {
   };
 
   const getSourceDisplay = (): string => {
-    const sourceType = registry?.spec.source?.type;
+    const currentRegistry = displayedRegistry?.type === 'crd' ? displayedRegistry.registry : null;
+    const sourceType = currentRegistry?.spec.source?.type;
 
-    if (sourceType === 'git' && registry?.spec.source?.git) {
-      const { repository, branch, path } = registry.spec.source.git;
+    if (sourceType === 'git' && currentRegistry?.spec.source?.git) {
+      const { repository, branch, path } = currentRegistry.spec.source.git;
       let display = repository || '';
       if (branch && branch !== 'main') {
         display += `/${branch}`;
@@ -274,13 +509,13 @@ const McpRegistriesPage: React.FC = () => {
       return display;
     }
 
-    if (sourceType === 'configmap' && registry?.spec.source?.configmap) {
-      const { name: cmName, key } = registry.spec.source.configmap;
+    if (sourceType === 'configmap' && currentRegistry?.spec.source?.configmap) {
+      const { name: cmName, key } = currentRegistry.spec.source.configmap;
       return `${cmName} (${key})`;
     }
 
-    if (sourceType === 'http' && registry?.spec.source?.http) {
-      return registry.spec.source.http.url || '';
+    if (sourceType === 'http' && currentRegistry?.spec.source?.http) {
+      return currentRegistry.spec.source.http.url || '';
     }
 
     return 'Not specified';
@@ -291,6 +526,7 @@ const McpRegistriesPage: React.FC = () => {
       apiServers.length ||
       registry?.status?.syncStatus?.serverCount ||
       registry?.status?.serverCount ||
+      apiRegistry?.syncStatus?.serverCount ||
       0
     );
   };
@@ -332,23 +568,44 @@ const McpRegistriesPage: React.FC = () => {
                   Registry Information
                 </Title>
                 <DescriptionList isHorizontal horizontalTermWidthModifier={{ default: '200px' }}>
-                  {registry?.spec.description && (
-                    <DescriptionListGroup>
-                      <DescriptionListTerm>Description</DescriptionListTerm>
-                      <DescriptionListDescription>
-                        {registry.spec.description}
-                      </DescriptionListDescription>
-                    </DescriptionListGroup>
-                  )}
+                  {(() => {
+                    const description =
+                      displayedRegistry?.type === 'crd'
+                        ? displayedRegistry.registry.spec.description
+                        : displayedRegistry?.type === 'managed'
+                        ? typeof displayedRegistry.registry.description === 'string'
+                          ? displayedRegistry.registry.description
+                          : null
+                        : null;
+                    return description ? (
+                      <DescriptionListGroup>
+                        <DescriptionListTerm>Description</DescriptionListTerm>
+                        <DescriptionListDescription>{description}</DescriptionListDescription>
+                      </DescriptionListGroup>
+                    ) : null;
+                  })()}
 
                   <DescriptionListGroup>
                     <DescriptionListTerm>
                       <FolderOpenIcon /> Project
                     </DescriptionListTerm>
                     <DescriptionListDescription>
-                      {registry?.metadata?.namespace}
+                      {displayedRegistry?.type === 'crd'
+                        ? displayedRegistry.registry.metadata?.namespace
+                        : selectedNamespace}
                     </DescriptionListDescription>
                   </DescriptionListGroup>
+
+                  {displayedRegistry?.type === 'managed' && (
+                    <DescriptionListGroup>
+                      <DescriptionListTerm>Type</DescriptionListTerm>
+                      <DescriptionListDescription>
+                        <Label icon={<FileAltIcon />} color="purple" isCompact>
+                          Managed Registry
+                        </Label>
+                      </DescriptionListDescription>
+                    </DescriptionListGroup>
+                  )}
 
                   <DescriptionListGroup>
                     <DescriptionListTerm>Server Count</DescriptionListTerm>
@@ -360,7 +617,13 @@ const McpRegistriesPage: React.FC = () => {
                   <DescriptionListGroup>
                     <DescriptionListTerm>Created</DescriptionListTerm>
                     <DescriptionListDescription>
-                      {formatDate(registry?.metadata?.creationTimestamp)}
+                      {formatDate(
+                        displayedRegistry?.type === 'crd'
+                          ? displayedRegistry.registry.metadata?.creationTimestamp
+                          : displayedRegistry?.type === 'managed'
+                          ? displayedRegistry.registry.createdAt
+                          : undefined,
+                      )}
                     </DescriptionListDescription>
                   </DescriptionListGroup>
                 </DescriptionList>
@@ -368,50 +631,111 @@ const McpRegistriesPage: React.FC = () => {
             </Card>
           </StackItem>
 
-          {/* Source & Sync Configuration Card */}
-          <StackItem>
-            <Card>
-              <CardBody>
-                <Title headingLevel="h3" size="md" className="pf-v6-u-mb-md">
-                  Source & Sync Configuration
-                </Title>
-                <DescriptionList isHorizontal horizontalTermWidthModifier={{ default: '200px' }}>
-                  <DescriptionListGroup>
-                    <DescriptionListTerm>Source</DescriptionListTerm>
-                    <DescriptionListDescription>
-                      <Flex
-                        alignItems={{ default: 'alignItemsCenter' }}
-                        spaceItems={{ default: 'spaceItemsSm' }}
-                      >
-                        <FlexItem>{getSourceTypeBadge(registry?.spec.source?.type)}</FlexItem>
-                        <FlexItem>
-                          <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
-                            {getSourceDisplay()}
-                          </code>
-                        </FlexItem>
-                        {hasSourceLink && (
+          {/* Source & Sync Configuration Card - Only show for CRD-based registries */}
+          {displayedRegistry?.type === 'crd' && (
+            <StackItem>
+              <Card>
+                <CardBody>
+                  <Title headingLevel="h3" size="md" className="pf-v6-u-mb-md">
+                    Source & Sync Configuration
+                  </Title>
+                  <DescriptionList isHorizontal horizontalTermWidthModifier={{ default: '200px' }}>
+                    <DescriptionListGroup>
+                      <DescriptionListTerm>Source</DescriptionListTerm>
+                      <DescriptionListDescription>
+                        <Flex
+                          alignItems={{ default: 'alignItemsCenter' }}
+                          spaceItems={{ default: 'spaceItemsSm' }}
+                        >
                           <FlexItem>
-                            <Button variant="link" isInline onClick={handleOpenSource}>
-                              {registry.spec.source?.type === 'git'
-                                ? 'Open in Git'
-                                : 'View ConfigMap'}
-                            </Button>
+                            {getSourceTypeBadge(displayedRegistry.registry.spec.source?.type)}
                           </FlexItem>
-                        )}
-                      </Flex>
-                    </DescriptionListDescription>
-                  </DescriptionListGroup>
+                          <FlexItem>
+                            <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
+                              {getSourceDisplay()}
+                            </code>
+                          </FlexItem>
+                          {hasSourceLink && (
+                            <FlexItem>
+                              <Button variant="link" isInline onClick={handleOpenSource}>
+                                {displayedRegistry.registry.spec.source?.type === 'git'
+                                  ? 'Open in Git'
+                                  : 'View ConfigMap'}
+                              </Button>
+                            </FlexItem>
+                          )}
+                        </Flex>
+                      </DescriptionListDescription>
+                    </DescriptionListGroup>
 
-                  <DescriptionListGroup>
-                    <DescriptionListTerm>Sync Policy</DescriptionListTerm>
-                    <DescriptionListDescription>
-                      {getSyncPolicyDisplay()}
-                    </DescriptionListDescription>
-                  </DescriptionListGroup>
-                </DescriptionList>
-              </CardBody>
-            </Card>
-          </StackItem>
+                    <DescriptionListGroup>
+                      <DescriptionListTerm>Sync Policy</DescriptionListTerm>
+                      <DescriptionListDescription>
+                        {getSyncPolicyDisplay()}
+                      </DescriptionListDescription>
+                    </DescriptionListGroup>
+                  </DescriptionList>
+                </CardBody>
+              </Card>
+            </StackItem>
+          )}
+
+          {/* Managed Registry Info Card */}
+          {displayedRegistry?.type === 'managed' && (
+            <StackItem>
+              <Card>
+                <CardBody>
+                  <Title headingLevel="h3" size="md" className="pf-v6-u-mb-md">
+                    Managed Registry Information
+                  </Title>
+                  <DescriptionList isHorizontal horizontalTermWidthModifier={{ default: '200px' }}>
+                    <DescriptionListGroup>
+                      <DescriptionListTerm>Registry Name</DescriptionListTerm>
+                      <DescriptionListDescription>
+                        {(typeof displayedRegistry.registry.name === 'string'
+                          ? displayedRegistry.registry.name
+                          : null) || selectedNamespace}
+                      </DescriptionListDescription>
+                    </DescriptionListGroup>
+
+                    {displayedRegistry.registry.syncStatus && (
+                      <>
+                        {displayedRegistry.registry.syncStatus.phase && (
+                          <DescriptionListGroup>
+                            <DescriptionListTerm>Status</DescriptionListTerm>
+                            <DescriptionListDescription>
+                              <Label
+                                color={
+                                  displayedRegistry.registry.syncStatus.phase === 'Ready' ||
+                                  displayedRegistry.registry.syncStatus.phase === 'Complete'
+                                    ? 'green'
+                                    : displayedRegistry.registry.syncStatus.phase === 'Failed'
+                                    ? 'red'
+                                    : 'blue'
+                                }
+                                isCompact
+                              >
+                                {displayedRegistry.registry.syncStatus.phase}
+                              </Label>
+                            </DescriptionListDescription>
+                          </DescriptionListGroup>
+                        )}
+
+                        {displayedRegistry.registry.syncStatus.lastSyncTime && (
+                          <DescriptionListGroup>
+                            <DescriptionListTerm>Last Sync</DescriptionListTerm>
+                            <DescriptionListDescription>
+                              {formatDate(displayedRegistry.registry.syncStatus.lastSyncTime)}
+                            </DescriptionListDescription>
+                          </DescriptionListGroup>
+                        )}
+                      </>
+                    )}
+                  </DescriptionList>
+                </CardBody>
+              </Card>
+            </StackItem>
+          )}
         </Stack>
       </PageSection>
     );
@@ -473,24 +797,14 @@ const McpRegistriesPage: React.FC = () => {
             </Title>
           </FlexItem>
           <FlexItem>
-            <Flex spaceItems={{ default: 'spaceItemsSm' }}>
-              <FlexItem>
-                <Button
-                  variant="secondary"
-                  icon={<SyncIcon />}
-                  onClick={handleRefresh}
-                  isDisabled={verifying || serversLoading || !selectedNamespace}
-                  aria-label="Refresh registry data"
-                >
-                  Refresh
-                </Button>
-              </FlexItem>
-              <FlexItem>
-                <Button variant="primary" onClick={() => setCreateModalOpen(true)}>
-                  Create registry
-                </Button>
-              </FlexItem>
-            </Flex>
+            <Button
+              variant="secondary"
+              icon={<SyncIcon />}
+              onClick={handleRefresh}
+              aria-label="Refresh registry data"
+            >
+              Refresh
+            </Button>
           </FlexItem>
         </Flex>
       </PageSection>
@@ -536,7 +850,8 @@ const McpRegistriesPage: React.FC = () => {
               </Alert>
             )}
 
-            {verifying || !registriesLoaded ? (
+            {(!registriesLoaded || loadingManagedRegistry || (shouldVerify && verifying)) &&
+            !displayedRegistry ? (
               <Card>
                 <CardBody>
                   <Flex justifyContent={{ default: 'justifyContentCenter' }} className="pf-u-p-xl">
@@ -545,32 +860,50 @@ const McpRegistriesPage: React.FC = () => {
                     </FlexItem>
                     <FlexItem>
                       <div style={{ marginLeft: '1rem' }}>
-                        {verifying ? 'Verifying registry...' : 'Loading registry...'}
+                        {loadingManagedRegistry || (shouldVerify && verifying)
+                          ? 'Loading registry...'
+                          : 'Loading registry...'}
                       </div>
                     </FlexItem>
                   </Flex>
                 </CardBody>
               </Card>
-            ) : registryExists === false ? (
+            ) : !displayedRegistry &&
+              registriesLoaded &&
+              allRegistriesLoaded &&
+              !loadingManagedRegistry &&
+              (!shouldVerify || (!verifying && registryExists === false)) ? (
               <Card>
                 <CardBody>
                   <Alert variant={AlertVariant.info} title="No registry exists for this project">
                     <Flex
-                      alignItems={{ default: 'alignItemsCenter' }}
-                      spaceItems={{ default: 'spaceItemsSm' }}
+                      direction={{ default: 'column' }}
+                      spaceItems={{ default: 'spaceItemsMd' }}
                     >
                       <FlexItem>
-                        <InfoCircleIcon />
+                        <Flex
+                          alignItems={{ default: 'alignItemsCenter' }}
+                          spaceItems={{ default: 'spaceItemsSm' }}
+                        >
+                          <FlexItem>
+                            <InfoCircleIcon />
+                          </FlexItem>
+                          <FlexItem>
+                            No registry exists for project &quot;{selectedNamespace}&quot;. Do you
+                            want to create one?
+                          </FlexItem>
+                        </Flex>
                       </FlexItem>
                       <FlexItem>
-                        No registry exists for project &quot;{selectedNamespace}&quot;. Create a new
-                        registry to get started.
+                        <Button variant="primary" onClick={handleCreateManagedRegistry}>
+                          Create Registry
+                        </Button>
                       </FlexItem>
                     </Flex>
                   </Alert>
                 </CardBody>
               </Card>
-            ) : registry ? (
+            ) : displayedRegistry ? (
               <>
                 {/* Page Header */}
                 <PageSection>
@@ -580,46 +913,56 @@ const McpRegistriesPage: React.FC = () => {
                         alignItems={{ default: 'alignItemsCenter' }}
                         spaceItems={{ default: 'spaceItemsSm' }}
                       >
-                        <FlexItem>{getSourceTypeIcon(registry.spec.source?.type)}</FlexItem>
+                        <FlexItem>
+                          {displayedRegistry.type === 'crd' ? (
+                            getSourceTypeIcon(displayedRegistry.registry.spec.source?.type)
+                          ) : (
+                            <FileAltIcon />
+                          )}
+                        </FlexItem>
                         <FlexItem>
                           <Title headingLevel="h1" size="2xl">
-                            {registry.spec.displayName || registry.metadata?.name}
+                            {displayedRegistry.type === 'crd'
+                              ? displayedRegistry.registry.spec.displayName ||
+                                displayedRegistry.registry.metadata?.name
+                              : (typeof displayedRegistry.registry.name === 'string'
+                                  ? displayedRegistry.registry.name
+                                  : '') || selectedNamespace}
                           </Title>
                         </FlexItem>
                         <FlexItem>
-                          <McpRegistryStatusLabel status={registry.status} />
+                          {displayedRegistry.type === 'crd' ? (
+                            <McpRegistryStatusLabel status={displayedRegistry.registry.status} />
+                          ) : (
+                            <Label color="purple" isCompact>
+                              Managed Registry
+                            </Label>
+                          )}
                         </FlexItem>
                       </Flex>
                     </FlexItem>
                     <FlexItem>
-                      <Flex spaceItems={{ default: 'spaceItemsSm' }}>
-                        <FlexItem>
-                          <Button
-                            variant="secondary"
-                            icon={<SyncIcon />}
-                            onClick={handleRefresh}
-                            isDisabled={serversLoading}
-                            aria-label="Refresh registry data"
-                          >
-                            Refresh
-                          </Button>
-                        </FlexItem>
-                        <FlexItem>
-                          <Button
-                            variant="secondary"
-                            icon={<EditIcon />}
-                            onClick={handleEditRegistry}
-                          >
-                            Edit
-                          </Button>
-                        </FlexItem>
-                      </Flex>
+                      {displayedRegistry.type === 'crd' && (
+                        <Button
+                          variant="secondary"
+                          icon={<EditIcon />}
+                          onClick={handleEditRegistry}
+                        >
+                          Edit
+                        </Button>
+                      )}
                     </FlexItem>
                   </Flex>
 
                   {/* Registry metadata */}
                   <Flex spaceItems={{ default: 'spaceItemsSm' }} className="pf-u-mt-sm">
-                    {getSourceTypeBadge(registry.spec.source?.type)}
+                    {displayedRegistry.type === 'crd' ? (
+                      getSourceTypeBadge(displayedRegistry.registry.spec.source?.type)
+                    ) : (
+                      <Label icon={<FileAltIcon />} color="purple" isCompact>
+                        Managed Registry
+                      </Label>
+                    )}
                     <span className="pf-u-color-200">•</span>
                     <span className="pf-u-font-weight-bold">{getServerCount()}</span>
                     <span className="pf-u-color-200">
@@ -627,7 +970,10 @@ const McpRegistriesPage: React.FC = () => {
                     </span>
                     {(() => {
                       const lastSync =
-                        registry.status?.syncStatus?.lastSyncTime ?? registry.status?.lastSyncTime;
+                        displayedRegistry.type === 'crd'
+                          ? displayedRegistry.registry.status?.syncStatus?.lastSyncTime ??
+                            displayedRegistry.registry.status?.lastSyncTime
+                          : displayedRegistry.registry.syncStatus?.lastSyncTime;
                       return (
                         lastSync && (
                           <>
@@ -641,11 +987,19 @@ const McpRegistriesPage: React.FC = () => {
                     })()}
                   </Flex>
 
-                  {registry.spec.description && (
-                    <div className="pf-u-color-200 pf-u-font-size-sm pf-u-mt-sm">
-                      {registry.spec.description}
-                    </div>
-                  )}
+                  {(() => {
+                    const description =
+                      displayedRegistry.type === 'crd'
+                        ? displayedRegistry.registry.spec.description
+                        : typeof displayedRegistry.registry.description === 'string'
+                        ? displayedRegistry.registry.description
+                        : null;
+                    return description ? (
+                      <div className="pf-u-color-200 pf-u-font-size-sm pf-u-mt-sm">
+                        {description}
+                      </div>
+                    ) : null;
+                  })()}
                 </PageSection>
 
                 {/* Tabbed Content */}
@@ -681,26 +1035,10 @@ const McpRegistriesPage: React.FC = () => {
           </>
         )}
       </PageSection>
-      {createModalOpen && (
-        <McpRegistryCreateModal
-          isOpen
-          onClose={() => {
-            setCreateModalOpen(false);
-            setEditingRegistry(undefined);
-          }}
-          onSuccess={() => {
-            handleCreateSuccess();
-            setEditingRegistry(undefined);
-          }}
-          editRegistry={undefined}
-        />
-      )}
-
       {editingRegistry && (
         <McpRegistryCreateModal
           isOpen
           onClose={() => {
-            setCreateModalOpen(false);
             setEditingRegistry(undefined);
           }}
           onSuccess={() => {
@@ -717,6 +1055,17 @@ const McpRegistriesPage: React.FC = () => {
           onClose={handleCancelDelete}
           onConfirm={handleConfirmDelete}
           isDeleting={isDeleting}
+        />
+      )}
+
+      {restartModalOpen && pendingRestartInfo && (
+        <McpDeploymentRestartModal
+          isOpen
+          deploymentName={pendingRestartInfo.deploymentName}
+          namespace={pendingRestartInfo.namespace}
+          onClose={handleCancelRestart}
+          onConfirm={handleConfirmRestart}
+          isRestarting={isRestarting}
         />
       )}
     </>

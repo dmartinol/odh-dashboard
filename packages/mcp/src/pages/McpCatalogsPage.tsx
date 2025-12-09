@@ -15,17 +15,41 @@ import {
   GridItem,
   Button,
 } from '@patternfly/react-core';
-import { FolderOpenIcon, SyncIcon } from '@patternfly/react-icons';
+import { FolderOpenIcon, SyncIcon, PlusIcon } from '@patternfly/react-icons';
 import ProjectSelector from '@odh-dashboard/internal/concepts/projects/ProjectSelector';
 import { ProjectsContext } from '../../../../frontend/src/concepts/projects/ProjectsContext';
 import { useCatalogData } from '../hooks/useCatalogData';
 import { McpCatalogCard } from '../components/McpCatalogCard';
+import { useMcpRegistries } from '../hooks/useMcpRegistries';
+import { McpCatalogImportModal } from '../components/McpCatalogImportModal';
 
 const McpCatalogsPage: React.FC = () => {
   const { projects, preferredProject, updatePreferredProject } = React.useContext(ProjectsContext);
   const [selectedNamespace, setSelectedNamespace] = React.useState<string>(
     preferredProject?.metadata.name || '',
   );
+  const [importModalOpen, setImportModalOpen] = React.useState(false);
+
+  // Fetch MCPRegistry instances in the selected namespace to check if exactly one exists
+  const [registries, registriesLoaded] = useMcpRegistries(selectedNamespace || undefined);
+
+  // Check if exactly one MCPRegistry exists in the selected namespace
+  const canImportCatalog = React.useMemo(() => {
+    if (!selectedNamespace || !registriesLoaded) {
+      return false;
+    }
+    return registries.length === 1;
+  }, [selectedNamespace, registries, registriesLoaded]);
+
+  const mcpRegistryForImport = React.useMemo(() => {
+    if (canImportCatalog && registries.length === 1) {
+      const registry = registries[0];
+      if ('spec' in registry) {
+        return registry;
+      }
+    }
+    return undefined;
+  }, [canImportCatalog, registries]);
 
   // Sync selected namespace with preferred project changes
   React.useEffect(() => {
@@ -46,6 +70,10 @@ const McpCatalogsPage: React.FC = () => {
   };
 
   const { catalogs, loading, error, refetch } = useCatalogData(selectedNamespace);
+
+  const handleImportSuccess = () => {
+    refetch();
+  };
 
   // Loading state
   if (loading) {
@@ -128,15 +156,30 @@ const McpCatalogsPage: React.FC = () => {
             </Title>
           </FlexItem>
           <FlexItem>
-            <Button
-              variant="secondary"
-              icon={<SyncIcon />}
-              onClick={() => refetch()}
-              isDisabled={loading}
-              aria-label="Refresh catalog data"
-            >
-              Refresh
-            </Button>
+            <Flex spaceItems={{ default: 'spaceItemsSm' }}>
+              <FlexItem>
+                <Button
+                  variant="secondary"
+                  icon={<SyncIcon />}
+                  onClick={() => refetch()}
+                  isDisabled={loading}
+                  aria-label="Refresh catalog data"
+                >
+                  Refresh
+                </Button>
+              </FlexItem>
+              <FlexItem>
+                <Button
+                  variant="primary"
+                  icon={<PlusIcon />}
+                  onClick={() => setImportModalOpen(true)}
+                  isDisabled={!canImportCatalog || loading}
+                  aria-label="Import catalog"
+                >
+                  Import Catalog
+                </Button>
+              </FlexItem>
+            </Flex>
           </FlexItem>
         </Flex>
       </PageSection>
@@ -187,6 +230,14 @@ const McpCatalogsPage: React.FC = () => {
           </Grid>
         )}
       </PageSection>
+      {importModalOpen && mcpRegistryForImport && (
+        <McpCatalogImportModal
+          isOpen
+          onClose={() => setImportModalOpen(false)}
+          onSuccess={handleImportSuccess}
+          mcpRegistry={mcpRegistryForImport}
+        />
+      )}
     </>
   );
 };

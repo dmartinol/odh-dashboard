@@ -1,5 +1,35 @@
 import { K8sResourceCommon } from '@openshift/dynamic-plugin-sdk-utils';
 
+export interface McpRegistryRegistryEntry {
+  name: string;
+  format?: string;
+  configMapRef?: {
+    name: string;
+    key: string;
+  };
+  git?: {
+    repository: string;
+    branch?: string;
+    path?: string;
+  };
+  http?: {
+    url: string;
+  };
+  syncPolicy?: {
+    interval?: string;
+    enabled?: boolean;
+  };
+  filter?: {
+    include?: string[];
+    exclude?: string[];
+    tags?: {
+      include?: string[];
+      exclude?: string[];
+    };
+  };
+  managed?: Record<string, unknown>;
+}
+
 export interface McpRegistry extends K8sResourceCommon {
   apiVersion: 'toolhive.stacklok.dev/v1alpha1';
   kind: 'MCPRegistry';
@@ -8,6 +38,7 @@ export interface McpRegistry extends K8sResourceCommon {
       name: string;
       url?: string;
     }>;
+    registries?: McpRegistryRegistryEntry[];
     displayName?: string;
     description?: string;
     source?: McpRegistrySource;
