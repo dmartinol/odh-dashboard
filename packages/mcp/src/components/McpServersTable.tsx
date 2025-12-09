@@ -8,10 +8,10 @@ import {
   InProgressIcon,
   QuestionCircleIcon,
   CopyIcon,
-  ServerIcon,
 } from '@patternfly/react-icons';
 import { McpServer, McpTransport } from '../types/server';
 import { McpRegistry } from '../types/registry';
+import { useServerLogo } from '../hooks/useServerLogo';
 
 interface McpServersTableProps {
   servers: McpServer[];
@@ -90,23 +90,13 @@ const getTransportColor = (transport: McpTransport): 'blue' | 'purple' | 'green'
   }
 };
 
-const getServerLogo = (server: McpServer): React.ReactNode => {
-  const logoUrl = server.metadata?.annotations?.['mcp.toolhive.stacklok.dev/server-logo'];
-
-  if (logoUrl) {
-    return (
-      <img
-        src={logoUrl}
-        alt="Server logo"
-        style={{ width: '24px', height: '24px', objectFit: 'contain' }}
-        onError={(e) => {
-          e.currentTarget.style.display = 'none';
-        }}
-      />
-    );
-  }
-
-  return <ServerIcon />;
+// ServerLogo component that uses the hook
+const ServerLogo: React.FC<{ server: McpServer; registries: McpRegistry[] }> = ({
+  server,
+  registries,
+}) => {
+  const linkedRegistry = getLinkedRegistry(server, registries);
+  return useServerLogo({ server, linkedRegistry, size: 24 });
 };
 
 export const McpServersTable: React.FC<McpServersTableProps> = ({
@@ -254,7 +244,7 @@ export const McpServersTable: React.FC<McpServersTableProps> = ({
                     onClick={() => onRegisteredServerClick?.(associatedServerName, linkedRegistry)}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {getServerLogo(server)}
+                      <ServerLogo server={server} registries={registries} />
                       <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
                         {associatedServerName}
                       </code>
@@ -262,7 +252,7 @@ export const McpServersTable: React.FC<McpServersTableProps> = ({
                   </Button>
                 ) : associatedServerName ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {getServerLogo(server)}
+                    <ServerLogo server={server} registries={registries} />
                     <code className="pf-v6-u-font-family-monospace pf-v6-u-font-size-sm">
                       {associatedServerName}
                     </code>

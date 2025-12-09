@@ -19,8 +19,10 @@ import {
   TabTitleText,
   Title,
 } from '@patternfly/react-core';
-import { PencilAltIcon, InfoCircleIcon } from '@patternfly/react-icons';
+import { PencilAltIcon } from '@patternfly/react-icons';
 import { McpServer, McpServerMetadata } from '../types/server';
+import { McpRegistry } from '../types/registry';
+import { useServerLogo } from '../hooks/useServerLogo';
 
 interface McpDeployedServerDetailsModalProps {
   onClose: () => void;
@@ -44,22 +46,25 @@ export const McpDeployedServerDetailsModal: React.FC<McpDeployedServerDetailsMod
 }) => {
   const [activeTabKey, setActiveTabKey] = React.useState<string>(DetailsTab.SERVER);
 
-  const getServerIcon = () => {
-    const logoUrl = server.metadata?.annotations?.['mcp.toolhive.stacklok.dev/server-logo'];
-    if (logoUrl) {
-      return (
-        <img
-          src={logoUrl}
-          alt="Server logo"
-          style={{ width: '32px', height: '32px' }}
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
-          }}
-        />
-      );
+  // Get linked registry from server labels if available
+  const linkedRegistry: McpRegistry | undefined = React.useMemo(() => {
+    const registryName = server.metadata?.labels?.['toolhive.stacklok.io/registry-name'];
+    const registryNamespace = server.metadata?.labels?.['toolhive.stacklok.io/registry-namespace'];
+    // We don't have access to registries list here, so we'll construct a minimal registry object
+    // The hook will fetch metadata from the registry if needed
+    if (registryName && registryNamespace) {
+      const registry: McpRegistry = {
+        apiVersion: 'toolhive.stacklok.dev/v1alpha1',
+        kind: 'MCPRegistry',
+        metadata: { name: registryName, namespace: registryNamespace },
+        spec: {},
+      };
+      return registry;
     }
-    return <InfoCircleIcon style={{ width: '32px', height: '32px' }} />;
-  };
+    return undefined;
+  }, [server]);
+
+  const serverIcon = useServerLogo({ server, linkedRegistry, size: 32 });
 
   const displayName =
     server.metadata?.annotations?.['mcp.toolhive.stacklok.dev/server-display-name'] ||
@@ -552,7 +557,7 @@ export const McpDeployedServerDetailsModal: React.FC<McpDeployedServerDetailsMod
     <Modal isOpen onClose={onClose} variant="medium" data-testid="mcp-deployed-server-details">
       <ModalHeader>
         <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
-          <FlexItem>{getServerIcon()}</FlexItem>
+          <FlexItem>{serverIcon}</FlexItem>
           <FlexItem>
             <Title headingLevel="h2" size="xl">
               {displayName}

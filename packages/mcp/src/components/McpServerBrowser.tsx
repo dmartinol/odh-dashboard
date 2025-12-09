@@ -40,6 +40,7 @@ import { McpServerApproveModal } from './McpServerApproveModal';
 import { McpServerUnregisterModal } from './McpServerUnregisterModal';
 import { McpServerMetadata, McpTransport, McpServerTier } from '../types';
 import { McpRegistry } from '../types/registry';
+import { useServerLogo } from '../hooks/useServerLogo';
 
 const isValidTransport = (value: string): value is McpTransport | 'all' => {
   return ['all', 'stdio', 'sse', 'streamable-http'].includes(value);
@@ -149,20 +150,9 @@ export const McpServerBrowser: React.FC<McpServerBrowserProps> = ({
     });
   }, [servers, filters]);
 
-  const getServerIcon = (server: McpServerMetadata) => {
-    if (server.logo) {
-      return (
-        <img
-          src={server.logo}
-          alt={`${server.displayName || server.name} logo`}
-          style={{ width: '24px', height: '24px' }}
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
-          }}
-        />
-      );
-    }
-    return <ServerIcon />;
+  // ServerIcon component that uses the hook
+  const ServerIconComponent: React.FC<{ server: McpServerMetadata }> = ({ server }) => {
+    return useServerLogo({ server, size: 24 });
   };
 
   const getTransportFromTags = (server: McpServerMetadata): McpTransport | undefined => {
@@ -216,7 +206,9 @@ export const McpServerBrowser: React.FC<McpServerBrowserProps> = ({
             alignItems={{ default: 'alignItemsCenter' }}
             spaceItems={{ default: 'spaceItemsSm' }}
           >
-            <FlexItem>{getServerIcon(server)}</FlexItem>
+            <FlexItem>
+              <ServerIconComponent server={server} />
+            </FlexItem>
             <FlexItem flex={{ default: 'flex_1' }}>
               <Title headingLevel="h4" size="md">
                 {server.displayName || server.name}

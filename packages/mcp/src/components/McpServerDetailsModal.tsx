@@ -33,6 +33,7 @@ import {
   DownloadIcon,
 } from '@patternfly/react-icons';
 import { McpServerMetadata, McpTransport, McpServerTier } from '../types';
+import { useServerLogo } from '../hooks/useServerLogo';
 
 interface McpServerDetailsModalProps {
   isOpen: boolean;
@@ -82,21 +83,7 @@ export const McpServerDetailsModal: React.FC<McpServerDetailsModalProps> = ({
     }
   }, [isOpen, server]);
 
-  const getServerIcon = () => {
-    if (server.logo) {
-      return (
-        <img
-          src={server.logo}
-          alt={`${server.displayName || server.name} logo`}
-          style={{ width: '32px', height: '32px' }}
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
-          }}
-        />
-      );
-    }
-    return <InfoCircleIcon style={{ width: '32px', height: '32px' }} />;
-  };
+  const serverIcon = useServerLogo({ server, size: 32 });
 
   const getTransportFromTags = (): McpTransport | undefined => {
     const transports: McpTransport[] = ['stdio', 'sse', 'streamable-http'];
@@ -564,7 +551,7 @@ export const McpServerDetailsModal: React.FC<McpServerDetailsModalProps> = ({
     <Modal isOpen onClose={onClose} variant="large" data-testid="mcp-server-details-modal">
       <ModalHeader>
         <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
-          <FlexItem>{getServerIcon()}</FlexItem>
+          <FlexItem>{serverIcon}</FlexItem>
           <FlexItem>
             <Title headingLevel="h2" size="xl">
               {server.displayName || server.name}

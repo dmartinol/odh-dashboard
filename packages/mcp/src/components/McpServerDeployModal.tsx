@@ -29,11 +29,12 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from '@patternfly/react-core';
-import { InfoCircleIcon, EyeIcon, EyeSlashIcon } from '@patternfly/react-icons';
+import { EyeIcon, EyeSlashIcon } from '@patternfly/react-icons';
 import DashboardModalFooter from '@odh-dashboard/internal/concepts/dashboard/DashboardModalFooter';
 import useNotification from '@odh-dashboard/internal/utilities/useNotification';
 import { McpServerMetadata, McpServer, McpTransport, McpServerTier, McpProxyMode } from '../types';
 import { McpRegistry } from '../types/registry';
+import { useServerLogo } from '../hooks/useServerLogo';
 import { createMcpServer, updateMcpServer } from '../api/k8s/mcp';
 import { ProjectsContext } from '../../../../frontend/src/concepts/projects/ProjectsContext';
 import { useSecrets, getSecretKeys } from '../hooks/useSecrets';
@@ -538,21 +539,7 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
     }
   };
 
-  const getServerIcon = () => {
-    if (server.logo) {
-      return (
-        <img
-          src={server.logo}
-          alt={`${server.displayName || server.name} logo`}
-          style={{ width: '24px', height: '24px' }}
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
-          }}
-        />
-      );
-    }
-    return <InfoCircleIcon />;
-  };
+  const serverIcon = useServerLogo({ server, size: 24 });
 
   const modalTitle = existingServer
     ? `Edit ${server.displayName || server.name}`
@@ -562,7 +549,7 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
     <Modal isOpen onClose={onCancelClose} variant="medium" data-testid="mcp-server-deploy-modal">
       <ModalHeader>
         <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
-          <FlexItem>{getServerIcon()}</FlexItem>
+          <FlexItem>{serverIcon}</FlexItem>
           <FlexItem>
             <Title headingLevel="h2" size="xl">
               {modalTitle}
