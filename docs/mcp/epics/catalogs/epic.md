@@ -7,13 +7,13 @@ The Catalogs epic provides functionality for browsing and viewing catalogs from 
 ## Epic Goals
 
 - Display available MCP catalogs from registry API endpoints
-- Support project/namespace filtering with "All projects" option
+- Fixed project namespace: 'toolhive-system' (no project selector)
 - Provide card-based catalog browsing interface (similar to registry cards)
 - Enable navigation to catalog details with server browsing
 
 ## Key Features
 
-- **List Catalogs**: Browse catalogs from all MCP registries in selected namespace(s)
+- **List Catalogs**: Browse catalogs from all MCP registries in 'toolhive-system' namespace
   - Catalog cards match the design of registry cards
   - Display catalog status, type, server count, and sync information
 - **View Catalog Details**: Detailed catalog information with server browsing

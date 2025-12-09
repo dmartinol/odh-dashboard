@@ -16,11 +16,10 @@ The Import Catalog feature allows users to import a catalog configuration into a
 ### Import Catalog Button
 
 - **Location**: MCP Catalogs page (or appropriate location in catalogs epic)
-- **Visibility**: Button is only enabled when exactly one MCPRegistry instance exists in the selected project
+- **Visibility**: Button is only enabled when exactly one MCPRegistry instance exists in the 'toolhive-system' project
 - **State**: Disabled when:
-  - No MCPRegistry instance exists in the selected project
-  - Multiple MCPRegistry instances exist in the selected project
-  - No project is selected
+  - No MCPRegistry instance exists in the 'toolhive-system' project
+  - Multiple MCPRegistry instances exist in the 'toolhive-system' project
 
 ### Import Catalog Modal
 

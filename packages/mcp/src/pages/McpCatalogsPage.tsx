@@ -16,30 +16,26 @@ import {
   Button,
 } from '@patternfly/react-core';
 import { FolderOpenIcon, SyncIcon, PlusIcon } from '@patternfly/react-icons';
-import ProjectSelector from '@odh-dashboard/internal/concepts/projects/ProjectSelector';
-import { ProjectsContext } from '../../../../frontend/src/concepts/projects/ProjectsContext';
 import { useCatalogData } from '../hooks/useCatalogData';
 import { McpCatalogCard } from '../components/McpCatalogCard';
 import { useMcpRegistries } from '../hooks/useMcpRegistries';
 import { McpCatalogImportModal } from '../components/McpCatalogImportModal';
 
 const McpCatalogsPage: React.FC = () => {
-  const { projects, preferredProject, updatePreferredProject } = React.useContext(ProjectsContext);
-  const [selectedNamespace, setSelectedNamespace] = React.useState<string>(
-    preferredProject?.metadata.name || '',
-  );
+  // Project is fixed to 'toolhive-system'
+  const selectedNamespace = 'toolhive-system';
   const [importModalOpen, setImportModalOpen] = React.useState(false);
 
-  // Fetch MCPRegistry instances in the selected namespace to check if exactly one exists
-  const [registries, registriesLoaded] = useMcpRegistries(selectedNamespace || undefined);
+  // Fetch MCPRegistry instances in the 'toolhive-system' namespace to check if exactly one exists
+  const [registries, registriesLoaded] = useMcpRegistries(selectedNamespace);
 
-  // Check if exactly one MCPRegistry exists in the selected namespace
+  // Check if exactly one MCPRegistry exists in the 'toolhive-system' namespace
   const canImportCatalog = React.useMemo(() => {
-    if (!selectedNamespace || !registriesLoaded) {
+    if (!registriesLoaded) {
       return false;
     }
     return registries.length === 1;
-  }, [selectedNamespace, registries, registriesLoaded]);
+  }, [registries, registriesLoaded]);
 
   const mcpRegistryForImport = React.useMemo(() => {
     if (canImportCatalog && registries.length === 1) {
@@ -50,24 +46,6 @@ const McpCatalogsPage: React.FC = () => {
     }
     return undefined;
   }, [canImportCatalog, registries]);
-
-  // Sync selected namespace with preferred project changes
-  React.useEffect(() => {
-    if (preferredProject?.metadata.name && preferredProject.metadata.name !== selectedNamespace) {
-      setSelectedNamespace(preferredProject.metadata.name);
-    }
-  }, [preferredProject, selectedNamespace]);
-
-  const handleProjectSelection = (namespace: string) => {
-    setSelectedNamespace(namespace);
-    const selectedProject = projects.find((p) => p.metadata.name === namespace);
-    if (selectedProject) {
-      updatePreferredProject(selectedProject);
-    } else if (namespace === '') {
-      // "All projects" selected - don't update preferred project
-      // The selector will show "All projects" but we keep the preferred project context
-    }
-  };
 
   const { catalogs, loading, error, refetch } = useCatalogData(selectedNamespace);
 
@@ -192,12 +170,7 @@ const McpCatalogsPage: React.FC = () => {
             </strong>
           </FlexItem>
           <FlexItem>
-            <ProjectSelector
-              namespace={selectedNamespace}
-              onSelection={handleProjectSelection}
-              selectAllProjects
-              placeholder="Select a project"
-            />
+            <span>{selectedNamespace}</span>
           </FlexItem>
         </Flex>
       </PageSection>
@@ -208,9 +181,8 @@ const McpCatalogsPage: React.FC = () => {
             <CardBody>
               <EmptyState icon={FolderOpenIcon} headingLevel="h4" titleText="No catalogs found">
                 <EmptyStateBody>
-                  {selectedNamespace === ''
-                    ? 'No catalogs found in any project. Create an MCP registry with an API endpoint to see catalogs here.'
-                    : `No catalogs found in the selected project. Create an MCP registry with an API endpoint to see catalogs here.`}
+                  No catalogs found in the toolhive-system project. Create an MCP registry with an
+                  API endpoint to see catalogs here.
                 </EmptyStateBody>
               </EmptyState>
             </CardBody>

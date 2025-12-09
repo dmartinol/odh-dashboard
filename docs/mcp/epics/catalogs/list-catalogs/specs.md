@@ -7,7 +7,7 @@ The List Catalogs feature allows users to browse and view catalogs from MCP regi
 ## Feature Goals
 
 - Display available MCP catalogs from registry API endpoints
-- Support project/namespace filtering with "All projects" option
+- Fixed project namespace: 'toolhive-system' (no project selector)
 - Provide card-based catalog browsing interface
 - Enable navigation to catalog details (future implementation)
 
@@ -21,10 +21,10 @@ The catalog view displays:
    - Title: "MCP Catalogs"
    - Refresh button to manually reload catalog data
 
-2. **Project Selector**
-   - Includes "All projects" option (when `selectAllProjects` prop is enabled)
-   - Defaults to the value selected in the Projects menu, or to no value (empty string)
-   - Uses `ProjectSelector` component with `selectAllProjects={true}`
+2. **Project Display**
+   - Project is fixed to 'toolhive-system'
+   - Displays project name as read-only text (no selector)
+   - Format: "Project: toolhive-system"
 
 2. **Catalog Cards**
    - Card-based layout for displaying catalogs
@@ -52,7 +52,7 @@ The catalog view displays:
 ### Data Fetching Flow
 
 1. **Fetch MCPRegistry Instances**
-   - Query MCPRegistry CRDs from the selected project namespace
+   - Query MCPRegistry CRDs from the 'toolhive-system' namespace
    - If "All projects" is selected (empty string), query from all namespaces
    - Use `useMcpRegistries` hook with appropriate namespace parameter
 
@@ -154,7 +154,7 @@ If you need to use a different host/port, you can set environment variables:
 - **McpCatalogCard**: Individual catalog card component (similar to `McpRegistryCard`)
   - Should include: title, description, status label, metadata line, view button
   - Should match visual style and layout of registry cards
-- **ProjectSelector**: Reuse existing component with `selectAllProjects={true}`
+- **Project Display**: Display fixed project name 'toolhive-system' as read-only text
 
 ### Hooks
 
