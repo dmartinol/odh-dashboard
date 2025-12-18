@@ -1,3 +1,12 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: demo-registry-db-password
+type: Opaque
+stringData:
+  user-password: app_password
+  migrator-password: migrator_password
+---
 apiVersion: toolhive.stacklok.dev/v1alpha1
 kind: MCPRegistry
 metadata:
@@ -6,6 +15,13 @@ metadata:
 spec:
   displayName: "ToolHive Official Registry (Git)"
   registries:
+    - name: rh-one-mcp
+      format: toolhive
+      configMapRef:
+        name: rh-one-mcp
+        key: registry.json
+      syncPolicy:
+        interval: "1h"
     - name: rh-catalog-mcp
       format: toolhive
       configMapRef:
@@ -40,16 +56,12 @@ spec:
     host: demo-db-rw.toolhive-system.svc.cluster.local
     port: 5432
     user: db_app
-    # DIRTY TRICK TO USE ENV VAR FOR THE (SINGKLE) PASSWORD
-    migrationUser: db_app
+    migrationUser: db_migrator
     database: registry
     sslMode: require
-  auth:
-    mode: anonymous
-  podTemplateSpec:
-    spec:
-      containers:
-        - name: registry-api
-          env:
-            - name: PGPASSWORD
-              value: app_password
+    dbAppUserPasswordSecretRef:
+      name: demo-registry-db-password
+      key: user-password
+    dbMigrationUserPasswordSecretRef:
+      name: demo-registry-db-password
+      key: migrator-password

@@ -14,8 +14,9 @@ operator:
   # -- List of image pull secrets to use
   imagePullSecrets: []
   # -- Container image for the operator
-  image: quay.io/dmartino/thv-operator:a2483ef762c1d59ff1d4bb7842fae427e24c4d20-ubi
-  # -- Image pull policy for the operator container
+  image: quay.io/dmartino/thv-operator:00e5ace681f7a4e072de22adf00c8094a26ec7ed-ubi
+  # image: ghcr.io/stacklok/toolhive/operator:latest-ubi
+# -- Image pull policy for the operator container
   imagePullPolicy: IfNotPresent
 
   # -- Image to use for Toolhive runners
@@ -191,7 +192,8 @@ operator:
 # -- All values for the registry API deployment and associated resources
 registryAPI:
   # -- Container image for the registry API
-  image: "ghcr.io/stacklok/thv-registry-api:latest-ubi"
+  # image: "ghcr.io/stacklok/thv-registry-api:latest-ubi"
+  image: "quay.io/dmartino/toolhive-registry-server:c5e33e21cccbc816e7e16e69bdabd382b19f7223-ubi"
   # -- Service account configuration for the registry API
   serviceAccount:
     # -- Automatically mount a ServiceAccount's API credentials

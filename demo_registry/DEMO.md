@@ -56,74 +56,13 @@ oc apply -f psql.yaml
 oc get pods -w
 ```
 
-**Long Note**: ToolHive registry requires 2 distinct passwords for the app and the migratio user, and the suggested approach is to use
-a pgpassfile to define all the passwords. It should include something like:
-```
-#   localhost:5432:toolhive_registry:thv_user:your_app_password
-#   localhost:5432:toolhive_registry:thv_migrator:your_migration_password
-```
-Since the operator does not explicitly manage this `pgpassfile`, the alternative would be to generate a verbose init container in the `MCPRegistry` specs, to include something like:
-```yaml
-      - name: pgpass-fixer
-        image: alpine:3
-        command:
-        - /bin/sh
-        - -c
-        - cp /cfg/* /etc/ && chmod 0600 /etc/pgpass && chown 65532:65532 /etc/pgpass
-        volumeMounts:
-        - name: etc
-          mountPath: /etc
-        - name: config
-          mountPath: /cfg/config.yaml
-          subPath: config.yaml
-        - name: pgpass
-          mountPath: /cfg/pgpass
-          subPath: pgpass
-```
-(and I omitted the other steps to mount the `pgpass` volume).
-
-Instead of that, I simply added an env variable to the deployment to specify the password:
-```yaml
-  podTemplateSpec:
-    spec:
-      containers:
-        - name: registry-api
-          env:
-            - name: PGPASSWORD
-              value: app_password
-```
-Since there can be a single `PGPASSWORD`, I finally used the same user for both the app and the migration.
-```yaml
-  databaseConfig:
-    host: demo-db-rw.toolhive-system.svc.cluster.local
-    port: 5432
-    user: db_app
-    # DIRTY TRICK TO USE ENV VAR FOR THE (SINGKLE) PASSWORD
-    migrationUser: db_app
-```
-
-This is also reflected in the init script inside the `Database` resource:
-```yaml
-      postInitApplicationSQL:
-        - |
-          BEGIN;
-
-          DO $body$
-            DECLARE
-              migrator_user TEXT := 'db_app';
-              migrator_password TEXT := 'app_password';
-
-              app_user TEXT := 'db_app';
-              app_password TEXT := 'app_password';
-...
-```
-
 ## Deploy MCP registry
 
 Create additiona ConfigMaps
 ```
 oc create cm rh-catalog-mcp --from-file registry.json=rh-catalog-mcp.json
 oc create cm rh-partners-mcp --from-file registry.json=rh-partners-mcp.json
+oc create cm rh-one-mcp --from-file registry.json=rh-one-mcp.json
 ```
 
 Catalog source is the ToolHive registry data from the git repo:
@@ -139,6 +78,8 @@ oc get pods -w
 The manifest is a bit different from the original in the `toolhive` repo because of necessary fixes:
 * Can't use `default` name in the registry (it's aready auto-assigned to a kubernetes registry created to watch `MCPServer` instances and discover servers)
 * Added DB configuration
+  * This includes adding `dbAppUserPasswordSecretRef` and `dbMigrationUserPasswordSecretRef`
+  to initialize a `Secret` storing the `pgpass` file from the `demo-registry-db-password` (also part of the manifest)
 
 
 Verify service:
@@ -151,5 +92,57 @@ Test query
 oc exec $(oc get pods -l app.kubernetes.io/component=registry-api -oname) -- curl http://localhost:8080/registry/v0.1/servers
 ```
 
+### Connecting MCPServers
+Use the folowing annotations to connect an `MCPServer` instance to the existing registry:
+```yaml
+toolhive.stacklok.dev/registry-description: yet another MCP server
+toolhive.stacklok.dev/registry-export: "true"
+toolhive.stacklok.dev/registry-url: http://demo-registry-api.toolhive-system.svc.cluster.local:8080
+```
+(replace the registry URL with the local registry)
 
+Sample query to check the deployment is registered:
+```
+curl localhost:8888/registry/default/v0.1/servers | jq
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  1209  100  1209    0     0   3203      0 --:--:-- --:--:-- --:--:--  3206
+{
+  "servers": [
+    {
+      "server": {
+        "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+        "name": "com.toolhive.k8s.toolhive-system/io-github-stacklok-kubernetes-mcp-server",
+        "description": "yet another MCP server",
+        "version": "1.0.0",
+        "packages": [
+          {
+            "registryType": "oci",
+            "identifier": "quay.io/containers/kubernetes_mcp_server:latest-linux-amd64",
+            "version": "latest-linux-amd64",
+            "transport": {
+              "type": "sse"
+            }
+          }
+        ],
+        "remotes": [
+          {
+            "type": "streamable-http",
+            "url": "http://demo-registry-api.toolhive-system.svc.cluster.local:8080"
+          }
+        ],
+        "_meta": {
+          "io.modelcontextprotocol.registry/publisher-provided": {
+            "server_meta": "eyJpby5naXRodWIuc3RhY2tsb2siOiB7Imh0dHA6Ly9kZW1vLXJlZ2lzdHJ5LWFwaS50b29saGl2ZS1zeXN0ZW0uc3ZjLmNsdXN0ZXIubG9jYWw6ODA4MCI6IHsibWV0YWRhdGEiOiB7Imt1YmVybmV0ZXNfdWlkIjogIjMzYTQ3YWM4LThkODItNDk1OS1hM2QyLWI1YWI3NGI0MzZhZSIsICJrdWJlcm5ldGVzX2tpbmQiOiAiTUNQU2VydmVyIiwgImt1YmVybmV0ZXNfbmFtZSI6ICJpby1naXRodWItc3RhY2tsb2sta3ViZXJuZXRlcy1tY3Atc2VydmVyIiwgImt1YmVybmV0ZXNfaW1hZ2UiOiAicXVheS5pby9jb250YWluZXJzL2t1YmVybmV0ZXNfbWNwX3NlcnZlcjpsYXRlc3QtbGludXgtYW1kNjQiLCAia3ViZXJuZXRlc19uYW1lc3BhY2UiOiAidG9vbGhpdmUtc3lzdGVtIiwgImt1YmVybmV0ZXNfdHJhbnNwb3J0IjogInNzZSJ9fX19"
+          }
+        }
+      },
+      "_meta": {}
+    }
+  ],
+  "metadata": {
+    "count": 1
+  }
+}
+```
 

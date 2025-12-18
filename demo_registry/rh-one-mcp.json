@@ -1,0 +1,62 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stacklok/toolhive/main/pkg/registry/data/schema.json",
+  "version": "1.0.0",
+  "last_updated": "2025-01-14T00:00:00Z",
+  "servers": {
+    "kubernetes-mcp-server": {
+      "description": "A powerful and flexible Kubernetes Model Context Protocol (MCP) server implementation with support for Kubernetes and OpenShift",
+      "tier": "Community",
+      "status": "Active",
+      "transport": "sse",
+      "tools": [
+        "configuration_contexts_list",
+        "configuration_view",
+        "events_list",
+        "helm_install",
+        "helm_list",
+        "helm_uninstall",
+        "namespaces_list",
+        "nodes_log",
+        "nodes_stats_summary",
+        "nodes_top",
+        "pods_delete",
+        "pods_exec",
+        "pods_get",
+        "pods_list",
+        "pods_list_in_namespace",
+        "pods_log",
+        "pods_run",
+        "pods_top",
+        "projects_list",
+        "resources_create_or_update",
+        "resources_delete",
+        "resources_get",
+        "resources_list",
+        "resources_scale"
+      ],
+      "metadata": {
+        "stars": 879,
+        "pulls": 100,
+        "last_updated": "2025-12-16T16:23:00Z"
+      },
+      "repository_url": "https://github.com/containers/kubernetes-mcp-server",
+      "tags": [
+        "kubernetes",
+        "infrastructure",
+        "containers",
+        "devops",
+        "observability",
+        "openshift",
+        "service-mesh",
+        "virtualization"
+      ],
+      "image": "quay.io/containers/kubernetes_mcp_server:latest-linux-amd64",
+      "permissions": {
+        "network": {
+          "outbound": {}
+        }
+      },
+      "env_vars": []
+    }
+  }
+}

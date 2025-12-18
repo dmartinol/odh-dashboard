@@ -22,8 +22,8 @@ spec:
 
           DO $body$
             DECLARE
-              migrator_user TEXT := 'db_app';
-              migrator_password TEXT := 'app_password';
+              migrator_user TEXT := 'db_migrator';
+              migrator_password TEXT := 'migrator_password';
 
               app_user TEXT := 'db_app';
               app_password TEXT := 'app_password';
@@ -37,7 +37,7 @@ spec:
 
               CREATE ROLE toolhive_registry_server;
 
-              -- EXECUTE format('CREATE USER %I WITH PASSWORD %L', app_user, app_password);
+              EXECUTE format('CREATE USER %I WITH PASSWORD %L', app_user, app_password);
               EXECUTE format('GRANT toolhive_registry_server TO %I', app_user);
               EXECUTE format('GRANT CONNECT ON DATABASE %I TO %I', db_name, app_user);
             END;
