@@ -46,10 +46,9 @@ import { RegistryApiRegistryResponse } from '../types/registryApi';
 import { McpRegistry } from '../types/registry';
 import { McpRegistryCreateModal } from '../components/McpRegistryCreateModal';
 import { McpRegistryDeleteModal } from '../components/McpRegistryDeleteModal';
-import { McpDeploymentRestartModal } from '../components/McpDeploymentRestartModal';
 import { McpServersTab } from '../components/McpServersTab';
 import { McpRegistryStatusLabel } from '../components/McpRegistryStatusLabel';
-import { deleteMcpRegistry, createManagedRegistryEntry, deleteDeployment } from '../api/k8s/mcp';
+import { deleteMcpRegistry, createManagedRegistryEntry } from '../api/k8s/mcp';
 
 enum RegistryDetailsTab {
   OVERVIEW = 'overview',
@@ -67,12 +66,6 @@ const McpRegistriesPage: React.FC = () => {
   const [deleteModalOpen, setDeleteModalOpen] = React.useState(false);
   const [deletingRegistry, setDeletingRegistry] = React.useState<McpRegistry | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
-  const [restartModalOpen, setRestartModalOpen] = React.useState(false);
-  const [pendingRestartInfo, setPendingRestartInfo] = React.useState<{
-    deploymentName: string;
-    namespace: string;
-  } | null>(null);
-  const [isRestarting, setIsRestarting] = React.useState(false);
 
   // Use project name as registry name
   const registryName = selectedNamespace || undefined;
@@ -280,17 +273,16 @@ const McpRegistriesPage: React.FC = () => {
         return;
       }
 
-      // Create managed registry entry (will check for duplicates in the ConfigMap)
+      // Create managed registry entry via API
       await createManagedRegistryEntry(selectedNamespace, mcpRegistryName, registryNamespace);
 
-      // Show restart confirmation dialog
-      // mcpRegistryName is guaranteed to be defined here due to the check above
-      const deploymentName = `${mcpRegistryName}-api`;
-      setPendingRestartInfo({
-        deploymentName,
-        namespace: registryNamespace,
-      });
-      setRestartModalOpen(true);
+      notification.success(
+        'Registry created',
+        `Managed registry entry for project "${selectedNamespace}" has been created successfully.`,
+      );
+
+      // Refresh registry data
+      refetchVerification();
     } catch (error) {
       notification.error(
         'Create failed',
@@ -342,62 +334,6 @@ const McpRegistriesPage: React.FC = () => {
   const handleCancelDelete = () => {
     setDeleteModalOpen(false);
     setDeletingRegistry(null);
-  };
-
-  const handleConfirmRestart = async () => {
-    if (!pendingRestartInfo) {
-      return;
-    }
-
-    setIsRestarting(true);
-    try {
-      // Delete the deployment (operator will recreate it)
-      await deleteDeployment(pendingRestartInfo.deploymentName, pendingRestartInfo.namespace);
-
-      notification.success(
-        'Registry created',
-        `Managed registry entry for project "${selectedNamespace}" has been created successfully. ` +
-          `The registry API deployment is being restarted.`,
-      );
-
-      // Refresh registry data
-      refetchVerification();
-
-      // Close modal and reset state
-      setRestartModalOpen(false);
-      setPendingRestartInfo(null);
-    } catch (error) {
-      // Log warning but don't fail - deployment may not exist or already be deleted
-      console.warn('Failed to delete deployment:', error);
-      notification.warning(
-        'Deployment restart skipped',
-        `Registry entry created successfully, but deployment restart failed: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }. ` + `The deployment may need to be restarted manually.`,
-      );
-      // Still close modal and refresh
-      setRestartModalOpen(false);
-      setPendingRestartInfo(null);
-      refetchVerification();
-    } finally {
-      setIsRestarting(false);
-    }
-  };
-
-  const handleCancelRestart = () => {
-    if (!isRestarting) {
-      setRestartModalOpen(false);
-      setPendingRestartInfo(null);
-      // Still show success for registry creation
-      notification.success(
-        'Registry created',
-        `Managed registry entry for project "${selectedNamespace}" has been created successfully. ` +
-          `Please restart the deployment "${
-            pendingRestartInfo?.deploymentName || 'unknown'
-          }" manually to apply changes.`,
-      );
-      refetchVerification();
-    }
   };
 
   const getSourceTypeIcon = (sourceType?: string) => {
@@ -1055,17 +991,6 @@ const McpRegistriesPage: React.FC = () => {
           onClose={handleCancelDelete}
           onConfirm={handleConfirmDelete}
           isDeleting={isDeleting}
-        />
-      )}
-
-      {restartModalOpen && pendingRestartInfo && (
-        <McpDeploymentRestartModal
-          isOpen
-          deploymentName={pendingRestartInfo.deploymentName}
-          namespace={pendingRestartInfo.namespace}
-          onClose={handleCancelRestart}
-          onConfirm={handleConfirmRestart}
-          isRestarting={isRestarting}
         />
       )}
     </>

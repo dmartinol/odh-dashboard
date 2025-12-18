@@ -63,3 +63,46 @@ export const deleteMcpRegistry = (
     }
   });
 };
+
+/**
+ * Create a managed registry entry via the registry API
+ * @param namespace Namespace of the MCPRegistry CRD
+ * @param registryName Name of the MCPRegistry CRD (used to find the API endpoint)
+ * @param projectName Name of the registry entry to create (typically project name)
+ */
+export const createManagedRegistryEntry = (
+  namespace: string,
+  registryName: string,
+  projectName: string,
+  opts?: RequestInit,
+): Promise<unknown> => {
+  const url = `/api/mcpRegistries/${namespace}/${registryName}/create-registry/${encodeURIComponent(
+    projectName,
+  )}`;
+  return fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      name: projectName,
+      managed: {},
+    }),
+    ...opts,
+  }).then((response) => {
+    if (!response.ok) {
+      const errorText = response.statusText;
+      return response
+        .json()
+        .then((errorBody) => {
+          throw new Error(
+            errorBody.message || errorBody.error || `Failed to create registry entry: ${errorText}`,
+          );
+        })
+        .catch(() => {
+          throw new Error(`Failed to create registry entry: ${errorText}`);
+        });
+    }
+    return response.json();
+  });
+};

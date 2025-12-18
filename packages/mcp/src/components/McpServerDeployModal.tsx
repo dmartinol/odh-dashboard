@@ -39,6 +39,7 @@ import { createMcpServer, updateMcpServer } from '../api/k8s/mcp';
 import { ProjectsContext } from '../../../../frontend/src/concepts/projects/ProjectsContext';
 import { useSecrets, getSecretKeys } from '../hooks/useSecrets';
 import { useServiceAccounts } from '../hooks/useServiceAccounts';
+import { useMcpRegistries } from '../hooks/useMcpRegistries';
 
 interface McpServerDeployModalProps {
   onClose: () => void;
@@ -84,6 +85,7 @@ interface DeploymentConfig {
   cpuLimit: string;
   memoryLimit: string;
   environmentVariables: EnvironmentVariable[];
+  registryDescription: string;
   // Advanced pod configuration
   imagePullSecrets: string[];
   serviceAccount: string;
@@ -105,6 +107,7 @@ const initialConfig: DeploymentConfig = {
   cpuLimit: '500m',
   memoryLimit: '512Mi',
   environmentVariables: [],
+  registryDescription: '',
   imagePullSecrets: [],
   serviceAccount: '',
   nodeSelector: {},
@@ -133,6 +136,24 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
   const namespace = preferredProject?.metadata.name;
   const [secrets, secretsLoaded] = useSecrets(namespace);
   const [serviceAccounts, serviceAccountsLoaded] = useServiceAccounts(namespace);
+
+  // Fetch registries to find one with API endpoint for registry URL
+  const [registries] = useMcpRegistries(namespace || '');
+
+  // Find registry with API endpoint (for constructing registry URL)
+  const registryWithEndpoint = React.useMemo(() => {
+    return registries.find((reg) => {
+      return (
+        reg.status &&
+        typeof reg.status === 'object' &&
+        'apiStatus' in reg.status &&
+        reg.status.apiStatus &&
+        typeof reg.status.apiStatus === 'object' &&
+        'endpoint' in reg.status.apiStatus &&
+        typeof reg.status.apiStatus.endpoint === 'string'
+      );
+    });
+  }, [registries]);
 
   // Debug logging
   React.useEffect(() => {
@@ -174,6 +195,9 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
         memoryRequest: existingServer.spec.resources?.requests?.memory || '128Mi',
         cpuLimit: existingServer.spec.resources?.limits?.cpu || '500m',
         memoryLimit: existingServer.spec.resources?.limits?.memory || '512Mi',
+        registryDescription:
+          existingServer.metadata?.annotations?.['toolhive.stacklok.dev/registry-description'] ||
+          '',
         environmentVariables: (() => {
           // If we have complete metadata, merge configured values with all available env vars
           if (serverMetadata?.env_vars) {
@@ -358,22 +382,25 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
     setError(undefined);
 
     try {
+      // Sanitize server name for use as Kubernetes label value
+      // Kubernetes label values must: start/end with alphanumeric, contain only alphanumeric, '-', '_', or '.'
+      const sanitizeLabelValue = (value: string): string => {
+        return value
+          .replace(/\//g, '-') // Replace '/' with '-'
+          .replace(/[^a-zA-Z0-9._-]/g, '-') // Replace invalid chars with '-'
+          .replace(/^[^a-zA-Z0-9]+/, '') // Remove leading non-alphanumeric
+          .replace(/[^a-zA-Z0-9]+$/, '') // Remove trailing non-alphanumeric
+          .replace(/[-_]+/g, '-') // Replace multiple dashes/underscores with single dash
+          .toLowerCase(); // Convert to lowercase for consistency
+      };
+
       // Build base labels
       const baseLabels: Record<string, string> = {
-        'mcp.toolhive.stacklok.dev/server-type': server.name,
+        'mcp.toolhive.stacklok.dev/server-type': sanitizeLabelValue(server.name),
         'app.kubernetes.io/name': config.name,
         'app.kubernetes.io/component': 'mcp-server',
         'app.kubernetes.io/part-of': 'mcp-registry',
       };
-
-      // Add registry labels if deploying from a registry
-      if (registryContext) {
-        baseLabels['toolhive.stacklok.io/registry-name'] =
-          registryContext.registry.metadata?.name || '';
-        baseLabels['toolhive.stacklok.io/registry-namespace'] =
-          registryContext.registry.metadata?.namespace || '';
-        baseLabels['toolhive.stacklok.io/server-registry-name'] = registryContext.serverName;
-      }
 
       // Extract tier from server tags
       const getTierFromTags = (): McpServerTier => {
@@ -459,6 +486,55 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
             }
           : undefined;
 
+      // Build annotations
+      const annotations: Record<string, string> = {
+        'mcp.toolhive.stacklok.dev/server-display-name': server.displayName || server.name,
+        'mcp.toolhive.stacklok.dev/server-description': server.description || '',
+        'mcp.toolhive.stacklok.dev/server-version': server.version || '',
+        'mcp.toolhive.stacklok.dev/server-logo': server.logo || '',
+      };
+
+      // Add registry annotations if we have registry information
+      if (registryWithEndpoint || registryContext) {
+        // Get registry API endpoint from MCPRegistry status
+        const registry = registryWithEndpoint || registryContext?.registry;
+        let registryUrl = '';
+
+        if (
+          registry?.status &&
+          typeof registry.status === 'object' &&
+          'apiStatus' in registry.status
+        ) {
+          const { apiStatus } = registry.status;
+          if (
+            apiStatus &&
+            typeof apiStatus === 'object' &&
+            'endpoint' in apiStatus &&
+            typeof apiStatus.endpoint === 'string'
+          ) {
+            // Use the registry API endpoint from MCPRegistry status
+            // Normalize to use .svc.cluster.local format if it's a Kubernetes service
+            const { endpoint } = apiStatus;
+            // If endpoint is in format http://service-name.namespace:port, convert to .svc.cluster.local
+            const serviceMatch = endpoint.match(/^https?:\/\/([^.]+)\.([^.]+):(\d+)$/);
+            if (serviceMatch) {
+              const [, serviceName, registryNamespace, port] = serviceMatch;
+              registryUrl = `http://${serviceName}.${registryNamespace}.svc.cluster.local:${port}`;
+            } else {
+              // Use endpoint as-is if it doesn't match the pattern
+              registryUrl = endpoint;
+            }
+          }
+        }
+
+        if (registryUrl) {
+          annotations['toolhive.stacklok.dev/registry-export'] = 'true';
+          annotations['toolhive.stacklok.dev/registry-description'] =
+            config.registryDescription || registryContext?.serverName || server.name;
+          annotations['toolhive.stacklok.dev/registry-url'] = registryUrl;
+        }
+      }
+
       // Build the MCP server resource
       const mcpServer: McpServer = {
         apiVersion: 'toolhive.stacklok.dev/v1alpha1',
@@ -467,12 +543,7 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
           name: config.name,
           namespace: preferredProject.metadata.name,
           labels: baseLabels,
-          annotations: {
-            'mcp.toolhive.stacklok.dev/server-display-name': server.displayName || server.name,
-            'mcp.toolhive.stacklok.dev/server-description': server.description || '',
-            'mcp.toolhive.stacklok.dev/server-version': server.version || '',
-            'mcp.toolhive.stacklok.dev/server-logo': server.logo || '',
-          },
+          annotations,
           // Preserve required metadata fields when updating
           ...(existingServer?.metadata?.resourceVersion && {
             resourceVersion: existingServer.metadata.resourceVersion,
@@ -588,6 +659,23 @@ export const McpServerDeployModal: React.FC<McpServerDeployModalProps> = ({
                     <HelperTextItem>
                       A unique name for this deployment. Must be lowercase letters, numbers, and
                       hyphens only.
+                    </HelperTextItem>
+                  </HelperText>
+                </FormGroup>
+
+                <FormGroup label="Registry Description" fieldId="registry-description">
+                  <TextInput
+                    type="text"
+                    id="registry-description"
+                    name="registry-description"
+                    value={config.registryDescription}
+                    onChange={(_, value) => updateConfig({ registryDescription: value })}
+                    placeholder="My Kubernetes MCP Server"
+                  />
+                  <HelperText>
+                    <HelperTextItem>
+                      Description for this server in the registry. This will be used when the server
+                      is exported to the registry.
                     </HelperTextItem>
                   </HelperText>
                 </FormGroup>

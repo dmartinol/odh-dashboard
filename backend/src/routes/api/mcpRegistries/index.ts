@@ -448,6 +448,78 @@ export default async (fastify: KubeFastifyInstance): Promise<void> => {
   );
 
   /**
+   * Create a managed registry entry via MCP registry API
+   * PUT /api/mcpRegistries/:namespace/:registryName/create-registry/:projectName
+   * Proxies to: {endpoint}/extension/v0/registries/{projectName}
+   * Note: registryName is the MCPRegistry CRD name (used to find the API endpoint),
+   * projectName is the name of the registry entry to create (typically project name)
+   */
+  fastify.put(
+    '/:namespace/:registryName/create-registry/:projectName',
+    async (
+      request: FastifyRequest<{
+        Params: { namespace: string; registryName: string; projectName: string };
+      }>,
+      reply: FastifyReply,
+    ) => {
+      const { namespace, registryName, projectName } = request.params;
+
+      try {
+        // Get the MCPRegistry CRD to extract the API endpoint
+        const registry = await getMcpRegistry(fastify, registryName, namespace);
+
+        // Use type guard to safely extract endpoint
+        if (!hasApiStatusEndpoint(registry.status)) {
+          reply.code(404).send({
+            error: 'Registry API endpoint not available',
+            message: `MCPRegistry ${registryName} in namespace ${namespace} has no API endpoint configured`,
+          });
+          return;
+        }
+
+        let endpoint = registry.status.apiStatus.endpoint;
+
+        // Normalize the endpoint URL for Kubernetes internal services
+        endpoint = normalizeEndpointUrl(endpoint, namespace, registryName);
+        fastify.log.info(
+          `Normalized endpoint for registry creation: ${endpoint} (original: ${registry.status.apiStatus.endpoint})`,
+        );
+
+        // Construct the registry API URL
+        const registryApiUrl = `${endpoint}/extension/v0/registries/${encodeURIComponent(
+          projectName,
+        )}`;
+        fastify.log.info(`Creating registry entry at: ${registryApiUrl}`);
+
+        // Prepare the request body
+        const requestBody = {
+          name: projectName,
+          managed: {},
+        };
+
+        // Make HTTP PUT request to create the registry entry
+        const response = await makeSimpleHttpRequest<unknown>(
+          registryApiUrl,
+          'PUT',
+          fastify,
+          requestBody,
+        );
+
+        reply.send(response);
+      } catch (e) {
+        const errorMessage = extractErrorMessage(e);
+        fastify.log.error(
+          `Failed to create registry entry ${projectName} via registry ${registryName} in namespace ${namespace}: ${errorMessage}`,
+        );
+        reply.code(500).send({
+          error: 'Failed to create registry entry',
+          message: errorMessage,
+        });
+      }
+    },
+  );
+
+  /**
    * Proxy request to MCP registry API to fetch servers
    * GET /api/mcpRegistries/:namespace/:registryName/servers
    * Proxies to: {endpoint}/registry/{registryName}/v0.1/servers

@@ -7,9 +7,6 @@ import {
   K8sResourceCommon,
   K8sModelCommon,
 } from '@openshift/dynamic-plugin-sdk-utils';
-import YAML from 'yaml';
-import { ConfigMapKind } from '@odh-dashboard/internal/k8sTypes';
-import { ConfigMapModel } from '@odh-dashboard/internal/api/models/k8s';
 import { McpRegistry, McpRegistryRegistryEntry } from '../../types/registry';
 import { McpServer } from '../../types/server';
 import { McpRegistryModel, McpServerModel } from '../models/mcp';
@@ -117,114 +114,19 @@ export const patchMcpServer = (
   });
 
 /**
- * Create a managed registry entry in the ConfigMap's registries array
+ * Create a managed registry entry via the registry API
  * @param projectName Name of the project (used as registry entry name)
- * @param mcpRegistryName Name of the MCPRegistry instance (used to find ConfigMap)
+ * @param mcpRegistryName Name of the MCPRegistry CRD (used to find the API endpoint)
  * @param mcpRegistryNamespace Namespace of the MCPRegistry instance
  */
 export const createManagedRegistryEntry = async (
   projectName: string,
   mcpRegistryName: string,
   mcpRegistryNamespace: string,
-): Promise<K8sResourceCommon> => {
-  // Find the ConfigMap named {MCPRegistryName}-registry-server-config
-  const configMapName = `${mcpRegistryName}-registry-server-config`;
-
-  let configMap: ConfigMapKind;
-  try {
-    const resource = await k8sGetResource<ConfigMapKind>({
-      model: ConfigMapModel,
-      queryOptions: {
-        name: configMapName,
-        ns: mcpRegistryNamespace,
-      },
-    });
-    configMap = resource;
-  } catch (error) {
-    throw new Error(
-      `ConfigMap "${configMapName}" not found in namespace "${mcpRegistryNamespace}". ` +
-        `The ConfigMap should be created by the operator.`,
-    );
-  }
-
-  // Parse the ConfigMap data - look for config.yaml key first, then fall back to any key
-  const dataKeys = Object.keys(configMap.data || {});
-  if (dataKeys.length === 0) {
-    throw new Error(`ConfigMap "${configMapName}" has no data keys`);
-  }
-
-  // Prefer config.yaml if it exists, otherwise use the first key
-  const dataKey = dataKeys.includes('config.yaml') ? 'config.yaml' : dataKeys[0];
-  const registryDataStr = configMap.data?.[dataKey];
-
-  if (!registryDataStr || typeof registryDataStr !== 'string') {
-    throw new Error(`ConfigMap "${configMapName}" data key "${dataKey}" is not a valid string`);
-  }
-
-  // Parse the YAML data (ConfigMap uses YAML format, not JSON)
-  type RegistryData = { registries?: Array<{ name: string; [key: string]: unknown }> };
-  const isRegistryData = (value: unknown): value is RegistryData => {
-    return (
-      typeof value === 'object' &&
-      value !== null &&
-      (!('registries' in value) || Array.isArray(value.registries))
-    );
-  };
-  let registryData: RegistryData;
-  try {
-    const parsed = YAML.parse(registryDataStr);
-    if (isRegistryData(parsed)) {
-      registryData = parsed;
-    } else {
-      throw new Error('Invalid registry data structure');
-    }
-  } catch (error) {
-    throw new Error(
-      `ConfigMap "${configMapName}" contains invalid YAML in key "${dataKey}": ${
-        error instanceof Error ? error.message : 'Unknown error'
-      }`,
-    );
-  }
-
-  // Initialize registries array if it doesn't exist
-  if (!registryData.registries) {
-    registryData.registries = [];
-  }
-
-  // Check if registry entry with same name already exists
-  const existingEntry = registryData.registries.find((entry) => entry.name === projectName);
-  if (existingEntry) {
-    const existingNames = registryData.registries.map((e) => e.name).join(', ');
-    throw new Error(
-      `Registry entry with name "${projectName}" already exists in ConfigMap "${configMapName}". ` +
-        `Existing entries: ${existingNames || 'none'}.`,
-    );
-  }
-
-  // Create new managed registry entry
-  const newEntry = {
-    name: projectName,
-    format: '',
-    managed: {},
-  };
-
-  // Add the new entry to the registries array
-  registryData.registries.push(newEntry);
-
-  // Update the ConfigMap with the modified data (convert back to YAML)
-  const updatedConfigMap: ConfigMapKind = {
-    ...configMap,
-    data: {
-      ...configMap.data,
-      [dataKey]: YAML.stringify(registryData, { indent: 2 }),
-    },
-  };
-
-  // Update the ConfigMap
-  return k8sUpdateResource({
-    model: ConfigMapModel,
-    resource: updatedConfigMap,
-  });
+): Promise<unknown> => {
+  // Import the service function to avoid circular dependencies
+  const { createManagedRegistryEntry: createViaApi } = await import('../mcpRegistryService');
+  return createViaApi(mcpRegistryNamespace, mcpRegistryName, projectName);
 };
 
 /**
