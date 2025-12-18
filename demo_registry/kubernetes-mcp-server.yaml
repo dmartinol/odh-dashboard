@@ -1,0 +1,48 @@
+apiVersion: toolhive.stacklok.dev/v1alpha1
+kind: MCPServer
+metadata:
+  annotations:
+    mcp.toolhive.stacklok.dev/server-description: A powerful and flexible Kubernetes
+      Model Context Protocol (MCP) server implementation with support for Kubernetes
+      and OpenShift
+    mcp.toolhive.stacklok.dev/server-display-name: io.github.stacklok/kubernetes-mcp-server
+    mcp.toolhive.stacklok.dev/server-logo: ""
+    mcp.toolhive.stacklok.dev/server-version: 1.0.0
+    toolhive.stacklok.dev/registry-description: yet another MCP server
+    toolhive.stacklok.dev/registry-export: "true"
+    toolhive.stacklok.dev/registry-url: http://demo-registry-api.toolhive-system.svc.cluster.local:8080
+  labels:
+    app.kubernetes.io/component: mcp-server
+    app.kubernetes.io/name: io-github-stacklok-kubernetes-mcp-server
+    app.kubernetes.io/part-of: mcp-registry
+    mcp.toolhive.stacklok.dev/server-type: io.github.stacklok-kubernetes-mcp-server
+  name: io-github-stacklok-kubernetes-mcp-server
+  namespace: toolhive-system
+spec:
+  image: quay.io/containers/kubernetes_mcp_server:latest-linux-amd64
+  port: 8080
+  proxyMode: streamable-http
+  proxyPort: 8080
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  targetPort: 8080
+  transport: sse
+  trustProxyHeaders: false
+  telemetry:
+    openTelemetry:
+      enabled: true
+      endpoint: otel-collector.openshift-opentelemetry-operator.svc.cluster.local:4318
+      serviceName: kubernetes-mcp-server
+      insecure: true # Using HTTP collector endpoint
+      metrics:
+        enabled: true
+      tracing:
+        enabled: true
+        samplingRate: '1.0'
+    # prometheus:
+    #   enabled: true

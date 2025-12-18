@@ -16,7 +16,7 @@ helm upgrade --install toolhive-operator-crds ../../toolhive/deploy/charts/opera
 oc get crd | grep mcp
 ```
 
-Uninstall the operator (if needed:
+Uninstall the operator (if needed):
 ```
 helm uninstall toolhive-operator
 ```
