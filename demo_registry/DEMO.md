@@ -146,3 +146,57 @@ curl localhost:8888/registry/default/v0.1/servers | jq
 }
 ```
 
+## Monitoring
+
+The sample server manifests includes the required settings to enable pushing metrics to OpenTelemetry and scrape system metrics from Prometheus:
+```yaml
+  telemetry:
+    openTelemetry:
+      enabled: true
+      # Your OTEL collector service, e.g. otel-collector.openshift-opentelemetry-operator.svc.cluster.local:4318
+      endpoint: _OTEL_COLLECTOR_SERVICE_
+      # Change this to match your filter criteria in the dashboard 
+      serviceName: kubernetes-mcp-server
+      insecure: true # Using HTTP collector endpoint
+      metrics:
+        enabled: true
+      tracing:
+        enabled: true
+        samplingRate: '1.0'
+    prometheus:
+      # Enable scraping system metrics from Prometheus
+      enabled: true
+```
+
+In order to properly forward and collect the metrics, the `OpenTelemetryCOllector` must include the=se sections:
+```yaml
+...
+    exporters:
+      debug: {}
+      prometheus:
+        endpoint: '0.0.0.0:8889'
+        resource_to_telemetry_conversion:
+          enabled: true
+...
+    service:
+      pipelines:
+        metrics:
+          exporters:
+            - debug
+            - prometheus
+...
+```
+
+The [sample Grafana dashboard](./mcp_dashboard.json) sets a reference for metrics that 
+could be collected from the collector.
+
+The following application metrics are computed and exported to the collector:
+- toolhive_mcp_active_connections: Number of active MCP connections
+- toolhive_mcp_requests: Total number of MCP requests
+- toolhive_mcp_request_duration: Duration of MCP requests in seconds
+- toolhive_mcp_tool_calls: Total number of MCP tool calls
+**Note**: for servers using the SSE transport protocol, only the first 2 metrics are available
+
+![](./grafana-dashboard.png)
+
+
